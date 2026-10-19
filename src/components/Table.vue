@@ -2,10 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
 import type { CardPlay, Position } from '../models/gameState';
-import { cardLabel, getSuit, isRedSuit } from '../models/card';
+import { getSuit, isRedSuit } from '../models/card';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
 import ContractDisplay from './ContractDisplay.vue';
+import PlayingCard from './PlayingCard.vue';
 
 const store = useGameStore();
 
@@ -122,7 +123,6 @@ function toggleLastTrick(): void {
 
 interface SlotInfo {
   card: number | null;
-  text: string;
   red: boolean;
 }
 
@@ -130,7 +130,6 @@ function slotInfo(pos: Position): SlotInfo {
   const card = boardTrick.value.plays.find((p) => p.position === pos)?.card ?? null;
   return {
     card,
-    text: card === null ? '' : cardLabel(card),
     red: card !== null && isRedSuit(getSuit(card)),
   };
 }
@@ -148,10 +147,15 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 <template>
   <div class="table">
     <!-- 北家 -->
-    <div class="seat north">
+    <div class="seat north" :class="{ active: isActive('N') }">
+      <div class="seat-profile">
+        <span class="avatar">北</span>
+        <span class="profile-text"><strong>北家</strong><small>机器人</small></span>
+      </div>
       <Hand
         :cards="store.hands.N"
         position="N"
+        label="北 N"
         :face-down="!isFaceUp('N')"
         :is-dummy="isDummySeat('N')"
         :clickable="isClickable('N')"
@@ -162,10 +166,15 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     </div>
 
     <!-- 西家 -->
-    <div class="seat west">
+    <div class="seat west" :class="{ active: isActive('W') }">
+      <div class="seat-profile">
+        <span class="avatar">西</span>
+        <span class="profile-text"><strong>西家</strong><small>机器人</small></span>
+      </div>
       <Hand
         :cards="store.hands.W"
         position="W"
+        label="西 W"
         compact
         :face-down="!isFaceUp('W')"
         :is-dummy="isDummySeat('W')"
@@ -196,7 +205,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
         <span v-if="store.contract" class="tricks-won">定约方 {{ declarerTricks }} 墩</span>
       </div>
 
-      <BidHistory v-if="store.phase === 'bidding'" class="center-bid-history" />
+      <BidHistory v-if="store.phase === 'bidding'" class="center-bid-history" variant="table" />
 
       <div v-else-if="store.phase !== 'idle'" class="trick-board" :class="{ 'is-last': boardTrick.isLast }">
         <div
@@ -206,9 +215,13 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
           :class="[`slot-${pos}`, { active: isSlotActive(pos), winner: boardTrick.winner === pos }]"
         >
           <span class="slot-seat">{{ pos }}</span>
-          <span v-if="slotInfo(pos).card !== null" class="board-card" :class="{ red: slotInfo(pos).red }">
-            {{ slotInfo(pos).text }}
-          </span>
+          <PlayingCard
+            v-if="slotInfo(pos).card !== null"
+            class="board-card"
+            :card="slotInfo(pos).card"
+            size="md"
+            label-mode="suit-first"
+          />
           <span v-else class="slot-empty">·</span>
         </div>
 
@@ -223,10 +236,15 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     </div>
 
     <!-- 东家 -->
-    <div class="seat east">
+    <div class="seat east" :class="{ active: isActive('E') }">
+      <div class="seat-profile">
+        <span class="avatar">东</span>
+        <span class="profile-text"><strong>东家</strong><small>机器人</small></span>
+      </div>
       <Hand
         :cards="store.hands.E"
         position="E"
+        label="东 E"
         compact
         :face-down="!isFaceUp('E')"
         :is-dummy="isDummySeat('E')"
@@ -238,7 +256,11 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     </div>
 
     <!-- 南家（人类） -->
-    <div class="seat south">
+    <div class="seat south" :class="{ active: isActive('S') }">
+      <div class="seat-profile">
+        <span class="avatar you">南</span>
+        <span class="profile-text"><strong>南家</strong><small>你</small></span>
+      </div>
       <Hand
         :cards="store.hands.S"
         position="S"
@@ -256,87 +278,190 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 
 <style scoped>
 .table {
+  position: relative;
   display: grid;
   grid-template-areas:
     'north north north'
     'west center east'
     'south south south';
-  grid-template-columns: 228px minmax(0, 1fr) 228px;
-  grid-template-rows: auto minmax(280px, auto) auto;
-  gap: 10px;
-  background: linear-gradient(160deg, var(--felt), var(--felt-dark));
-  border-radius: 14px;
-  padding: 14px;
-  border: 2px solid #0d3323;
+  grid-template-columns: 250px minmax(0, 1fr) 250px;
+  grid-template-rows: auto minmax(340px, 1fr) auto;
+  gap: 8px 12px;
+  min-height: 640px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(72, 167, 112, 0.36), transparent 58%),
+    radial-gradient(circle at 50% 12%, #2d8a5d 0%, #1d6d49 42%, #12482f 100%);
+  border-radius: 22px;
+  padding: 16px;
+  border: 3px solid #0b2f21;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 235, 180, 0.12),
+    inset 0 0 90px rgba(0, 0, 0, 0.38),
+    0 18px 40px rgba(0, 0, 0, 0.36);
+}
+.table::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50% / 42%;
+  pointer-events: none;
+}
+.seat,
+.center {
+  position: relative;
+  z-index: 1;
 }
 .north {
   grid-area: north;
   justify-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 .south {
   grid-area: south;
   justify-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 .west {
   grid-area: west;
   align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 .east {
   grid-area: east;
   align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.seat-profile {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 4px;
+  border-radius: 999px;
+  background: rgba(2, 25, 16, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #123d2a;
+  background: linear-gradient(160deg, #ffe7a1, #e4b857);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+  flex: none;
+}
+.avatar.you {
+  color: #fff8e8;
+  background: linear-gradient(160deg, #2f6fca, #173d82);
+}
+.profile-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+.profile-text strong {
+  font-size: 11px;
+  color: #eefaf1;
+}
+.profile-text small {
+  font-size: 9px;
+  color: rgba(234, 245, 238, 0.7);
+}
+.seat.active .avatar {
+  outline: 2px solid #ffd666;
+  outline-offset: 2px;
+  animation: avatar-pulse 0.9s ease-in-out infinite;
+}
+@keyframes avatar-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.5), 0 2px 6px rgba(0, 0, 0, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgba(255, 214, 102, 0.4);
+  }
 }
 .center {
   grid-area: center;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 10px;
-  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 280px;
+  min-height: 340px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(3, 34, 22, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(2px);
 }
 .center-top {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  min-height: 28px;
+  padding: 2px 4px 8px;
   font-size: 13px;
-  border-bottom: 1px solid #d6ded9;
-  padding-bottom: 6px;
+  color: #eaf5ee;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 .contract {
-  font-weight: 700;
-  color: #14563a;
+  font-weight: 800;
+  color: #ffe19a;
+  font-size: 16px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 .contract.pending,
 .trick-label.pending {
-  color: #9aa7a0;
+  color: rgba(234, 245, 238, 0.5);
   font-weight: 500;
 }
 .trick-label {
-  color: #5a6a61;
+  color: rgba(234, 245, 238, 0.82);
 }
 .tricks-won {
   margin-left: auto;
-  color: #8a5a00;
-  font-weight: 600;
+  color: #ffe19a;
+  font-weight: 700;
+  font-size: 12px;
 }
 .last-trick-btn {
-  padding: 2px 8px;
-  border: 1px solid #b9c4bd;
-  border-radius: 5px;
-  background: #fff;
-  font-size: 12px;
+  padding: 3px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 11px;
   font-weight: 600;
-  color: #14563a;
+  color: #eaf5ee;
   cursor: pointer;
 }
 .last-trick-btn:hover {
-  background: #eef4ef;
+  background: rgba(255, 255, 255, 0.14);
 }
 .last-trick-btn.on {
-  background: #14563a;
-  color: #fff;
-  border-color: #14563a;
+  background: #d9a300;
+  color: #2c2200;
+  border-color: #ffe19a;
 }
 .center-bid-history {
   flex: 1;
@@ -347,6 +472,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   display: flex;
   align-items: center;
   justify-content: center;
+  color: rgba(234, 245, 238, 0.55);
 }
 .trick-board {
   flex: 1;
@@ -355,22 +481,22 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     '. north .'
     'west center east'
     '. south .';
-  grid-template-columns: minmax(70px, 1fr) minmax(110px, 1.2fr) minmax(70px, 1fr);
-  grid-template-rows: repeat(3, minmax(58px, 1fr));
-  gap: 6px;
-  min-height: 240px;
+  grid-template-columns: minmax(90px, 1fr) minmax(130px, 1.15fr) minmax(90px, 1fr);
+  grid-template-rows: repeat(3, minmax(74px, 1fr));
+  gap: 4px;
+  min-height: 280px;
 }
 .trick-slot {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  border: 1px dashed #c9d6cf;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.5);
-  padding: 4px;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 3px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .trick-slot.slot-N {
   grid-area: north;
@@ -385,41 +511,44 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   grid-area: west;
 }
 .trick-slot.active {
-  border-color: #d9a300;
-  background: #fff8e2;
-  box-shadow: 0 0 0 2px rgba(217, 163, 0, 0.35);
+  background: radial-gradient(circle, rgba(255, 214, 102, 0.18), transparent 68%);
 }
 .trick-slot.winner {
-  border-color: #d9a300;
-  background: #fff8e2;
-  box-shadow: 0 0 0 2px rgba(217, 163, 0, 0.4);
+  background: radial-gradient(circle, rgba(255, 214, 102, 0.24), transparent 70%);
 }
 .slot-seat {
-  font-size: 10px;
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  z-index: 2;
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.24);
+  color: rgba(234, 245, 238, 0.7);
+  font-size: 9px;
   font-weight: 700;
-  color: #8a9790;
+  text-align: center;
+}
+.trick-slot.active .slot-seat,
+.trick-slot.winner .slot-seat {
+  background: #d9a300;
+  color: #2c2200;
 }
 .board-card {
-  min-width: 52px;
-  min-height: 64px;
-  border: 2px solid #14563a;
-  border-radius: 7px;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1c2b22;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.32));
 }
-.board-card.red {
-  color: #c0392b;
+.trick-slot.active .board-card {
+  outline: 2px solid rgba(255, 214, 102, 0.8);
+  outline-offset: 1px;
+}
+.trick-slot.winner .board-card {
+  outline: 2px solid #ffe19a;
+  outline-offset: 2px;
 }
 .slot-empty {
-  color: #c9d6cf;
-  font-size: 20px;
+  color: rgba(234, 245, 238, 0.22);
+  font-size: 22px;
   line-height: 1;
 }
 .trick-center {
@@ -429,27 +558,73 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border-radius: 10px;
-  background: rgba(20, 86, 58, 0.06);
-  border: 1px solid #d6ded9;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.1) 68%, transparent 72%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 8px;
   text-align: center;
 }
 .board-label {
   font-weight: 700;
-  color: #14563a;
-  font-size: 14px;
+  color: #eaf5ee;
+  font-size: 13px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 .board-note {
-  font-size: 11px;
-  color: #8a9790;
+  font-size: 10px;
+  color: rgba(234, 245, 238, 0.55);
 }
 .winner-tag {
-  font-size: 12px;
-  color: #8a5a00;
-  font-weight: 600;
+  font-size: 11px;
+  color: #2c2200;
+  background: #ffe19a;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-weight: 700;
 }
 .muted {
-  color: #9aa7a0;
+  color: rgba(234, 245, 238, 0.55);
+}
+:deep(.contract .suit.red) {
+  color: #ff8b7d;
+}
+
+@media (max-width: 900px) {
+  .table {
+    grid-template-columns: 195px minmax(0, 1fr) 195px;
+    min-height: 560px;
+    padding: 10px;
+    gap: 6px;
+  }
+  .trick-board {
+    grid-template-columns: 70px minmax(110px, 1fr) 70px;
+    grid-template-rows: repeat(3, minmax(62px, 1fr));
+  }
+  .center {
+    padding: 7px;
+  }
+}
+
+@media (max-width: 720px) {
+  .table {
+    grid-template-areas:
+      'north'
+      'west'
+      'center'
+      'east'
+      'south';
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    min-height: 0;
+    border-radius: 16px;
+  }
+  .west,
+  .east {
+    align-self: auto;
+    align-items: center;
+  }
+  .center {
+    min-height: 300px;
+  }
 }
 </style>

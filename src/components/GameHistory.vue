@@ -25,6 +25,7 @@ const currentDeal = computed<DealRecord | null>(() => {
     tricks: store.tricks,
     currentTrick: store.currentTrick,
     hcp: { ...store.dealHcp },
+    hands: store.dealHands,
     score: store.score,
     phase: store.phase,
   };

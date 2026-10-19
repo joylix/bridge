@@ -3,7 +3,10 @@ import { computed } from 'vue';
 import { useGameStore, describeCall, suitName, vulName } from '../store/game';
 import type { BidRecord, Position } from '../models/gameState';
 
-const props = withDefaults(defineProps<{ title?: string }>(), { title: '叫牌过程' });
+const props = withDefaults(defineProps<{ title?: string; variant?: 'panel' | 'table' }>(), {
+  title: '叫牌过程',
+  variant: 'panel',
+});
 
 const store = useGameStore();
 const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
@@ -42,7 +45,7 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
 </script>
 
 <template>
-  <div class="bid-history">
+  <div class="bid-history" :class="`variant-${props.variant}`">
     <div class="bid-title-row">
       <span class="bid-title">{{ props.title }}</span>
       <span class="bid-meta">
@@ -152,5 +155,96 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
 }
 .muted {
   color: #9aa7a0;
+}
+
+/* 中央牌桌样式：羊皮纸叫牌卡，接近线下叫牌盒/叫牌纸 */
+.variant-table {
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 30%),
+    #f2e8cc;
+  border: 1px solid #c9b98e;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 8px 20px rgba(0, 0, 0, 0.22);
+  color: #252017;
+  font-size: 16px;
+}
+.variant-table .bid-title-row {
+  padding-bottom: 5px;
+  border-bottom: 1px solid #d8c9a3;
+}
+.variant-table .bid-title {
+  color: #5b4315;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+}
+.variant-table .bid-meta {
+  color: #7a6840;
+  font-size: 11px;
+}
+.variant-table .vul-tag {
+  color: #5b4315;
+  background: rgba(255, 255, 255, 0.55);
+  border-color: #d8c9a3;
+}
+.variant-table .bid-scroll {
+  max-height: none;
+  border: 1px solid #d8c9a3;
+  border-radius: 8px;
+  overflow: auto;
+  background: rgba(255, 252, 242, 0.55);
+}
+.variant-table .bid-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  gap: 0;
+  background: #d9c79a;
+  border-bottom: 1px solid #c9b98e;
+}
+.variant-table .bid-header span {
+  padding: 4px 0;
+  color: #4e3a10;
+  font-size: 12px;
+  border-right: 1px solid rgba(120, 95, 38, 0.18);
+}
+.variant-table .bid-header span:last-child {
+  border-right: 0;
+}
+.variant-table .bid-row {
+  gap: 0;
+  border-bottom: 1px solid rgba(120, 95, 38, 0.14);
+}
+.variant-table .bid-row:nth-child(even) {
+  background: rgba(217, 199, 154, 0.16);
+}
+.variant-table .bid-row:last-child {
+  border-bottom: 0;
+}
+.variant-table .bid-cell {
+  min-height: 30px;
+  padding: 4px 0;
+  border-right: 1px solid rgba(120, 95, 38, 0.1);
+}
+.variant-table .bid-cell:last-child {
+  border-right: 0;
+}
+.variant-table .bid-level {
+  font-size: 15px;
+  color: #3a2b0b;
+}
+.variant-table .bid-suit {
+  font-size: 24px;
+}
+.variant-table .bid-label {
+  font-size: 13px;
+  color: #5b4315;
+}
+.variant-table .muted {
+  padding: 10px;
+  color: #9b8a61;
 }
 </style>

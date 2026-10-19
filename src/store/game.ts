@@ -68,6 +68,8 @@ export interface DealRecord {
   currentTrick: CardPlay[];
   /** 本副发牌时双方联手大牌点（贴点制计分的依据） */
   hcp: { NS: number; EW: number };
+  /** 本副原始四手牌（出牌会消耗 hands，这里保留发牌快照用于复盘） */
+  hands?: Record<Position, Hand>;
   score: { NS: number; EW: number };
   phase: GamePhase;
 }
@@ -179,6 +181,9 @@ export const useGameStore = defineStore('game', () => {
   /** 本副发牌时双方联手大牌点（出牌会消耗手牌，故单独保存供结算与复盘使用） */
   const dealHcp = ref<{ NS: number; EW: number }>({ NS: 20, EW: 20 });
 
+  /** 本副发牌快照（出牌会消耗 state.hands，结算时需要展示四手牌分布） */
+  const dealHands = ref<Record<Position, Hand>>({ N: [], E: [], S: [], W: [] });
+
   /**
    * 计点（IMP）胜负汇总：本局点数 + 本循环累计点数与总点数差。
    * 以 `roundSize` 副为一个完整循环；已结算的对局计入所在循环。
@@ -247,6 +252,7 @@ export const useGameStore = defineStore('game', () => {
       tricks: deepCopy(state.tricks),
       currentTrick: deepCopy(state.currentTrick),
       hcp: { ...dealHcp.value },
+      hands: deepCopy(dealHands.value),
       score: { ...state.score },
       phase: state.phase,
     });
@@ -500,6 +506,7 @@ export const useGameStore = defineStore('game', () => {
     (['N', 'E', 'S', 'W'] as Position[]).forEach((p) => {
       state.hands[p] = sortHand(dealt[p]);
     });
+    dealHands.value = deepCopy(state.hands);
 
     // 记录本副双方联手大牌点（贴点制计分依据）
     dealHcp.value = {
@@ -672,6 +679,7 @@ export const useGameStore = defineStore('game', () => {
     pointsSummary,
     useHcpAdjust,
     dealHcp,
+    dealHands,
     // 规则资产
     biddingRules,
     leadRules,

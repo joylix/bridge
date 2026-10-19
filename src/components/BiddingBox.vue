@@ -22,6 +22,13 @@ const isHumanTurn = computed(
   () => isBidding.value && store.controlledSeats().includes(store.currentBidder),
 );
 
+/** 当前最高叫品（用于叫牌卡顶部提示） */
+const currentBidLabel = computed(() => {
+  const bid = store.currentBid;
+  if (!bid) return '尚无叫品';
+  return `${bid.level}${SUIT_SYMBOL[bid.suit]}`;
+});
+
 /** 本局点数文案（结算后展示；启用贴点时附上调整量） */
 const dealPointsLabel = computed(() => {
   const p = store.pointsSummary.dealPoints;
@@ -78,11 +85,16 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
 <template>
   <div class="panel bidding-box">
     <h3>
-      {{ isBidding ? '叫牌面板' : '本局信息' }}
+      {{ isBidding ? '叫牌卡' : '本局信息' }}
       <span v-if="store.isAiThinking" class="thinking">AI 思考中…</span>
     </h3>
 
     <template v-if="isBidding">
+      <div class="bid-status" :class="{ yours: isHumanTurn }">
+        <span class="status-seat">{{ isHumanTurn ? '轮到你叫牌' : `等待 ${store.currentBidder} 家叫牌` }}</span>
+        <span class="status-bid">当前：<strong>{{ currentBidLabel }}</strong></span>
+      </div>
+
       <div class="box" :class="{ 'no-events': store.isAiThinking || !isHumanTurn }">
         <div class="grid">
           <div class="row head">
@@ -90,13 +102,14 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
             <span v-for="level in LEVELS" :key="level" class="col-head">{{ level }}</span>
           </div>
           <div v-for="suit in SUITS" :key="suit" class="row">
-            <span class="row-head" :class="{ red: RED_SUITS.has(suit) }">{{ SUIT_SYMBOL[suit] }}</span>
+            <span class="row-head" :class="{ red: RED_SUITS.has(suit), nt: suit === 'NT' }">{{ SUIT_SYMBOL[suit] }}</span>
             <button
               v-for="level in LEVELS"
               :key="level"
               type="button"
               class="bid-btn"
-              :class="{ red: RED_SUITS.has(suit) }"
+              :class="{ red: RED_SUITS.has(suit), nt: suit === 'NT' }"
+              :data-suit="SUIT_SYMBOL[suit]"
               :disabled="isDisabled({ type: 'bid', level, suit })"
               @click="makeBid(level, suit)"
             >{{ level }}</button>
@@ -125,7 +138,7 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
         </div>
 
         <p class="hint">
-          {{ isHumanTurn ? '轮到你叫牌（可自由诈叫，仅受法律约束）' : '等待其他玩家叫牌…' }}
+          {{ isHumanTurn ? '可自由诈叫，仅受叫牌规则约束' : '机器人正在思考…' }}
         </p>
       </div>
     </template>
@@ -169,87 +182,166 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
 <style scoped>
 .bidding-box {
   width: 100%;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.85), transparent 38%),
+    linear-gradient(165deg, #fffdf7 0%, #f4eddd 100%);
+  border: 1px solid #d7cdb5;
+}
+.bidding-box h3 {
+  color: #14563a;
+  border-left-color: #b98a2e;
 }
 .thinking {
   font-size: 11px;
   color: #c0392b;
   font-weight: 400;
 }
+.bid-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 9px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: #e8f1ea;
+  border: 1px solid #d3e3d7;
+  font-size: 11px;
+  color: #4d5d53;
+}
+.bid-status.yours {
+  background: #fff3c4;
+  border-color: #e6cf7a;
+  color: #6b5200;
+  box-shadow: 0 0 0 2px rgba(230, 207, 122, 0.2);
+}
+.status-bid strong {
+  color: #14563a;
+  font-size: 12px;
+}
 .box.no-events {
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.62;
 }
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .row {
   display: grid;
-  grid-template-columns: 24px repeat(7, 1fr);
-  gap: 3px;
+  grid-template-columns: 26px repeat(7, 1fr);
+  gap: 4px;
   align-items: center;
 }
 .row-head {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fffdf7;
+  border: 1px solid #d8cfb8;
+  box-shadow: 0 1px 2px rgba(90, 70, 30, 0.12);
   font-size: 16px;
-  line-height: 1.2;
-  font-weight: 700;
+  line-height: 1;
+  font-weight: 800;
   text-align: center;
-  color: #3a4a40;
+  color: #2b3a31;
 }
 .row-head.red {
   color: #c0392b;
 }
+.row-head.nt {
+  font-size: 9px;
+  letter-spacing: -0.3px;
+}
 .col-head {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-align: center;
-  color: #8a9790;
+  color: #8a8270;
 }
 .special {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin-top: 6px;
+  gap: 5px;
+  margin-top: 8px;
 }
 .bid-btn {
-  padding: 3px 0;
-  border: 1px solid #b9c4bd;
-  border-radius: 5px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 30px;
+  padding: 2px 0;
+  border: 1px solid #c9bea5;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #fffefb, #f6f1e5);
+  box-shadow: 0 1px 0 #c9bea5, 0 2px 3px rgba(90, 70, 30, 0.1);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
   color: #1c2b22;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+}
+.bid-btn::after {
+  content: attr(data-suit);
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 800;
 }
 .bid-btn.red {
+  color: #1c2b22;
+}
+.bid-btn.red::after {
   color: #c0392b;
+}
+.bid-btn.nt::after {
+  font-size: 9px;
+  letter-spacing: -0.4px;
+}
+.bid-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: #b98a2e;
+  box-shadow: 0 3px 6px rgba(90, 70, 30, 0.22);
 }
 .bid-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.34;
   cursor: not-allowed;
+  filter: grayscale(0.4);
 }
 .bid-btn.pass {
-  background: #e8f1ea;
+  background: linear-gradient(180deg, #f4fbf6, #dff2e6);
+  color: #1f6b45;
   font-size: 12px;
-  padding: 4px 0;
 }
 .bid-btn.dbl {
-  background: #fdecea;
-  color: #c0392b;
-  padding: 4px 0;
+  background: linear-gradient(180deg, #fff6f5, #fde3df);
+  color: #b52b1f;
   font-size: 12px;
 }
 .bid-btn.rdbl {
-  background: #fff4d6;
+  background: linear-gradient(180deg, #fffaf0, #ffefc8);
   color: #8a5a00;
-  padding: 4px 0;
   font-size: 12px;
+}
+.bid-btn.pass::after,
+.bid-btn.dbl::after,
+.bid-btn.rdbl::after {
+  content: '';
+}
+.special .bid-btn {
+  min-height: 34px;
 }
 .hint {
   font-size: 11px;
-  color: #6a7770;
-  margin: 6px 0 0;
+  color: #7a7363;
+  margin: 7px 0 0;
+  text-align: center;
 }
 .side-bid-history {
   margin-bottom: 8px;
@@ -259,8 +351,8 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
   color: #6b5200;
   background: #fff6d8;
   border: 1px solid #e6cf7a;
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: 8px;
+  padding: 9px;
 }
 .result-title {
   margin: 0 0 6px;
@@ -284,8 +376,8 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
   color: #8a5a00;
   background: #fff;
   border: 1px solid #e6cf7a;
-  border-radius: 4px;
-  padding: 1px 6px;
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 .final-score {
   display: grid;
