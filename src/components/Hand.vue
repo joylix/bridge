@@ -37,6 +37,9 @@ const rows = computed(() =>
   })),
 );
 
+/** 北/南家用单行牌面：按 ♠ ♥ ♦ ♣ 分组，缺门不占位 */
+const singleRowGroups = computed(() => rows.value.filter((row) => row.cards.length > 0));
+
 /** 本轮已出牌的可展示信息（无则 null） */
 const played = computed(() => {
   const card = props.playedCard;
@@ -64,22 +67,48 @@ const played = computed(() => {
         />
       </div>
 
-      <div v-else class="suits" :class="{ clickable, 'no-events': !clickable }">
-        <div v-for="row in rows" :key="row.suit" class="suit-row">
-          <span class="suit-tag" :class="{ red: row.red }">{{ row.symbol }}</span>
-          <div class="suit-cards">
+      <div
+        v-else
+        class="suits"
+        :class="{ clickable, 'no-events': !clickable, 'single-row': !compact }"
+      >
+        <!-- 北/南家：单行，按 ♠ ♥ ♦ ♣ 从大到小排列 -->
+        <div v-if="!compact" class="single-row-cards">
+          <span
+            v-for="row in singleRowGroups"
+            :key="row.suit"
+            class="suit-group"
+          >
             <PlayingCard
               v-for="card in row.cards"
               :key="card"
               :card="card"
-              :size="compact ? 'xs' : 'sm'"
+              size="sm"
               :clickable="clickable"
               :active="active && clickable"
               @click="emit('card-click', card)"
             />
-            <span v-if="row.cards.length === 0" class="void">—</span>
-          </div>
+          </span>
         </div>
+
+        <!-- 东/西家：紧凑模式仍按花色分 4 行 -->
+        <template v-else>
+          <div v-for="row in rows" :key="row.suit" class="suit-row">
+            <span class="suit-tag" :class="{ red: row.red }">{{ row.symbol }}</span>
+            <div class="suit-cards">
+              <PlayingCard
+                v-for="card in row.cards"
+                :key="card"
+                :card="card"
+                :size="compact ? 'xs' : 'sm'"
+                :clickable="clickable"
+                :active="active && clickable"
+                @click="emit('card-click', card)"
+              />
+              <span v-if="row.cards.length === 0" class="void">—</span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -170,6 +199,27 @@ const played = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+.suits.single-row {
+  display: block;
+}
+.single-row-cards {
+  display: flex;
+  align-items: flex-end;
+  min-height: 48px;
+  padding-left: 3px;
+  max-width: 100%;
+}
+.suit-group {
+  display: flex;
+  align-items: flex-end;
+  flex: none;
+}
+.suit-group + .suit-group {
+  margin-left: 9px;
+}
+.suit-group .playing-card + .playing-card {
+  margin-left: -14px;
 }
 .suit-row {
   display: flex;

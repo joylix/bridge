@@ -3,29 +3,48 @@ import { mount } from '@vue/test-utils';
 import Hand from './Hand.vue';
 import { parseHand } from '../testing/testUtils';
 
-describe('Hand 分花色 4 行显示', () => {
-  it('按 ♠ ♥ ♦ ♣ 分成 4 行，同花色点数降序', () => {
+describe('Hand 牌面布局', () => {
+  it('南家单行显示，按 ♠ ♥ ♦ ♣ 从大到小排列', () => {
     const wrapper = mount(Hand, {
       props: { cards: parseHand('SAKQ2 HJT9 D5 C876'), position: 'S' },
+    });
+    const suits = wrapper.get('.suits');
+    expect(suits.classes()).toContain('single-row');
+    expect(wrapper.findAll('.suit-row')).toHaveLength(0);
+    expect(wrapper.findAll('.suit-group')).toHaveLength(4);
+    expect(wrapper.findAll('.card').map((c) => c.text())).toEqual([
+      'A',
+      'K',
+      'Q',
+      '2',
+      'J',
+      '10',
+      '9',
+      '5',
+      '8',
+      '7',
+      '6',
+    ]);
+  });
+
+  it('北家单行显示，缺门不渲染占位符', () => {
+    const wrapper = mount(Hand, {
+      props: { cards: parseHand('SAKQJ2 HJT9 D5432'), position: 'N' },
+    });
+    expect(wrapper.findAll('.suit-row')).toHaveLength(0);
+    expect(wrapper.findAll('.suit-group')).toHaveLength(3);
+    expect(wrapper.findAll('.void')).toHaveLength(0);
+    expect(wrapper.findAll('.card')).toHaveLength(12);
+  });
+
+  it('东西家紧凑模式仍按花色分 4 行', () => {
+    const wrapper = mount(Hand, {
+      props: { cards: parseHand('SAKQJ2 HJT9 D5432'), position: 'E', compact: true },
     });
     const rows = wrapper.findAll('.suit-row');
     expect(rows).toHaveLength(4);
     expect(rows.map((r) => r.get('.suit-tag').text())).toEqual(['♠', '♥', '♦', '♣']);
-    const ranks = (i: number) => rows[i].findAll('.card').map((c) => c.text());
-    expect(ranks(0)).toEqual(['A', 'K', 'Q', '2']);
-    expect(ranks(1)).toEqual(['J', '10', '9']);
-    expect(ranks(2)).toEqual(['5']);
-    expect(ranks(3)).toEqual(['8', '7', '6']);
-  });
-
-  it('缺门花色显示占位符', () => {
-    const wrapper = mount(Hand, {
-      props: { cards: parseHand('SAKQJ2 HJT9 D5432'), position: 'N' },
-    });
-    const rows = wrapper.findAll('.suit-row');
-    expect(rows).toHaveLength(4);
     expect(wrapper.findAll('.void')).toHaveLength(1);
-    expect(rows[3].findAll('.card')).toHaveLength(0);
   });
 
   it('暗手只渲染牌背，不泄露牌型', () => {
