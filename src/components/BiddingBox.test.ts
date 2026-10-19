@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 import ElementPlus from 'element-plus';
 import BiddingBox from './BiddingBox.vue';
 import { useGameStore } from '../store/game';
@@ -32,6 +33,21 @@ describe('BiddingBox 阶段切换', () => {
     const { wrapper } = setup('bidding');
     expect(wrapper.findAll('.bid-btn').length).toBeGreaterThan(0);
     expect(wrapper.find('.bid-history').exists()).toBe(false);
+  });
+
+  it('上家叫 1♣ 后，同阶更高的 1♠ 可以叫', async () => {
+    const { store, wrapper } = setup('bidding');
+    store.biddingHistory = [
+      { position: 'N', call: { type: 'bid', level: 1, suit: 'C' } },
+      { position: 'E', call: { type: 'pass' } },
+    ];
+    store.currentBid = { level: 1, suit: 'C' };
+    store.currentBidder = 'S';
+    await nextTick();
+
+    const spadeRow = wrapper.findAll('.row').find((row) => row.get('.row-head').text() === '♠')!;
+    const oneSpade = spadeRow.findAll('.bid-btn')[0];
+    expect(oneSpade.attributes('disabled')).toBeUndefined();
   });
 
   it('叫牌结束后显示叫牌过程，不再显示叫牌按钮', () => {

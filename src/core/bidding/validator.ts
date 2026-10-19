@@ -1,11 +1,13 @@
 import type { BidRecord, BidCall, BidSuit, Position } from '../../models/gameState';
 import { getPartner } from '../../models/gameState';
 
-const BID_SUIT_ORDER: Record<BidSuit, number> = { C: 1, D: 2, H: 3, S: 4, NT: 5 };
+/** 桥牌叫品花色等级：♣ < ♦ < ♥ < ♠ < NT */
+const BID_SUIT_ORDER: Record<BidSuit, number> = { C: 0, D: 1, H: 2, S: 3, NT: 4 };
 
-/** 叫品的“绝对大小”，用于层级递增比较 */
+/** 叫品的“绝对大小”，用于层级递增比较（同阶时按花色等级） */
 export function bidValue(level: number, suit: BidSuit): number {
-  return level * 5 + (BID_SUIT_ORDER[suit] ?? 0);
+  const normalized = String(suit).toUpperCase() as BidSuit;
+  return (level - 1) * 5 + (BID_SUIT_ORDER[normalized] ?? 0);
 }
 
 /** 叫品合法性：无当前叫品时任意叫品合法；否则必须严格高于当前叫品 */
@@ -23,6 +25,14 @@ function findLastBidIndex(history: BidRecord[]): number {
     if (history[i].call.type === 'bid') return i;
   }
   return -1;
+}
+
+/** 从叫牌历史中取当前叫品；历史比 UI/存档里的 currentBid 更可靠 */
+export function lastBidOf(history: BidRecord[]): { level: number; suit: BidSuit } | null {
+  const i = findLastBidIndex(history);
+  if (i === -1) return null;
+  const call = history[i].call;
+  return call.type === 'bid' ? { level: call.level, suit: call.suit } : null;
 }
 
 /** 统计 afterIdx 之后出现的加倍状态（新叫品会重置） */
@@ -77,7 +87,8 @@ export function isCallLegal(
     case 'pass':
       return true;
     case 'bid':
-      return isBidLegal(currentBid, call);
+      // 以历史中的最后叫品为准，避免界面状态滞后时把 1♣ 后的 1♠ 误判为非法。
+      return isBidLegal(lastBidOf(history) ?? currentBid, call);
     case 'double':
       return isDoubleLegal(history, position);
     case 'redouble':

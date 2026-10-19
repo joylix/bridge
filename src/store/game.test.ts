@@ -424,6 +424,26 @@ describe('人类叫牌自由度（用例 3）', () => {
       vi.useRealTimers();
     }
   });
+
+  it('上家叫 1♣ 后，人类可以叫同阶更高的 1♠', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = newStore();
+      store.startNewGame({ autoStart: false, seed: 11 });
+      store.applyBid('N', parseAction('1C'));
+      store.applyBid('E', { type: 'pass' });
+      expect(store.currentBid).toEqual({ level: 1, suit: 'C' });
+      expect(store.currentBidder).toBe('S');
+
+      void store.humanBid(parseAction('1S'));
+      const last = store.biddingHistory.at(-1)!;
+      expect(last.position).toBe('S');
+      expect(last.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('全机器自动托管（端到端）', () => {

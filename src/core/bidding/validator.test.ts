@@ -30,6 +30,17 @@ describe('叫品层级法律 (isBidLegal)', () => {
     expect(bidValue(1, 'S')).toBeGreaterThan(bidValue(1, 'H'));
     expect(bidValue(2, 'C')).toBeGreaterThan(bidValue(1, 'NT'));
   });
+
+  it('同阶花色严格按 ♣ < ♦ < ♥ < ♠ < NT，1♣ 后可以叫 1♠', () => {
+    const suits = ['C', 'D', 'H', 'S', 'NT'] as const;
+    for (let i = 0; i < suits.length; i++) {
+      for (let j = i + 1; j < suits.length; j++) {
+        expect(isBidLegal({ level: 1, suit: suits[i] }, { level: 1, suit: suits[j] })).toBe(true);
+        expect(isBidLegal({ level: 1, suit: suits[j] }, { level: 1, suit: suits[i] })).toBe(false);
+      }
+    }
+    expect(isBidLegal({ level: 1, suit: 'C' }, { level: 1, suit: 'S' })).toBe(true);
+  });
 });
 
 describe('加倍/再加倍法律', () => {
@@ -86,6 +97,14 @@ describe('统一合法性入口 (isCallLegal)', () => {
     const h = history(['N', '2H']);
     expect(isCallLegal(h, { level: 2, suit: 'H' }, 'E', { type: 'bid', level: 1, suit: 'S' })).toBe(false);
     expect(isCallLegal(h, { level: 2, suit: 'H' }, 'E', { type: 'bid', level: 2, suit: 'S' })).toBe(true);
+  });
+
+  it('上家 1♣ 后可以叫 1♠，即使传入的 currentBid 为空或是旧值', () => {
+    const h = history(['N', '1C'], ['E', 'Pass']);
+    const oneSpade = { type: 'bid' as const, level: 1, suit: 'S' as const };
+    expect(isCallLegal(h, { level: 1, suit: 'C' }, 'S', oneSpade)).toBe(true);
+    // 界面状态滞后（currentBid 尚未同步）时，历史中的 1C 仍然作为判定依据
+    expect(isCallLegal(h, null, 'S', oneSpade)).toBe(true);
   });
   it('加倍合法性由历史推导', () => {
     const h = history(['N', '1S']);
