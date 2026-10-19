@@ -1,0 +1,80 @@
+:root {
+  --felt: #1f6b45;
+  --felt-dark: #14563a;
+  --ink: #1c2b22;
+  --paper: #f7f7f2;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 50% 30%, #2b7d55 0%, #14432e 70%, #0d3323 100%);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: #eaf5ee;
+  margin-bottom: 12px;
+}
+
+.app-header h1 {
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.app-header .status {
+  flex: 1;
+  min-width: 220px;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.app-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--paper);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.panel + .panel {
+  margin-top: 12px;
+}
+
+.panel h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #3a4a40;
+  border-left: 3px solid var(--felt);
+  padding-left: 8px;
+}

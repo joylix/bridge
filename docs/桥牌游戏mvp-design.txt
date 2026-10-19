@@ -1,0 +1,1391 @@
+# 桥牌游戏 MVP 详细设计文档（基于 V1.3）
+
+> **文档目的**：为 AI 自动编程提供详尽的、可直接编码的设计规范，涵盖所有模块、接口、算法和规则文件格式。
+>
+> **文档版本**：V1.4（在 V1.3 基础上完成设计订正与接口冻结）
+>
+> **本次订正要点（相对 V1.3）**：
+> 1. 修复序列匹配器：`^$`（无实质叫品）与 `.*`（兜底）此前恒不匹配。
+> 2. 座位归属问题：序列 token 改为相对座位（`M/P/L/R`），移除旧 `position` 字段，可正确识别敌方干扰。
+> 3. 修复加倍/再加倍法律：`lastBid` 仅取真正的叫品，修正此前“再加倍恒非法”“可加倍同伴”的错误。
+> 4. 叫牌 AI 出口增加动作合法性过滤，杜绝 AI 产生非法叫品。
+> 5. 修复均型判定（排除 5-4-2-2 / 5-4-3-1）。
+> 6. 冻结规则引擎接口：`RuleContext / ConditionSpec / BiddingRule / LeadRule / StyleParams`。
+> 7. 引入三档风格（0 保守 / 1 正常 / 2 激进）与 ε 探索（`randomness`，带 seed 可复现）。
+> 8. 冻结人类控制模型：以 `humanSeats` + `controllableSeats()` 取代 `controlledPosition`。
+> 9. 补相位状态机表；明确 YAML 以 Vite `?raw` 加载、`signals.yml` 不解析。
+
+---
+
+## 1. 总体架构
+
+```
+src/
+├── core/
+│   ├── deck.ts
+│   ├── evaluate.ts
+│   ├── bidding/
+│   │   └── validator.ts
+│   ├── playing.ts
+│   ├── trick.ts
+│   └── scoring.ts
+├── engine/
+│   ├── loader.ts
+│   ├── matcher.ts
+│   ├── conditions.ts       # 条件检查函数集
+│   ├── arbiter.ts          # 裁决与探索（优先级+具体度+ε）
+│   └── types.ts
+├── rules/
+│   ├── bidding/
+│   │   └── precision.yml
+│   └── play/
+│       ├── leads.yml
+│       └── signals.yml
+├── ai/
+│   ├── bidAI.ts
+│   └── playAI.ts
+├── models/
+│   ├── card.ts
+│   ├── hand.ts
+│   └── gameState.ts
+├── components/
+│   ├── Table.vue
+│   ├── Hand.vue
+│   ├── BiddingBox.vue
+│   └── ScoreBoard.vue
+├── store/
+│   └── game.ts
+└── App.vue
+```
+
+---
+
+## 2. 数据模型（models/）
+
+### 2.1 牌表示（card.ts）
+
+沿用 0-51 数字模型：
+
+```ts
+// card.ts
+export const SUIT = ['♣', '♦', '♥', '♠'] as const;
+export type SuitIndex = 0 | 1 | 2 | 3;
+export const RANK_NAMES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+export function getSuit(card: number): SuitIndex {
+  return Math.floor(card / 13) as SuitIndex;
+}
+export function getRank(card: number): number {
+  return card % 13;
+}
+export function getCard(suit: SuitIndex, rank: number): number {
+  return suit * 13 + rank;
+}
+// 花色符号
+export function suitSymbol(suit: SuitIndex): string {
+  return SUIT[suit];
+}
+// 点数名称
+export function rankName(card: number): string {
+  return RANK_NAMES[getRank(card)];
+}
+```
+
+### 2.2 手牌与排序（hand.ts）
+
+```ts
+export type Hand = number[];
+
+/** 
+ * 排序：♠ > ♥ > ♦ > ♣，同花色点数从 A 到 2 降序。
+ */
+export function sortHand(hand: Hand): Hand {
+  const SUIT_ORDER = [3, 2, 1, 0];
+  return [...hand].sort((a, b) => {
+    const sa = getSuit(a), sb = getSuit(b);
+    const ia = SUIT_ORDER.indexOf(sa), ib = SUIT_ORDER.indexOf(sb);
+    if (ia !== ib) return ia - ib;
+    return getRank(b) - getRank(a); // 降序
+  });
+}
+```
+
+### 2.3 游戏状态（gameState.ts）
+
+```ts
+import type { Hand } from './hand';
+
+export type Position = 'N' | 'E' | 'S' | 'W';
+
+export type BidCall = 
+  | { type: 'pass' }
+  | { type: 'bid', level: number, suit: BidSuit } 
+  | { type: 'double' }
+  | { type: 'redouble' };
+
+export type BidSuit = 'C' | 'D' | 'H' | 'S' | 'NT';
+
+export interface BidRecord {
+  position: Position;
+  call: BidCall;
+}
+
+export interface Contract {
+  level: number;
+  suit: BidSuit;
+  doubled: boolean;
+  redoubled: boolean;
+  declarer: Position;  // 庄家
+  dummy: Position;     // 明手
+}
+
+export interface CardPlay {
+  position: Position;
+  card: number;
+}
+
+export interface Trick {
+  plays: [CardPlay, CardPlay, CardPlay, CardPlay];
+  leader: Position;
+  winner: Position;
+}
+
+export type GamePhase = 'idle' | 'bidding' | 'play_waiting_lead' | 'play' | 'scoring';
+
+/** 风格档位：0=保守，1=正常，2=激进 */
+export type StyleLevel = 0 | 1 | 2;
+
+/** 每个座位的机器人配置（冻结接口） */
+export interface SeatStyle {
+  bid: StyleLevel;      // 叫牌风格
+  play: StyleLevel;     // 打牌风格
+  randomness: number;   // [0,1] 探索概率：0=严格按规则；越大越可能出现非最优选择
+}
+
+export interface GameState {
+  phase: GamePhase;
+  dealer: Position;
+  vulnerability: 'none' | 'NS' | 'EW' | 'both';
+  hands: Record<Position, Hand>;
+  biddingHistory: BidRecord[];
+  currentBid: { level: number; suit: BidSuit } | null;
+  doubleState: 'none' | 'double' | 'redouble';
+  currentBidder: Position;
+  contract: Contract | null;
+  tricks: Trick[];
+  currentTrick: CardPlay[];
+  trickLeader: Position | null;
+  nextPlayer: Position | null;
+  dummyOpen: boolean;
+  score: { NS: number; EW: number };
+  message: string;
+  isAiThinking: boolean;
+  // —— 人类控制模型（冻结）——
+  humanSeats: Position[];               // 人类实际就坐的座位（MVP 恒为 ['S']）
+  styles: Record<Position, SeatStyle>;  // 各座位风格与随机度
+  rngSeed: number;                      // 随机种子：保证回放/复现
+}
+```
+
+**辅助方向函数**：
+
+```ts
+const ORDER: Position[] = ['N', 'E', 'S', 'W'];
+export function nextPosition(pos: Position): Position {
+  const idx = ORDER.indexOf(pos);
+  return ORDER[(idx + 1) % 4];
+}
+export function getPartner(pos: Position): Position {
+  const idx = ORDER.indexOf(pos);
+  return ORDER[(idx + 2) % 4];
+}
+export function getSide(pos: Position): 'NS' | 'EW' {
+  return (pos === 'N' || pos === 'S') ? 'NS' : 'EW';
+}
+
+/**
+ * 当前对人类开放的“可操作座位”集合（冻结接口）。
+ * - 若人类所在方为定约方：人类同时操作庄家与明手两张手牌（含“南做庄、北明手”主场景）；
+ * - 否则：人类只操作自己的座位。
+ * 用于 UI 判定可点击范围、store 判定输入合法性，替代早期含糊的 controlledPosition 单字段模型。
+ */
+export function controllableSeats(state: GameState): Position[] {
+  if (!state.contract) return [...state.humanSeats];
+  const declSide = getSide(state.contract.declarer);
+  const humanOnDeclSide = state.humanSeats.some(p => getSide(p) === declSide);
+  return humanOnDeclSide ? [state.contract.declarer, state.contract.dummy] : [...state.humanSeats];
+}
+```
+
+---
+
+## 3. 核心引擎（core/）
+
+### 3.1 发牌与洗牌（deck.ts）
+
+```ts
+export function createDeck(): number[] { return Array.from({length:52}, (_,i)=>i); }
+export function shuffle(deck: number[]): number[] {
+  const arr = [...deck];
+  for (let i=arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+export function deal(shuffled: number[]): Record<Position, Hand> {
+  return {
+    N: shuffled.slice(0,13),
+    E: shuffled.slice(13,26),
+    S: shuffled.slice(26,39),
+    W: shuffled.slice(39,52)
+  };
+}
+```
+
+### 3.2 评估函数（evaluate.ts）
+
+```ts
+export function hcp(hand: Hand): number {
+  return hand.reduce((sum, card) => {
+    const r = getRank(card);
+    if (r === 9) return sum+1;  // J
+    if (r === 10) return sum+2; // Q
+    if (r === 11) return sum+3; // K
+    if (r === 12) return sum+4; // A
+    return sum;
+  }, 0);
+}
+
+export function controls(hand: Hand): number {
+  return hand.reduce((sum, card) => {
+    const r = getRank(card);
+    if (r === 12) return sum+2; // A
+    if (r === 11) return sum+1; // K
+    return sum;
+  }, 0);
+}
+
+export function distribution(hand: Hand): Record<SuitIndex, number> {
+  const dist: Record<number, number> = {0:0,1:0,2:0,3:0};
+  hand.forEach(c => dist[getSuit(c)]++);
+  return dist;
+}
+
+export function isBalanced(dist: Record<SuitIndex, number>): boolean {
+  // 标准均型仅有三种：4-3-3-3、4-4-3-2、5-3-3-2。
+  // 用显式形状串判定，避免“5-4-2-2 / 5-4-3-1”被误判为均型。
+  const shape = Object.values(dist).sort((a, b) => b - a).join('');
+  return shape === '4333' || shape === '4432' || shape === '5332';
+}
+
+export function suitLength(hand: Hand, suit: SuitIndex): number {
+  return hand.filter(c => getSuit(c) === suit).length;
+}
+```
+
+### 3.3 叫牌法律校验（validator.ts）
+
+```ts
+import type { BidRecord, BidCall, Position } from '../../models/gameState';
+import { getPartner } from '../../models/gameState';
+
+const BID_SUIT_ORDER: Record<string, number> = { C:1, D:2, H:3, S:4, NT:5 };
+
+/** 叫品的“绝对大小”，用于层级递增比较 */
+export function bidValue(level: number, suit: string): number {
+  return level * 5 + (BID_SUIT_ORDER[suit] ?? 0);
+}
+
+/** 叫品合法性：无当前叫品时任意叫品合法；否则必须严格高于当前叫品 */
+export function isBidLegal(currentBid: {level:number;suit:string}|null, newBid: {level:number;suit:string}): boolean {
+  if (!currentBid) return true;
+  return bidValue(newBid.level, newBid.suit) > bidValue(currentBid.level, currentBid.suit);
+}
+
+/** 找到最后一条“真正的叫品”(bid)，忽略 Pass / Double / Redouble */
+function findLastBidIndex(history: BidRecord[]): number {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].call.type === 'bid') return i;
+  }
+  return -1;
+}
+
+/** 统计 afterIdx 之后出现的加倍状态（新叫品会重置） */
+function getDoubleStateAfter(history: BidRecord[], afterIdx: number): 'none'|'double'|'redouble' {
+  let state: 'none'|'double'|'redouble' = 'none';
+  for (let i = afterIdx + 1; i < history.length; i++) {
+    const call = history[i].call;
+    if (call.type === 'double') {
+      if (state === 'none') state = 'double';
+    } else if (call.type === 'redouble') {
+      if (state === 'double') state = 'redouble';
+    } else if (call.type === 'bid') {
+      state = 'none'; // 新叫品重置
+    }
+  }
+  return state;
+}
+
+/**
+ * 加倍合法性：存在最后一个叫品，且该叫品由“对方”做出，且尚未被加倍/再加倍。
+ * 注意：最后叫品是 bid（不是加倍/再加倍本身），这是旧版最大的错误来源。
+ */
+export function isDoubleLegal(history: BidRecord[], position: Position): boolean {
+  const i = findLastBidIndex(history);
+  if (i === -1) return false;
+  const lastBid = history[i];
+  const byOpponent = lastBid.position !== position && lastBid.position !== getPartner(position);
+  if (!byOpponent) return false;            // 不能加倍同伴的叫品
+  return getDoubleStateAfter(history, i) === 'none';
+}
+
+/**
+ * 再加倍合法性：最后一个叫品由“我方”做出，且已被对方加倍、尚未再加倍。
+ */
+export function isRedoubleLegal(history: BidRecord[], position: Position): boolean {
+  const i = findLastBidIndex(history);
+  if (i === -1) return false;
+  const lastBid = history[i];
+  const byOurSide = lastBid.position === position || lastBid.position === getPartner(position);
+  if (!byOurSide) return false;
+  return getDoubleStateAfter(history, i) === 'double';
+}
+
+/** 统一的“该叫品是否合法”判定，供 AI 出口过滤与 UI 按钮禁用共用 */
+export function isCallLegal(
+  history: BidRecord[],
+  currentBid: { level: number; suit: string } | null,
+  position: Position,
+  call: BidCall
+): boolean {
+  switch (call.type) {
+    case 'pass': return true;
+    case 'bid': return isBidLegal(currentBid, call);
+    case 'double': return isDoubleLegal(history, position);
+    case 'redouble': return isRedoubleLegal(history, position);
+  }
+}
+
+/** 动作字符串 → BidCall，供规则引擎与 UI 共用 */
+export function parseAction(action: string): BidCall {
+  const a = action.trim();
+  if (a === 'Pass') return { type: 'pass' };
+  if (a === 'X') return { type: 'double' };
+  if (a === 'XX') return { type: 'redouble' };
+  const level = parseInt(a[0], 10);
+  const suit = a.slice(1).toUpperCase() as 'C' | 'D' | 'H' | 'S' | 'NT';
+  return { type: 'bid', level, suit };
+}
+```
+
+### 3.4 出牌法律（playing.ts）
+
+```ts
+/**
+ * 返回一手牌中所有合法的出牌。
+ * 桥牌无“必须将吃”义务：有领出花色必须跟牌，缺门则任意出牌（含将吃/垫牌）。
+ * @param hand 当前手牌
+ * @param leadSuit 本墩领出花色，null 表示首攻/领出
+ * @param trumpSuit 将牌花色（无将时 null）。MVP 中跟牌法律不依赖将牌，
+ *                  此参数为未来“禁止/要求将吃”等地方约定预留，当前实现忽略。
+ */
+export function getLegalCards(hand: Hand, leadSuit: SuitIndex | null, trumpSuit: SuitIndex | null): Hand {
+  if (leadSuit === null) return [...hand];
+  const sameSuit = hand.filter(c => getSuit(c) === leadSuit);
+  if (sameSuit.length > 0) return sameSuit;
+  // 缺门：可以垫任何牌
+  return [...hand];
+}
+
+export function isCardLegal(card: number, hand: Hand, leadSuit: SuitIndex | null): boolean {
+  if (leadSuit === null) return hand.includes(card);
+  const sameSuit = hand.filter(c => getSuit(c) === leadSuit);
+  if (sameSuit.length > 0) return getSuit(card) === leadSuit && hand.includes(card);
+  return hand.includes(card);
+}
+```
+
+### 3.5 赢墩判定（trick.ts）
+
+```ts
+export function determineTrickWinner(plays: CardPlay[], trumpSuit: SuitIndex | null): Position {
+  let winner = plays[0].position;
+  let bestCard = plays[0].card;
+
+  for (let i = 1; i < plays.length; i++) {
+    const card = plays[i].card;
+    const cardSuit = getSuit(card);
+    const bestSuit = getSuit(bestCard);
+
+    // 将牌规则
+    if (trumpSuit !== null) {
+      if (cardSuit === trumpSuit && bestSuit !== trumpSuit) {
+        winner = plays[i].position; bestCard = card; continue;
+      }
+      if (cardSuit !== trumpSuit && bestSuit === trumpSuit) continue;
+      if (cardSuit === trumpSuit && bestSuit === trumpSuit) {
+        if (getRank(card) > getRank(bestCard)) {
+          winner = plays[i].position; bestCard = card;
+        }
+        continue;
+      }
+    }
+    // 无将或非将牌：比较引牌花色
+    const leadSuit = getSuit(plays[0].card);
+    if (cardSuit === leadSuit && bestSuit === leadSuit) {
+      if (getRank(card) > getRank(bestCard)) {
+        winner = plays[i].position; bestCard = card;
+      }
+    } else if (cardSuit === leadSuit && bestSuit !== leadSuit) {
+      winner = plays[i].position; bestCard = card;
+    }
+  }
+  return winner;
+}
+```
+
+### 3.6 计分（scoring.ts）
+
+```ts
+/**
+ * 标准桥牌计分。
+ * 约定（冻结）：doubled 与 redoubled 互斥——某定约只可能处于“未加倍 / 加倍 / 再加倍”三态之一，
+ * 不会同时为 true（双方各 +50 的“礼貌奖分”只需 +50，见下）。
+ */
+export function computeScore(contract: Contract, tricksWon: number, vulnerability: string): { NS: number; EW: number } {
+  const { level, suit, doubled, redoubled } = contract;
+  const isDeclarerNS = contract.declarer === 'N' || contract.declarer === 'S';
+  const isVul = (isDeclarerNS && (vulnerability === 'NS' || vulnerability === 'both')) ||
+                (!isDeclarerNS && (vulnerability === 'EW' || vulnerability === 'both'));
+  
+  const neededTricks = level + 6;
+  const overUnder = tricksWon - neededTricks;
+  const perLevel = suit === 'C' || suit === 'D' ? 20 : suit === 'H' || suit === 'S' ? 30 : 40;
+  let trickScore = 0;
+  if (overUnder >= 0) {
+    // 墩分：低级花色 20/墩，高级花色 30/墩，无将首墩 40、之后每墩 30
+    trickScore = suit === 'NT' ? 40 + 30 * (level - 1) : perLevel * level;
+  }
+  
+  let bonus = 0;
+  let penalty = 0;
+
+  if (overUnder < 0) {
+    // 宕墩
+    const down = -overUnder;
+    if (isVul) {
+      penalty = 100 * down;
+      if (doubled) penalty = 200 + 300 * (down - 1); // 简化
+      if (redoubled) penalty = 400 + 600 * (down - 1);
+    } else {
+      penalty = 50 * down;
+      if (doubled) penalty = 100 + 200 * (down - 1);
+      if (redoubled) penalty = 200 + 400 * (down - 1);
+    }
+  } else {
+    // 完成定约
+    if (doubled) trickScore *= 2;
+    if (redoubled) trickScore *= 4;
+    
+    // 超墩分
+    let overtrickScore = 0;
+    if (overUnder > 0) {
+      const overtrickBase = suit === 'C' || suit === 'D' ? 20 : 30;
+      overtrickScore = overtrickBase * overUnder;
+      if (doubled) overtrickScore = (isVul ? 200 : 100) * overUnder;
+      if (redoubled) overtrickScore = (isVul ? 400 : 200) * overUnder;
+    }
+    
+    // 成局奖分
+    if (trickScore >= 100) {
+      bonus += isVul ? 500 : 300;
+    } else {
+      bonus += 50; // 部分定约
+    }
+    
+    // 满贯奖分
+    if (level === 6) bonus += isVul ? 750 : 500;
+    if (level === 7) bonus += isVul ? 1500 : 1000;
+    
+    // 礼貌奖分（加倍/再加倍均为 50，二者互斥）
+    if (doubled || redoubled) bonus += 50;
+
+    trickScore += overtrickScore;
+  }
+
+  const ns = isDeclarerNS ? trickScore + bonus : penalty;
+  const ew = isDeclarerNS ? penalty : trickScore + bonus;
+  return { NS: ns, EW: ew };
+}
+```
+
+---
+
+## 4. 规则引擎（engine/）
+
+### 4.1 类型定义（types.ts）
+
+```ts
+import type { Hand } from '../models/hand';
+import type { BidRecord, BidCall, Position, StyleLevel } from '../models/gameState';
+
+/** 叫牌规则（冻结接口） */
+export interface BiddingRule {
+  id: string;
+  description: string;
+  /** 叫牌序列模式，见 4.2：相对座位 token 序列，默认从末尾匹配 */
+  sequence: string;
+  /** 条件组合（扁平 AND，条件词表见 4.3） */
+  when: ConditionSpec;
+  /** 动作：叫品字符串，如 "1C" / "Pass" / "X" / "XX" */
+  action: string;
+  /** 优先级，越大越先裁决 */
+  priority: number;
+  /** 可选：覆盖风格阈值（不复制规则，仅调参） */
+  style?: Partial<StyleParams>;
+}
+
+/**
+ * 条件词表（封闭集合，冻结）。所有条件均为“手牌特征 vs 取值/区间”，可组合（AND）。
+ * 注意：旧版 position 字段已移除——座位关系改由 4.2 的相对座位 token 表达，
+ * 从根上解决“敌方干扰 / 同伴叫品无法区分”的问题。
+ */
+export interface ConditionSpec {
+  hcp?: NumRange;          // 大牌点
+  controls?: NumRange;     // 控制点 A=2 K=1
+  spades?: NumRange;       // 花色长度
+  hearts?: NumRange;
+  diamonds?: NumRange;
+  clubs?: NumRange;
+  balanced?: boolean;      // 均型（4-3-3-3 / 4-4-3-2 / 5-3-3-2）
+  // 未来扩展位（MVP 不解析）：losers, keycards, ...
+}
+
+/** "16-40" / "5+" / "0-7" / "12" / 可含风格变量 "${open1ntMin}-15" */
+export type NumRange = string;
+
+/** 首攻规则（冻结接口） */
+export interface LeadRule {
+  id: string;
+  description: string;
+  context: { contract_type: 'NT' | 'suit' };
+  when: ConditionSpec;
+  lead: string;            // "4th_best_of_longest" / "top_of_sequence" / "4th_best_of_unbid_major"
+  priority: number;
+}
+
+/** 风格参数表（冻结）：风格只改阈值，不复制规则文件 */
+export interface StyleParams {
+  open1ntMin: number;      // 1NT 开叫点力下限
+  open1ntMax: number;      // 1NT 开叫点力上限
+  overcallMinHcp: number;  // 争叫点力下限
+  preemptMinLen: number;   // 阻击叫所需花色长度
+  inviteMinHcp: number;    // 邀叫点力下限
+  aggression: number;      // 综合激进度（平局裁决时优先进攻性动作）
+}
+
+/** 三档风格默认参数：0 保守 / 1 正常 / 2 激进 */
+export const STYLE_PARAMS: Record<StyleLevel, StyleParams> = {
+  0: { open1ntMin: 15, open1ntMax: 17, overcallMinHcp: 9, preemptMinLen: 7, inviteMinHcp: 12, aggression: 0 },
+  1: { open1ntMin: 15, open1ntMax: 17, overcallMinHcp: 8, preemptMinLen: 6, inviteMinHcp: 11, aggression: 1 },
+  2: { open1ntMin: 14, open1ntMax: 17, overcallMinHcp: 7, preemptMinLen: 6, inviteMinHcp: 10, aggression: 2 },
+};
+
+/** 单个匹配结果（供裁决与探索使用） */
+export interface BidCandidate {
+  rule: BiddingRule;
+  call: BidCall;
+  /** 约束项越多 = 越具体，用于平局裁决 */
+  specificity: number;
+}
+
+export interface SignalRule {
+  // MVP 阶段仅作文档记录，程序不解析（见 signals.yml 说明）
+}
+```
+
+### 4.2 序列匹配（matcher.ts）
+
+**语义（冻结）**：规则 `sequence` 是一串 token，**从历史末尾向前逐 token 比较**。
+
+- 每个 token 形如 `[座位:]<叫品>`，座位相对**当前叫牌人**：`M`=自己、`P`=同伴、`L`=LHO（左手/下一家）、`R`=RHO（右手/上一家）。座位可省略（表示任意座位，不推荐）。
+- 叫品写法：`Pass` / `1C`..`7NT` / `X` / `XX`。
+- 分隔符可用空格或 `-`（如 `P:1C R:Pass` 等价 `P:1C - R:Pass`）；结尾 `$` 可写可不写（语义相同，仅提升可读性）。
+- 特殊 token：
+  - `^` / `^$` / 空 = 尚无任何实质叫品（仅 Pass）；
+  - `.*` / `*` = 任意历史（兜底规则专用）。
+
+**示例**：`"P:1C R:Pass"` = “同伴刚开叫 1C、RHO 刚 Pass，轮到我”，可用于精确制 1C 应叫；`"R:1D"` = “RHO 刚开叫 1D”，即第二家争叫位置。
+
+```ts
+import type { BidRecord, BidCall, Position } from '../models/gameState';
+import { getPartner } from '../models/gameState';
+
+const ORDER: Position[] = ['N', 'E', 'S', 'W'];
+
+/** 相对当前叫牌人的座位：M=自己 P=同伴 L=LHO(下一家) R=RHO(上一家) */
+export function relSeat(target: Position, me: Position): 'M' | 'P' | 'L' | 'R' {
+  if (target === me) return 'M';
+  if (target === getPartner(me)) return 'P';
+  const meIdx = ORDER.indexOf(me);
+  if (target === ORDER[(meIdx + 3) % 4]) return 'R'; // 上家
+  return 'L';                                        // 下家
+}
+
+export function callToString(call: BidCall): string {
+  switch (call.type) {
+    case 'pass': return 'Pass';
+    case 'bid': return `${call.level}${call.suit}`;  // 1C,2H,3NT
+    case 'double': return 'X';
+    case 'redouble': return 'XX';
+  }
+}
+
+function splitToken(tok: string): [string | null, string] {
+  const i = tok.indexOf(':');
+  if (i === -1) return [null, tok];
+  return [tok.slice(0, i).toUpperCase(), tok.slice(i + 1)];
+}
+
+export function matchSequence(history: BidRecord[], pattern: string, me: Position): boolean {
+  const p = pattern.trim();
+  if (p === '.*' || p === '*') return true;
+  if (p === '^' || p === '^$' || p === '') {
+    return history.every(r => r.call.type === 'pass'); // 无任何实质叫品
+  }
+  const tokens = p.replace(/\$/g, '').replace(/-/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  if (history.length < tokens.length) return false;
+
+  const tail = history.slice(-tokens.length);          // 从末尾对齐
+  for (let k = 0; k < tokens.length; k++) {
+    const [seat, callStr] = splitToken(tokens[k]);
+    const rec = tail[k];
+    if (seat && relSeat(rec.position, me) !== seat) return false;
+    if (callToString(rec.call) !== callStr) return false;
+  }
+  return true;
+}
+```
+
+### 4.3 条件检查器（conditions.ts）
+
+条件词表封闭，全部为 **AND** 组合。区间支持 `"16-40"`、`"5+"`、`"12"`，并可用 `${风格参数}` 引用当前座位的风格阈值。
+多层级/嵌套布尔（`all/any/none`）留待后期，MVP 用“扁平条件 + 优先级 + 具体度”即可表达绝大多数叫牌规则。
+
+```ts
+import type { Hand } from '../models/hand';
+import { hcp, controls, distribution, suitLength, isBalanced } from '../core/evaluate';
+import type { ConditionSpec, StyleParams } from './types';
+
+/**
+ * @param vars 当前座位的风格参数；条件中 "${name}" 会被替换为对应数值
+ */
+export function checkConditions(hand: Hand, spec: ConditionSpec, vars: StyleParams): boolean {
+  if (spec.hcp && !inRange(hcp(hand), spec.hcp, vars)) return false;
+  if (spec.controls && !inRange(controls(hand), spec.controls, vars)) return false;
+  if (spec.spades && !inRange(suitLength(hand, 3), spec.spades, vars)) return false;
+  if (spec.hearts && !inRange(suitLength(hand, 2), spec.hearts, vars)) return false;
+  if (spec.diamonds && !inRange(suitLength(hand, 1), spec.diamonds, vars)) return false;
+  if (spec.clubs && !inRange(suitLength(hand, 0), spec.clubs, vars)) return false;
+  if (spec.balanced !== undefined && isBalanced(distribution(hand)) !== spec.balanced) return false;
+  return true;
+}
+
+/** 约束项数量：越多越具体，用于平局裁决（4.6） */
+export function conditionSpecificity(spec: ConditionSpec): number {
+  return Object.values(spec).filter(v => v !== undefined).length;
+}
+
+function inRange(value: number, rangeStr: string, vars: StyleParams): boolean {
+  const s = resolveVars(rangeStr, vars).trim();
+  if (s.endsWith('+')) return value >= parseInt(s, 10);
+  if (s.includes('-')) {
+    const [min, max] = s.split('-').map(Number);
+    return value >= min && value <= max;
+  }
+  return value === parseInt(s, 10);
+}
+
+function resolveVars(s: string, vars: StyleParams): string {
+  return s.replace(/\$\{(\w+)\}/g, (_, name: string) => String((vars as Record<string, unknown>)[name] ?? 0));
+}
+```
+
+### 4.4 规则加载器（loader.ts）
+
+Vite 环境下 yarn 用构建期内联，避免运行时 `fetch` 404。规则文件以 `?raw` 引入为字符串再解析。
+
+```ts
+import yaml from 'js-yaml';
+import type { BiddingRule, LeadRule } from './types';
+
+// 用法：
+//   import precisionYml from '../rules/bidding/precision.yml?raw';
+//   const rules = parseBiddingRules(precisionYml);
+// 或批量：import.meta.glob('../rules/**/*.yml', { query: '?raw', import: 'default', eager: true })
+
+export function parseBiddingRules(text: string): BiddingRule[] {
+  const data = yaml.load(text) as { rules?: BiddingRule[] };
+  if (!data?.rules) throw new Error('叫牌规则文件缺少 rules 段');
+  return [...data.rules].sort((a, b) => b.priority - a.priority);
+}
+
+export function parseLeadRules(text: string): LeadRule[] {
+  const data = yaml.load(text) as { rules?: LeadRule[] };
+  if (!data?.rules) throw new Error('首攻规则文件缺少 rules 段');
+  return [...data.rules].sort((a, b) => b.priority - a.priority);
+}
+
+// rules/play/signals.yml 在 MVP 阶段仅作文档，程序不加载（见 7.3）。
+```
+
+### 4.5 叫牌候选匹配（matcher.ts 扩展）
+
+只产出**候选**，不做最终选择；最终选择见 4.6。候选必须同时满足：序列匹配、条件成立、**动作合法**（关键修复：过滤低于当前叫品的非法动作）。动作字符串转换用 3.3 中定义的 `parseAction`。
+
+```ts
+import type { BidRecord, Position, StyleLevel } from '../models/gameState';
+import type { Hand } from '../models/hand';
+import { STYLE_PARAMS } from './types';
+import type { BiddingRule, BidCandidate, StyleParams } from './types';
+import { matchSequence } from './matcher';
+import { checkConditions, conditionSpecificity } from './conditions';
+import { parseAction, isCallLegal } from '../core/bidding/validator';
+
+/**
+ * 返回全部合法候选，按 优先级↓ → 具体度↓ → 声明顺序 稳定排序。
+ */
+export function findBidCandidates(
+  hand: Hand,
+  history: BidRecord[],
+  currentPos: Position,
+  currentBid: { level: number; suit: string } | null,
+  style: StyleLevel,
+  rules: BiddingRule[]
+): BidCandidate[] {
+  const baseVars: StyleParams = STYLE_PARAMS[style];
+  const out: BidCandidate[] = [];
+  for (const rule of rules) {
+    if (!matchSequence(history, rule.sequence, currentPos)) continue;
+    const vars: StyleParams = { ...baseVars, ...(rule.style ?? {}) };
+    if (!checkConditions(hand, rule.when, vars)) continue;
+    const call = parseAction(rule.action);
+    if (!isCallLegal(history, currentBid, currentPos, call)) continue; // 动作合法性过滤
+    out.push({ rule, call, specificity: conditionSpecificity(rule.when) });
+  }
+  return out.sort(
+    (a, b) => b.rule.priority - a.rule.priority || b.specificity - a.specificity
+  );
+}
+```
+
+### 4.6 裁决与探索算法（engine/arbiter.ts，冻结）
+
+**裁决顺序（确定性）**：优先级↓ → 具体度↓ → 规则文件声明顺序。
+
+**探索（趣味性/随机性）**：不是“乱来”，而是有界的 ε-greedy——以 `randomness` 概率改选“次优但有依据”的候选；绝不产生非法动作，且随机源可播种以复现。
+
+```ts
+import type { BidCandidate } from './types';
+
+/** mulberry32：给定种子生成可复现的 [0,1) 随机源 */
+export function makeRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export interface SelectOptions {
+  randomness: number;  // [0,1]，来自座位配置
+  rng: () => number;   // 已播种的随机源
+  altPool?: number;    // 参与探索的次优候选数量，默认 2
+}
+
+/**
+ * 1) randomness<=0 或无备选 → candidates[0]
+ * 2) 否则以 randomness 概率，从 candidates[1..altPool] 中均匀取一个
+ * 3) 无备选时退回 candidates[0]
+ */
+export function selectBidCandidate(candidates: BidCandidate[], opts: SelectOptions): BidCandidate | null {
+  if (candidates.length === 0) return null;
+  const pool = Math.max(0, opts.altPool ?? 2);
+  if (opts.randomness <= 0 || candidates.length === 1 || pool === 0) return candidates[0];
+  if (opts.rng() < opts.randomness) {
+    const alts = candidates.slice(1, 1 + pool);
+    if (alts.length > 0) return alts[Math.floor(opts.rng() * alts.length)];
+  }
+  return candidates[0];
+}
+```
+
+> 边界约定：探索只发生在“已通过合法性过滤”的候选之间，因此绝不会产生非法叫品/出牌；当只有一个候选时永远选它。
+
+---
+
+## 5. AI 模块（ai/）
+
+### 5.1 叫牌 AI（bidAI.ts）
+
+引擎产出候选 → 裁决/探索选出 → 二次合法性保障 → 兜底。
+
+```ts
+import type { Hand } from '../models/hand';
+import type { BidRecord, BidCall, Position, StyleLevel } from '../models/gameState';
+import type { BiddingRule } from '../engine/types';
+import { findBidCandidates } from '../engine/matcher';
+import { selectBidCandidate, makeRng } from '../engine/arbiter';
+
+export interface BidAIOptions {
+  style: StyleLevel;
+  randomness: number;
+  rng: () => number;                 // 与 store 的 rngSeed 对应，保证可复现
+}
+
+export function bidAI(
+  hand: Hand,
+  history: BidRecord[],
+  position: Position,
+  currentBid: { level: number; suit: string } | null,
+  rules: BiddingRule[],
+  opts: BidAIOptions
+): BidCall {
+  const candidates = findBidCandidates(hand, history, position, currentBid, opts.style, rules);
+  const picked = selectBidCandidate(candidates, {
+    randomness: opts.randomness,
+    rng: opts.rng,
+  });
+  // 终极兜底：Pass（永远合法）
+  return picked ? picked.call : { type: 'pass' };
+}
+```
+
+> `parseAction` 已上移到 `core/bidding/validator.ts`（见 4.5），此处不再重复定义。
+
+### 5.2 打牌 AI（playAI.ts）
+
+```ts
+import type { Hand } from '../models/hand';
+import type { CardPlay, Contract, Trick, Position, StyleLevel } from '../models/gameState';
+import { getPartner } from '../models/gameState';
+import type { LeadRule } from '../engine/types';
+import { STYLE_PARAMS } from '../engine/types';
+import { getLegalCards } from '../core/playing';
+import { getSuit, getRank, type SuitIndex } from '../models/card';
+import { suitLength } from '../core/evaluate';
+import { checkConditions } from '../engine/conditions';
+
+/**
+ * 选择出牌
+ * @param hand 当前手牌
+ * @param dummyHand 明手牌（若可见），null 表示看不见
+ * @param currentTrick 本墩已出的牌
+ * @param trumpSuit 将牌花色索引，null 无将
+ * @param position 当前出牌方位
+ * @param contract 定约
+ * @param tricks 已完成墩
+ * @param leadRules 首攻规则（YAML）
+ * @param style 打牌风格（影响首攻阈值等）
+ */
+export function playAI(
+  hand: Hand,
+  dummyHand: Hand | null,
+  currentTrick: CardPlay[],
+  trumpSuit: SuitIndex | null,
+  position: Position,
+  contract: Contract,
+  tricks: Trick[],
+  leadRules: LeadRule[],
+  style: StyleLevel
+): number {
+  const leadSuit = currentTrick.length === 0 ? null : getSuit(currentTrick[0].card);
+  const legalCards = getLegalCards(hand, leadSuit, trumpSuit);
+  if (legalCards.length === 1) return legalCards[0];
+
+  let selected: number;
+  if (currentTrick.length === 0) {
+    // 首攻
+    selected = selectLead(hand, contract, trumpSuit, leadRules, style);
+  } else {
+    // 跟牌
+    selected = selectFollow(hand, legalCards, currentTrick, trumpSuit, position, contract, dummyHand, tricks);
+  }
+
+  if (!legalCards.includes(selected)) {
+    // 降级：随机合法（使用调用方提供的随机源更佳；此处保持简单）
+    return legalCards[Math.floor(Math.random() * legalCards.length)];
+  }
+  return selected;
+}
+
+function selectLead(hand: Hand, contract: Contract, trumpSuit: SuitIndex | null, rules: LeadRule[], style: StyleLevel): number {
+  // 寻找与定约类型匹配的首攻规则
+  const ctype = contract.suit === 'NT' ? 'NT' : 'suit';
+  const vars = STYLE_PARAMS[style];
+  for (const rule of rules) {
+    if (rule.context.contract_type !== ctype) continue;
+    if (rule.when && !checkConditions(hand, rule.when, vars)) continue;
+    // 执行首攻策略
+    return executeLeadStrategy(hand, rule.lead, trumpSuit);
+  }
+  // 默认长四
+  return executeLeadStrategy(hand, '4th_best_of_longest', trumpSuit);
+}
+
+function executeLeadStrategy(hand: Hand, strategy: string, trumpSuit: SuitIndex | null): number {
+  if (strategy === '4th_best_of_unbid_major') {
+      return fourthBestOfUnbidMajor(hand, trumpSuit);
+  } else if (strategy === '4th_best_of_longest') {
+    return fourthBestOfLongest(hand, trumpSuit);
+  } else if (strategy === 'top_of_sequence') {
+    return topOfSequence(hand);
+  }
+  // 随机
+  return hand[Math.floor(Math.random() * hand.length)];
+}
+
+function fourthBestOfLongest(hand: Hand, trumpSuit: SuitIndex | null): number {
+  const suits = [0,1,2,3];
+  // 首攻优先最长最强套，排除将牌（如果可能）
+  let bestSuit: SuitIndex = 0;
+  let bestLen = -1;
+  for (const s of suits) {
+    if (trumpSuit !== null && s === trumpSuit) continue; // 避免攻将牌，但简化可能无其他套，暂允许攻将牌
+    const len = suitLength(hand, s);
+    if (len > bestLen) {
+      bestLen = len;
+      bestSuit = s as SuitIndex;
+    }
+  }
+  const cards = hand.filter(c => getSuit(c) === bestSuit).sort((a,b)=> getRank(b)-getRank(a));
+  if (cards.length >= 4) return cards[3];
+  return cards[cards.length-1];
+}
+
+function topOfSequence(hand: Hand): number {
+  // 寻找有连张且大牌的花色，返回最大张
+  // 简化：找一个有 KQ, QJ, J10 组合的套，出最大张
+  const groups = groupBySuit(hand);
+  for (const [suit, cards] of Object.entries(groups)) {
+    const sorted = cards.sort((a,b)=> getRank(b)-getRank(a));
+    for (let i=0; i<sorted.length-2; i++) {
+      const r1 = getRank(sorted[i]);
+      const r2 = getRank(sorted[i+1]);
+      const r3 = getRank(sorted[i+2]);
+      if (r1 - r2 === 1 && r2 - r3 === 1 && r1 >= 9) { // 至少J10x
+        return sorted[i];
+      }
+    }
+  }
+  // 没找到，回退长四
+  return fourthBestOfLongest(hand, null);
+}
+
+function selectFollow(
+  hand: Hand,
+  legalCards: Hand,
+  currentTrick: CardPlay[],
+  trumpSuit: SuitIndex | null,
+  position: Position,
+  contract: Contract,
+  dummyHand: Hand | null,
+  tricks: Trick[]
+): number {
+  // 启发式贪心算法
+  const leadSuit = getSuit(currentTrick[0].card);
+  const numPlayed = currentTrick.length;
+  const isDeclarerSide = (position === contract.declarer || position === contract.dummy);
+  
+  if (numPlayed === 3) {
+    // 第四家
+    return fourthHandPlay(hand, currentTrick, trumpSuit, position);
+  }
+  if (numPlayed === 2) {
+    // 第三家
+    return thirdHandPlay(hand, currentTrick, trumpSuit, position);
+  }
+  // 第二家
+  return secondHandPlay(hand, leadSuit, trumpSuit, position);
+}
+
+function fourthHandPlay(hand: Hand, currentTrick: CardPlay[], trumpSuit: SuitIndex | null): number {
+  const leadSuit = getSuit(currentTrick[0].card);
+  const legal = getLegalCards(hand, leadSuit, trumpSuit);
+  // 当前最好的一张牌（左边已出的）
+  const bestSoFar = getCurrentWinner(currentTrick, trumpSuit);
+  // 能不能赢
+  const winners = legal.filter(c => beats(c, bestSoFar, trumpSuit));
+  if (winners.length > 0) {
+    // 赢，出足够赢的最小牌
+    return winners.sort((a,b) => getRank(a)-getRank(b))[0];
+  }
+  // 不能赢，出最小
+  return legal.sort((a,b) => getRank(a)-getRank(b))[0];
+}
+
+function thirdHandPlay(hand: Hand, currentTrick: CardPlay[], trumpSuit: SuitIndex | null, position: Position): number {
+  const leadSuit = getSuit(currentTrick[0].card);
+  const legal = getLegalCards(hand, leadSuit, trumpSuit);
+  const bestSoFar = getCurrentWinner(currentTrick, trumpSuit);
+  // 如果同伴领先，不需要冒险？简单处理：尝试赢
+ // 判断同伴是否当前领先（同伴 = 对家）
+const myPosition = position; // 需从外部传入，修改函数签名
+if (currentTrick[0].position === getPartner(myPosition)) {
+    // 同伴领先时出最小
+    return legal.sort((a,b) => getRank(a)-getRank(b))[0];
+  }
+  // 敌方可能领先，尝试用最小赢张超吃
+  const winners = legal.filter(c => beats(c, bestSoFar, trumpSuit));
+  if (winners.length > 0) {
+    return winners.sort((a,b) => getRank(a)-getRank(b))[0];
+  }
+  return legal.sort((a,b) => getRank(a)-getRank(b))[0];
+}
+
+function secondHandPlay(hand: Hand, leadSuit: SuitIndex, trumpSuit: SuitIndex | null): number {
+  const legal = getLegalCards(hand, leadSuit, trumpSuit);
+  // 一般出最小
+  return legal.sort((a,b) => getRank(a)-getRank(b))[0];
+}
+// 辅助：比较牌
+function beats(card: number, other: number, trumpSuit: SuitIndex | null): boolean {
+  if (trumpSuit !== null) {
+    if (getSuit(card) === trumpSuit && getSuit(other) !== trumpSuit) return true;
+    if (getSuit(card) !== trumpSuit && getSuit(other) === trumpSuit) return false;
+  }
+  if (getSuit(card) === getSuit(other)) {
+    return getRank(card) > getRank(other);
+  }
+  return false;
+}
+
+/**
+ * 返回当前墩中已出牌中最大的那张牌（即当前赢张）。
+ * 只比较已打出的前几张牌，不涉及未出牌玩家。
+ */
+
+function getCurrentWinner(plays: CardPlay[], trumpSuit: SuitIndex | null): number {
+  if (plays.length === 0) throw new Error('plays 不能为空');
+  let bestCard = plays[0].card;
+  const leadSuit = getSuit(plays[0].card);
+
+  for (let i = 1; i < plays.length; i++) {
+    const card = plays[i].card;
+    const cardSuit = getSuit(card);
+    const bestSuit = getSuit(bestCard);
+
+    // 将牌判断
+    if (trumpSuit !== null) {
+      // 当前牌是将牌，最好牌不是将牌 → 当前牌赢
+      if (cardSuit === trumpSuit && bestSuit !== trumpSuit) {
+        bestCard = card;
+        continue;
+      }
+      // 当前牌不是将牌，最好牌是将牌 → 保持原赢张
+      if (cardSuit !== trumpSuit && bestSuit === trumpSuit) {
+        continue;
+      }
+      // 两者都是将牌 → 比点数
+      if (cardSuit === trumpSuit && bestSuit === trumpSuit) {
+        if (getRank(card) > getRank(bestCard)) {
+          bestCard = card;
+        }
+        continue;
+      }
+    }
+
+    // 无将或两者都不是将牌：只比较引牌花色
+    if (cardSuit === leadSuit && bestSuit === leadSuit) {
+      if (getRank(card) > getRank(bestCard)) {
+        bestCard = card;
+      }
+    } else if (cardSuit === leadSuit && bestSuit !== leadSuit) {
+      // 之前没有引牌花色的牌，当前牌是引牌花色 → 当前牌赢
+      bestCard = card;
+    }
+    // 当前牌不是引牌花色 → 忽略
+  }
+  return bestCard;
+}
+
+```
+---
+
+## 6. 状态管理（store/game.ts）
+
+核心职责：驱动游戏状态机、协调 AI、处理人类输入、管理控制权切换。
+
+### 6.1 Store 概览
+
+```ts
+export const useGameStore = defineStore('game', {
+  state: (): GameState => ({
+    phase: 'idle',
+    dealer: 'N',
+    vulnerability: 'none',
+    hands: { N: [], E: [], S: [], W: [] },
+    biddingHistory: [],
+    currentBid: null,
+    doubleState: 'none',
+    currentBidder: 'N',
+    contract: null,
+    tricks: [],
+    currentTrick: [],
+    trickLeader: null,
+    nextPlayer: null,
+    dummyOpen: false,
+    score: { NS: 0, EW: 0 },
+    message: '',
+    isAiThinking: false,
+    humanSeats: ['S'],
+    styles: {
+      N: { bid: 1, play: 1, randomness: 0 },
+      E: { bid: 1, play: 1, randomness: 0 },
+      S: { bid: 1, play: 1, randomness: 0 },
+      W: { bid: 1, play: 1, randomness: 0 },
+    },
+    rngSeed: (Date.now() >>> 0),
+  }),
+
+  actions: {
+    async startNewGame() { /* ... */ },
+    async humanBid(call: BidCall) { /* ... */ },
+    async humanPlay(card: number) { /* ... */ },
+    applyBid(pos: Position, call: BidCall) { /* ... */ },
+    applyPlay(pos: Position, card: number) { /* ... */ },
+    checkBiddingEnd(): boolean { /* ... */ },
+    setContractAndStartPlay() { /* ... */ },
+    async runAILoop() { /* ... */ },
+    settleTrick() { /* ... */ },
+    computeFinalScore() { /* ... */ }
+  }
+});
+```
+
+### 6.2 核心流程
+
+**启动新局**：
+1. 洗牌、发牌，排序所有手牌。
+2. 从 `['none', 'NS', 'EW', 'both']` 中随机选择一个作为本局局况（`this.vulnerability`）。
+3. 庄家：首局为 `N`；其后每次 `this.dealer = nextPosition(this.dealer)`。
+4. 设置 phase='bidding'，currentBidder=dealer，`this.rngSeed = (Date.now() >>> 0)`（每局重新播种，便于回放复现）。
+5. 创建随机源 `const rng = makeRng(this.rngSeed)`，调用 runAILoop()。
+
+**AI 循环**：
+- 仅当当前应行动座位**不属于** `humanSeats` 时才由 AI 接管；人类座位等待输入。
+- AI 行动前 `await sleep(800)` 并置 `isAiThinking=true`，行动落地后置回 false。
+- 叫牌：调用 `bidAI(hand, history, pos, currentBid, rules, { style: styles[pos].bid, randomness: styles[pos].randomness, rng })`。
+- 打牌：首攻调用 `playAI(..., rules, styles[pos].play)`；随后翻开明手（`dummyOpen=true`），继续循环。
+- 每墩结束后 `settleTrick()`，检查是否打完 13 墩。
+
+**人类叫牌**：
+- 用 `isCallLegal()` 校验；不通过则提示。
+- 通过则 `applyBid()`，并 `checkBiddingEnd()`。若结束则 `setContractAndStartPlay()`；否则继续 AI 循环。
+
+**人类出牌**：
+- 一次性判定：`nextPlayer ∈ controllableSeats(state)`，且所选牌 `isCardLegal()`。
+- 应用出牌；若完成一墩则结算，检查结束。注意：人类为定约方时可同时点庄家与明手两张手牌。
+
+**控制权模型（冻结）**：
+- 人类座位固定写在 `humanSeats`（MVP 恒为 `['S']`）。
+- 每墩行动前由 `controllableSeats(state)` 动态计算人类可操作座位：
+  - 人类所在方为定约方 → 返回 `[庄家, 明手]`（覆盖“南做庄、北明手”与“南明手、北做庄”两种情况）；
+  - 否则 → 返回 `humanSeats`（人类仅为防守方，只打自己）。
+- 不再使用单字段 `controlledPosition`。
+
+**流局处理**：
+- 若 `biddingHistory` 中无任何非 Pass 叫品且已累积 4 个 Pass（`currentBid === null`），则 `phase='scoring'`，`score={NS:0,EW:0}`，`message='四家不叫，本局流局'`，UI 弹出提示并提供“新一局”。
+
+### 6.3 相位状态机（冻结）
+
+| 当前相位 | 事件 | 下一相位 | 备注 |
+|---|---|---|---|
+| idle | startNewGame | bidding | 发牌、定局况、定庄家 |
+| bidding | 合法叫牌 | bidding | 累积 Pass；`currentBid` 更新 |
+| bidding | 3 连 Pass（已有叫品） | play_waiting_lead | 末叫品成定约，确定 declarer/dummy |
+| bidding | 4 家 Pass（无叫品） | scoring | 流局 |
+| play_waiting_lead | 首攻落地 | play | `dummyOpen=true`，翻开明手 |
+| play | 出牌（合法） | play / play_waiting_lead | 4 张满墩 → settleTrick，赢家领下一墩 |
+| play | 第 13 墩结算 | scoring | computeFinalScore |
+| scoring | 新一局 | bidding | 清空本局状态 |
+
+> 交互互斥：`isAiThinking === true` 时，UI 所有出牌/叫牌入口 `disabled`，防止与 AI 循环竞态。
+---
+
+## 7. 规则文件具体格式
+
+### 7.1 叫牌规则 (precision.yml)
+
+字段：`sequence`（相对座位 token）、`when`（条件，扁平 AND）、`action`、`priority`、可选 `style`（覆盖风格阈值）。
+序列 token 中的座位相对**当前叫牌人**：`M` 自己 / `P` 同伴 / `L` LHO / `R` RHO。
+
+```yaml
+rules:
+  # 开叫（尚无实质叫品）
+  - id: open_1c
+    description: "精确 1C 开叫：16+ 任意牌型"
+    sequence: "^$"
+    when: { hcp: "16-40" }
+    action: "1C"
+    priority: 100
+
+  - id: open_1nt
+    description: "1NT 均型，点力区间随风格浮动"
+    sequence: "^$"
+    when: { hcp: "${open1ntMin}-${open1ntMax}", balanced: true, spades: "0-4", hearts: "0-4" }
+    action: "1NT"
+    priority: 95
+  # ... 其他开叫
+
+  # 应叫同伴 1C（同伴叫 1C、RHO Pass 之后轮到我）
+  - id: resp_1c_1d_neg
+    description: "1C 后的示弱 1D"
+    sequence: "P:1C R:Pass"
+    when: { hcp: "0-7" }
+    action: "1D"
+    priority: 90
+
+  - id: resp_1c_1h_pos
+    description: "1C 后的自然 1H 应叫"
+    sequence: "P:1C R:Pass"
+    when: { hcp: "8+", hearts: "5+" }
+    action: "1H"
+    priority: 85
+  # ...
+
+  # 争叫（RHO 刚开叫 1D → 我方第二家位置）
+  - id: overcall_1h_after1d
+    description: "RHO 1D 后争叫 1H"
+    sequence: "R:1D"
+    when: { hcp: "${overcallMinHcp}-15", hearts: "5+" }
+    action: "1H"
+    priority: 80
+
+  # 竞争叫牌续叫（历史末四位：敌方1C、我Pass、同伴1D、RHO 1H）
+  # 注意：座位均相对“当前叫牌人”书写
+  - id: rebid_after_competition
+    description: "同伴1D 后遭 1H 干扰，19+ 加倍"
+    sequence: "L:1C M:Pass P:1D R:1H"
+    when: { hcp: "19+" }
+    action: "X"
+    priority: 70
+
+  # 兜底规则（匹配任意尚未匹配的序列）
+  - id: fallback_pass
+    description: "无规则命中时的保守兜底"
+    sequence: ".*"
+    when: {}
+    action: "Pass"
+    priority: 0
+```
+
+### 7.2 首攻规则 (leads.yml)
+
+字段：`context.contract_type`、`when`（手牌条件，可含风格变量）、`lead`（策略标识）、`priority`。
+
+```yaml
+rules:
+  - id: nt_lead_unbid_major
+    description: "NT 定约优先攻敌方未叫过的高级花色"
+    context: { contract_type: "NT" }
+    when: {}
+    lead: "4th_best_of_unbid_major"
+    priority: 12
+
+  - id: nt_longest_4th
+    description: "无将定约长四首攻"
+    context: { contract_type: "NT" }
+    when: {}
+    lead: "4th_best_of_longest"
+    priority: 10
+
+  - id: suit_honor_sequence
+    description: "有将定约连张首攻（激进风格可放宽长度要求）"
+    context: { contract_type: "suit" }
+    when: {}          # 手牌条件留空：连张判断在策略实现内完成
+    lead: "top_of_sequence"
+    priority: 8
+```
+
+### 7.3 防守信号约定 (signals.yml)
+
+> MVP 阶段此文件仅作文档记录，程序暂不解析。AI 打牌采用硬编码启发式算法，未来可基于此约定升级。
+
+```yaml
+# rules/play/signals.yml
+conventions:
+  attitude:
+    description: "跟牌姿态信号"
+    standard: "跟大牌 = 欢迎 / 鼓励；跟小牌 = 不欢迎 / 劝阻"
+    applies_to: "有将和无将一致"
+  count:
+    description: "张数信号"
+    standard: "先大后小 = 偶数张；先小后大 = 奇数张"
+    note: "MVP 阶段暂不实现情境识别"
+  suit_preference:
+    description: "花色选择信号"
+    standard: "跟大牌 = 要求回较高级花色；跟小牌 = 较低级花色"
+    applies_to: "将吃或选择回牌情境"
+```
+
+
+## 8. 组件行为规范
+
+### Table.vue
+- 使用 CSS Grid 布局四方位，中央为叫牌历史、当前墩、定约信息。
+- 传入 store 状态，渲染四个 Hand 组件并传递相应 props。
+
+### Hand.vue
+- 当 `store.isAiThinking === true` 或 `clickable` prop 为 `false` 时，牌面不可点击，建议降低不透明度，视觉上指示“不可操作”。
+Props: `cards`, `position`, `isDummy`, `clickable`, `faceDown`。
+- `clickable` 由父组件依据 `controllableSeats(store.$state).includes(position)` 计算，避免“南做庄时点不了北家明手牌”等问题。
+- 内部排序展示。
+- 点击事件 emit 'card-click'。
+- faceDown 为 true 时显示牌背。
+
+### BiddingBox.vue
+- 当 `store.isAiThinking === true` 时，所有按钮统一 `disabled`（或整体容器加 `pointer-events: none`），防止玩家在 AI 回合操作。
+- 显示 Pass、Double、Redouble 按钮及叫品网格。
+- 各按钮 `disabled` 依据 `isCallLegal(history, currentBid, position, call)` 动态计算（含加倍/再加倍的权限）。
+- 点击调用 store.humanBid。
+
+### ScoreBoard.vue
+- 显示局况、定约、当前得分。
+- 可选：显示各机器人座位的风格与随机度（便于测试与演示）。
+
+---
+
+## 9. 测试验收（补充自动化测试思路）
+
+建议为引擎、AI 编写单元测试：
+- validator.test.ts: 叫品合法性；加倍/再加倍权限（含“不能加倍同伴”“再加倍须我方叫品被加倍”等边界）。
+- playing.test.ts: 跟牌合法性（有该花色必须跟；缺门可任意）。
+- matcher.test.ts: 序列匹配——`^$`（无实质叫品）、`.*`（兜底）、相对座位 `P:/R:/L:/M:`、尾部对齐。
+- conditions.test.ts: 区间解析、`${风格变量}` 替换、均型判定（含 5-4-2-2 / 5-4-3-1 必须判非均型）。
+- arbiter.test.ts: 裁决顺序确定性；`randomness=0` 恒取最优；同一 seed 结果可复现。
+- scoring.test.ts: 各局况、是否加倍、成局/满贯、宕墩罚分案例。
+
+集成测试：使用模拟的完整对局验证状态转换；覆盖“南做庄（北明手）”与“南明手（北做庄）”两种人类控制场景；覆盖“四家 Pass 流局”。
+
+---
+
+## 10. 实现顺序与里程碑
+
+1. 脚手架（Vue3+Vite+Pinia+Element Plus+js-yaml+Vitest）+ 依赖冻结（0.5天）
+2. 数据模型 + 手牌评估（含均型修正）（0.5天）
+3. 核心法律（validator, playing, trick, scoring）+ 单元测试（2天）
+4. 规则引擎（loader, matcher+相对座位, conditions+风格变量, arbiter+探索）+ 测试（2.5天）
+5. 编写精确叫牌 YAML 精简版（含兜底与争叫）+ 检验（2.5天）
+6. AI 模块（bidAI 候选+探索, playAI 启发式+首攻）+ 单元测试（1.5天）
+7. Pinia store 状态机与 AI 调度（含控制权模型、相位表）（1.5天）
+8. UI 组件（牌桌/手牌/叫牌面板/计分 + controllableSeats 视角切换）（2天）
+9. 集成测试与调试（2天）
+10. 计分显示、新一局、流局重置、风格/随机度设置面板（1天）
+11. 打包与最终验收（0.5天）
+
+---

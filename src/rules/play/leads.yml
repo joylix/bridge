@@ -1,0 +1,35 @@
+# =====================================================================
+# 首攻规则（leads.yml）
+# 契约（冻结）：context.contract_type = "NT" | "suit"；when = 手牌条件（可含风格变量）；
+#               lead = 策略标识；priority = 优先级。由 ai/playAI.ts 解释执行。
+# =====================================================================
+
+rules:
+  - id: nt_lead_unbid_major
+    description: "NT 定约：防守时若无长套（四门均 ≤4 张），首攻敌方未叫过的高级花色（长四）"
+    context: { contract_type: "NT" }
+    role: defender
+    when: { spades: "0-4", hearts: "0-4", diamonds: "0-4", clubs: "0-4" }
+    lead: "4th_best_of_unbid_major"
+    priority: 12
+
+  - id: nt_longest_4th
+    description: "无将定约长四首攻"
+    context: { contract_type: "NT" }
+    when: {}
+    lead: "4th_best_of_longest"
+    priority: 10
+
+  - id: suit_honor_sequence
+    description: "有将定约连张首攻（如 AKQ/KQJ/QJT）"
+    context: { contract_type: "suit" }
+    when: {}
+    lead: "top_of_sequence"
+    priority: 8
+
+  - id: suit_longest_4th
+    description: "有将定约长四首攻（连张不可用时的兜底）"
+    context: { contract_type: "suit" }
+    when: {}
+    lead: "4th_best_of_longest"
+    priority: 6

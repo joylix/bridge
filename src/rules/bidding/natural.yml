@@ -1,0 +1,166 @@
+# =====================================================================
+# 自然叫牌法（备选体系，用于演示“规则文件可替换”）
+# 与 precision.yml 使用同一契约；切换本文件即可改变 AI 叫牌行为。
+# =====================================================================
+
+rules:
+  - id: open_2c_strong
+    description: "自然 2C 强开叫：22+ 或 9 赢张"
+    sequence: "^$"
+    when: { hcp: "22-40" }
+    action: "2C"
+    priority: 100
+
+  - id: open_2nt
+    description: "2NT：20-21 均型"
+    sequence: "^$"
+    when: { hcp: "20-21", balanced: true }
+    action: "2NT"
+    priority: 98
+
+  - id: open_1nt
+    description: "1NT：15-17 均型，区间随风格浮动"
+    sequence: "^$"
+    when: { hcp: "${open1ntMin}-${open1ntMax}", balanced: true, spades: "0-4", hearts: "0-4" }
+    action: "1NT"
+    priority: 95
+
+  - id: open_1h
+    description: "1H：5+ 红桃，12+"
+    sequence: "^$"
+    when: { hcp: "12-40", hearts: "5+" }
+    action: "1H"
+    priority: 92
+
+  - id: open_1s
+    description: "1S：5+ 黑桃，12+"
+    sequence: "^$"
+    when: { hcp: "12-40", spades: "5+" }
+    action: "1S"
+    priority: 91
+
+  - id: open_1d
+    description: "1D：4+ 方块，12+"
+    sequence: "^$"
+    when: { hcp: "12-40", diamonds: "4+" }
+    action: "1D"
+    priority: 88
+
+  - id: open_1c
+    description: "1C：4+ 梅花，12+（自然，非精确强开叫）"
+    sequence: "^$"
+    when: { hcp: "12-21", clubs: "4+" }
+    action: "1C"
+    priority: 85
+
+  - id: open_weak2_h
+    description: "弱二 2H：6-10，6 张红桃"
+    sequence: "^$"
+    when: { hcp: "6-10", hearts: "6+" }
+    action: "2H"
+    priority: 60
+
+  - id: open_weak2_s
+    description: "弱二 2S：6-10，6 张黑桃"
+    sequence: "^$"
+    when: { hcp: "6-10", spades: "6+" }
+    action: "2S"
+    priority: 59
+
+  - id: open_weak2_d
+    description: "弱二 2D：6-10，6 张方块"
+    sequence: "^$"
+    when: { hcp: "6-10", diamonds: "6+" }
+    action: "2D"
+    priority: 58
+
+  - id: open_weak2_c
+    description: "弱二 2C 备选（当 2C 强开叫不适用时）"
+    sequence: "^$"
+    when: { hcp: "6-10", clubs: "6+" }
+    action: "2C"
+    priority: 57
+
+  - id: resp_1nt_3nt
+    description: "1NT 后 3NT：10+"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "10+" }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1nt_2c_stayman
+    description: "1NT 后斯台曼 2C：8+，4+ 黑桃"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "8+", spades: "4+" }
+    action: "2C"
+    priority: 80
+
+  - id: resp_1nt_2d_transfer
+    description: "1NT 后转移 2D：8+，5+ 红桃"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "8+", hearts: "5+" }
+    action: "2D"
+    priority: 78
+
+  - id: resp_major_raise_weak
+    description: "高花开叫后弱加叫：3+ 支持，6-9"
+    sequence: "P:1H R:Pass"
+    when: { hcp: "6-9", hearts: "3+" }
+    action: "2H"
+    priority: 76
+
+  - id: resp_major_raise_limit
+    description: "高花开叫后邀叫加叫：3+ 支持，10-12"
+    sequence: "P:1H R:Pass"
+    when: { hcp: "10-12", hearts: "3+" }
+    action: "3H"
+    priority: 79
+
+  - id: resp_1s_raise
+    description: "1S 加叫：3+ 支持，6-10"
+    sequence: "P:1S R:Pass"
+    when: { hcp: "6-10", spades: "3+" }
+    action: "2S"
+    priority: 76
+
+  - id: resp_1s_1nt
+    description: "1S 后 1NT：6-10"
+    sequence: "P:1S R:Pass"
+    when: { hcp: "6-10" }
+    action: "1NT"
+    priority: 60
+
+  - id: resp_1h_1nt
+    description: "1H 后 1NT：6-10"
+    sequence: "P:1H R:Pass"
+    when: { hcp: "6-10" }
+    action: "1NT"
+    priority: 60
+
+  - id: overcall_1s
+    description: "对 1C/1D/1H 争叫 1S：5+ 黑桃"
+    sequence: "R:1D"
+    when: { hcp: "${overcallMinHcp}-16", spades: "5+" }
+    action: "1S"
+    priority: 70
+
+  - id: overcall_1h
+    description: "对 1C/1D 争叫 1H：5+ 红桃"
+    sequence: "R:1D"
+    when: { hcp: "${overcallMinHcp}-16", hearts: "5+" }
+    action: "1H"
+    priority: 69
+
+  - id: overcall_1s_over_1h
+    description: "对 1H 争叫 1S：5+ 黑桃"
+    sequence: "R:1H"
+    when: { hcp: "${overcallMinHcp}-16", spades: "5+" }
+    action: "1S"
+    priority: 70
+
+  - id: natural_fallback_pass
+    description: "兜底：Pass"
+    sequence: ".*"
+    when: {}
+    action: "Pass"
+    priority: 0
