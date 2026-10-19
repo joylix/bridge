@@ -149,8 +149,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <!-- 北家 -->
     <div class="seat north" :class="{ active: isActive('N') }">
       <div class="seat-profile">
-        <span class="avatar">北</span>
-        <span class="profile-text"><strong>N</strong><small>机器人</small></span>
+        <span class="seat-name">北N_机器人</span>
         <span v-if="isDummySeat('N')" class="dummy-tag">明手</span>
       </div>
       <Hand
@@ -168,8 +167,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <!-- 西家 -->
     <div class="seat west" :class="{ active: isActive('W') }">
       <div class="seat-profile">
-        <span class="avatar">西</span>
-        <span class="profile-text"><strong>W</strong><small>机器人</small></span>
+        <span class="seat-name">西W_机器人</span>
         <span v-if="isDummySeat('W')" class="dummy-tag">明手</span>
       </div>
       <Hand
@@ -238,8 +236,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <!-- 东家 -->
     <div class="seat east" :class="{ active: isActive('E') }">
       <div class="seat-profile">
-        <span class="avatar">东</span>
-        <span class="profile-text"><strong>E</strong><small>机器人</small></span>
+        <span class="seat-name">东E_机器人</span>
         <span v-if="isDummySeat('E')" class="dummy-tag">明手</span>
       </div>
       <Hand
@@ -257,11 +254,6 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 
     <!-- 南家（人类） -->
     <div class="seat south" :class="{ active: isActive('S') }">
-      <div class="seat-profile">
-        <span class="avatar you">南</span>
-        <span class="profile-text"><strong>S</strong><small>你</small></span>
-        <span v-if="isDummySeat('S')" class="dummy-tag">明手</span>
-      </div>
       <Hand
         :cards="store.hands.S"
         position="S"
@@ -272,6 +264,10 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
         :played-card="playedCardOf('S')"
         @card-click="(c) => onCardClick('S', c)"
       />
+      <div class="seat-profile">
+        <span class="seat-name">南S_你</span>
+        <span v-if="isDummySeat('S')" class="dummy-tag">明手</span>
+      </div>
     </div>
   </div>
 </template>
@@ -348,44 +344,18 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 .seat-profile {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 3px 9px 3px 4px;
-  border-radius: 999px;
-  background: rgba(2, 25, 16, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  gap: 5px;
+  padding: 0 2px;
+  color: #eaf5ee;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
-.avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 800;
-  color: #123d2a;
-  background: linear-gradient(160deg, #ffe7a1, #e4b857);
-  border: 2px solid rgba(255, 255, 255, 0.75);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
-  flex: none;
-}
-.avatar.you {
-  color: #fff8e8;
-  background: linear-gradient(160deg, #2f6fca, #173d82);
-}
-.profile-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.05;
-}
-.profile-text strong {
-  font-size: 11px;
-  color: #eefaf1;
-}
-.profile-text small {
-  font-size: 9px;
-  color: rgba(234, 245, 238, 0.7);
+.seat-name {
+  color: inherit;
 }
 .dummy-tag {
   background: #d9a300;
@@ -394,24 +364,13 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   padding: 0 4px;
   font-size: 9px;
   font-weight: 700;
+  text-shadow: none;
 }
 .seat.active .seat-profile {
-  border-color: rgba(255, 214, 102, 0.75);
-  box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.16), 0 3px 10px rgba(0, 0, 0, 0.18);
-}
-.seat.active .avatar {
-  outline: 2px solid #ffd666;
-  outline-offset: 2px;
-  animation: avatar-pulse 0.9s ease-in-out infinite;
-}
-@keyframes avatar-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.5), 0 2px 6px rgba(0, 0, 0, 0.28);
-  }
-  50% {
-    box-shadow: 0 0 16px 4px rgba(255, 214, 102, 0.4);
-  }
+  color: #ffe19a;
+  text-shadow:
+    0 0 10px rgba(255, 214, 102, 0.7),
+    0 1px 3px rgba(0, 0, 0, 0.85);
 }
 .center {
   grid-area: center;

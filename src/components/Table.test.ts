@@ -49,6 +49,19 @@ describe('Table 叫牌高亮', () => {
     expect(wrapper.find('.hand.pos-S').classes()).toContain('active');
     expect(wrapper.get('.seat.south .seat-profile').text()).toContain('S');
   });
+
+  it('座位只用文字标识，南家标签显示在手牌下方', () => {
+    expect(wrapper.find('.avatar').exists()).toBe(false);
+    expect(wrapper.get('.seat.north .seat-profile').text()).toBe('北N_机器人');
+    expect(wrapper.get('.seat.west .seat-profile').text()).toBe('西W_机器人');
+    expect(wrapper.get('.seat.east .seat-profile').text()).toBe('东E_机器人');
+
+    const south = wrapper.get('.seat.south');
+    expect(south.get('.seat-profile').text()).toBe('南S_你');
+    const children = Array.from(south.element.children);
+    expect(children[0].className).toContain('hand');
+    expect(children[children.length - 1].className).toContain('seat-profile');
+  });
 });
 
 describe('Table 叫牌过程', () => {
