@@ -36,8 +36,19 @@ const rows = computed(() =>
   })),
 );
 
-/** 北/南家用单行牌面：按 ♠ ♥ ♦ ♣ 分组，缺门不占位 */
+/** 按 ♠ ♥ ♦ ♣ 分组，缺门不占位 */
 const singleRowGroups = computed(() => rows.value.filter((row) => row.cards.length > 0));
+
+/**
+ * 东西家（紧凑模式）分成两行：♠♥ 一行、♦♣ 一行，
+ * 既保持牌张可读尺寸，又避免横向占满侧栏。
+ */
+const displayRows = computed(() => {
+  if (!props.compact) return [singleRowGroups.value];
+  const high = singleRowGroups.value.filter((row) => row.suit >= 2);
+  const low = singleRowGroups.value.filter((row) => row.suit < 2);
+  return [high, low].filter((row) => row.length > 0);
+});
 
 /** 本轮已出牌的可展示信息（无则 null） */
 const played = computed(() => {
@@ -55,52 +66,33 @@ const played = computed(() => {
           v-for="i in cards.length"
           :key="i"
           back
-          :size="compact ? 'xs' : 'sm'"
+          :size="compact ? 'sm' : 'md'"
         />
       </div>
 
       <div
         v-else
         class="suits"
-        :class="{ clickable, 'no-events': !clickable, 'single-row': !compact }"
+        :class="{ clickable, 'no-events': !clickable, 'single-row': !compact, 'compact-rows': compact }"
       >
-        <!-- 北/南家：单行，按 ♠ ♥ ♦ ♣ 从大到小排列 -->
-        <div v-if="!compact" class="single-row-cards">
+        <!-- 手牌按花色分组叠放；东西家分成 ♠♥ / ♦♣ 两行 -->
+        <div v-for="(row, rowIndex) in displayRows" :key="rowIndex" class="hand-row">
           <span
-            v-for="row in singleRowGroups"
-            :key="row.suit"
+            v-for="group in row"
+            :key="group.suit"
             class="suit-group"
           >
             <PlayingCard
-              v-for="card in row.cards"
+              v-for="card in group.cards"
               :key="card"
               :card="card"
-              size="sm"
+              :size="compact ? 'sm' : 'md'"
               :clickable="clickable"
               :active="active && clickable"
               @click="emit('card-click', card)"
             />
           </span>
         </div>
-
-        <!-- 东/西家：紧凑模式仍按花色分 4 行 -->
-        <template v-else>
-          <div v-for="row in rows" :key="row.suit" class="suit-row">
-            <span class="suit-tag" :class="{ red: row.red }">{{ row.symbol }}</span>
-            <div class="suit-cards">
-              <PlayingCard
-                v-for="card in row.cards"
-                :key="card"
-                :card="card"
-                :size="compact ? 'xs' : 'sm'"
-                :clickable="clickable"
-                :active="active && clickable"
-                @click="emit('card-click', card)"
-              />
-              <span v-if="row.cards.length === 0" class="void">—</span>
-            </div>
-          </div>
-        </template>
       </div>
     </div>
 
@@ -132,19 +124,19 @@ const played = computed(() => {
   flex-direction: row-reverse;
 }
 
-/* 4 行分花色：S / H / D / C */
+/* 手牌：按花色分组叠放 */
 .suits {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 .suits.single-row {
-  display: block;
+  gap: 0;
 }
-.single-row-cards {
+.hand-row {
   display: flex;
   align-items: flex-end;
-  min-height: 48px;
+  min-height: 76px;
   padding-left: 3px;
   max-width: 100%;
 }
@@ -154,88 +146,58 @@ const played = computed(() => {
   flex: none;
 }
 .suit-group + .suit-group {
-  margin-left: 9px;
+  margin-left: 8px;
 }
 .suit-group .playing-card + .playing-card {
-  margin-left: -14px;
-}
-.suit-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 48px;
-}
-.suit-tag {
-  width: 17px;
-  text-align: center;
-  font-size: 16px;
-  line-height: 1;
-  font-weight: 700;
-  color: #eaf5ee;
-  flex: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-.suit-tag.red {
-  color: #ff9a8a;
-}
-.suit-cards {
-  display: flex;
-  align-items: flex-end;
-  min-height: 48px;
-  padding-left: 3px;
-  min-width: 0;
-}
-.suit-cards .playing-card + .playing-card {
-  margin-left: -12px;
-}
-.void {
-  color: rgba(234, 245, 238, 0.35);
-  font-size: 12px;
-  padding-left: 2px;
+  margin-left: -32px;
 }
 .suits.no-events {
   pointer-events: none;
   opacity: 0.74;
 }
 
-/* 暗手：横向牌背；东西家改为纵向叠牌 */
+/* 暗手：横向叠放牌背 */
 .cards.backs {
   display: flex;
   align-items: center;
-  min-height: 48px;
+  min-height: 76px;
 }
 .cards.backs .playing-card + .playing-card {
-  margin-left: -14px;
-}
-.pos-E .cards.backs,
-.pos-W .cards.backs {
-  flex-direction: column;
-  min-height: 0;
-}
-.pos-E .cards.backs .playing-card + .playing-card,
-.pos-W .cards.backs .playing-card + .playing-card {
-  margin-left: 0;
-  margin-top: -18px;
+  margin-left: -28px;
 }
 
-/* 紧凑模式（东西家） */
-.compact .suit-row {
-  gap: 2px;
-  min-height: 30px;
+/* 东/西家紧凑模式：两行、牌张稍小、叠放更紧 */
+.hand.compact {
+  gap: 4px;
 }
-.compact .suit-tag {
-  width: 13px;
-  font-size: 13px;
+.compact .hand-row {
+  min-height: 48px;
+  padding-left: 2px;
 }
-.compact .suit-cards {
-  min-height: 30px;
-  padding-left: 1px;
+.compact .suit-group + .suit-group {
+  margin-left: 5px;
 }
-.compact .suit-cards .playing-card + .playing-card {
-  margin-left: -14px;
+.compact .suit-group .playing-card + .playing-card {
+  margin-left: -22px;
 }
 .compact .cards.backs {
-  min-height: 30px;
+  min-height: 48px;
+}
+.compact .cards.backs .playing-card + .playing-card {
+  margin-left: -22px;
+}
+
+/* 窄屏时进一步加大叠放，避免 13 张牌横向溢出 */
+@media (max-width: 560px) {
+  .hand:not(.compact) .suit-group + .suit-group {
+    margin-left: 4px;
+  }
+  .hand:not(.compact) .suit-group .playing-card + .playing-card {
+    margin-left: -46px;
+  }
+  .hand:not(.compact) .cards.backs .playing-card + .playing-card {
+    margin-left: -40px;
+  }
 }
 
 /* 主动高亮可点击的手牌 */

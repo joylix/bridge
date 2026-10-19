@@ -285,15 +285,15 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     'west center east'
     'south south south';
   grid-template-columns: 250px minmax(0, 1fr) 250px;
-  grid-template-rows: auto minmax(340px, 1fr) auto;
-  gap: 8px 12px;
-  min-height: 640px;
+  grid-template-rows: auto minmax(220px, 1fr) auto;
+  gap: 6px 12px;
+  min-height: 480px;
   overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 42%, rgba(72, 167, 112, 0.36), transparent 58%),
     radial-gradient(circle at 50% 12%, #2d8a5d 0%, #1d6d49 42%, #12482f 100%);
   border-radius: 22px;
-  padding: 16px;
+  padding: 14px;
   border: 3px solid #0b2f21;
   box-shadow:
     inset 0 0 0 2px rgba(255, 235, 180, 0.12),
@@ -417,30 +417,30 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   grid-area: center;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 340px;
-  padding: 10px;
-  border-radius: 16px;
+  gap: 5px;
+  min-height: 220px;
+  padding: 7px;
+  border-radius: 14px;
   background: rgba(3, 34, 22, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(2px);
 }
 .center-top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  min-height: 28px;
-  padding: 2px 4px 8px;
-  font-size: 13px;
+  min-height: 24px;
+  padding: 1px 3px 5px;
+  font-size: 12px;
   color: #eaf5ee;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 .contract {
   font-weight: 800;
   color: #ffe19a;
-  font-size: 16px;
+  font-size: 15px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 .contract.pending,
@@ -478,6 +478,42 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 .center-bid-history {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+/* 中央叫牌纸压缩为紧凑表格，避免占据过多牌桌空间 */
+.center-bid-history :deep(.variant-table) {
+  gap: 3px;
+  padding: 6px 8px;
+  border-radius: 9px;
+}
+.center-bid-history :deep(.bid-title-row) {
+  padding-bottom: 3px;
+}
+.center-bid-history :deep(.bid-title) {
+  font-size: 12px;
+}
+.center-bid-history :deep(.bid-meta) {
+  font-size: 10px;
+}
+.center-bid-history :deep(.bid-header span) {
+  padding: 2px 0;
+  font-size: 10px;
+}
+.center-bid-history :deep(.bid-cell) {
+  min-height: 21px;
+  padding: 1px 0;
+}
+.center-bid-history :deep(.bid-level) {
+  font-size: 12px;
+}
+.center-bid-history :deep(.bid-suit) {
+  font-size: 18px;
+}
+.center-bid-history :deep(.bid-suit.nt) {
+  font-size: 11px;
+}
+.center-bid-history :deep(.bid-label) {
+  font-size: 11px;
 }
 .center-idle {
   flex: 1;
@@ -493,21 +529,21 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     '. north .'
     'west center east'
     '. south .';
-  grid-template-columns: minmax(90px, 1fr) minmax(130px, 1.15fr) minmax(90px, 1fr);
-  grid-template-rows: repeat(3, minmax(74px, 1fr));
-  gap: 4px;
-  min-height: 280px;
+  grid-template-columns: minmax(76px, 1fr) minmax(116px, 1.1fr) minmax(76px, 1fr);
+  grid-template-rows: repeat(3, minmax(64px, 1fr));
+  gap: 3px;
+  min-height: 210px;
 }
 .trick-slot {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
-  padding: 3px;
+  padding: 2px;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .trick-slot.slot-N {
@@ -603,17 +639,20 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 
 @media (max-width: 900px) {
   .table {
-    grid-template-columns: 195px minmax(0, 1fr) 195px;
-    min-height: 560px;
+    grid-template-columns: 220px minmax(0, 1fr) 220px;
+    grid-template-rows: auto minmax(220px, 1fr) auto;
+    min-height: 460px;
     padding: 10px;
     gap: 6px;
   }
   .trick-board {
-    grid-template-columns: 70px minmax(110px, 1fr) 70px;
-    grid-template-rows: repeat(3, minmax(62px, 1fr));
+    grid-template-columns: 62px minmax(104px, 1fr) 62px;
+    grid-template-rows: repeat(3, minmax(58px, 1fr));
+    min-height: 200px;
   }
   .center {
-    padding: 7px;
+    min-height: 220px;
+    padding: 6px;
   }
 }
 
@@ -636,7 +675,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     align-items: center;
   }
   .center {
-    min-height: 300px;
+    min-height: 240px;
   }
 }
 </style>

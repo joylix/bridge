@@ -37,14 +37,16 @@ describe('Hand 牌面布局', () => {
     expect(wrapper.findAll('.card')).toHaveLength(12);
   });
 
-  it('东西家紧凑模式仍按花色分 4 行', () => {
+  it('东西家紧凑模式使用两行叠放，不渲染空花色占位', () => {
     const wrapper = mount(Hand, {
       props: { cards: parseHand('SAKQJ2 HJT9 D5432'), position: 'E', compact: true },
     });
-    const rows = wrapper.findAll('.suit-row');
-    expect(rows).toHaveLength(4);
-    expect(rows.map((r) => r.get('.suit-tag').text())).toEqual(['♠', '♥', '♦', '♣']);
-    expect(wrapper.findAll('.void')).toHaveLength(1);
+    expect(wrapper.get('.hand').classes()).toContain('compact');
+    expect(wrapper.get('.suits').classes()).toContain('compact-rows');
+    expect(wrapper.findAll('.suit-row')).toHaveLength(0);
+    expect(wrapper.findAll('.hand-row')).toHaveLength(2);
+    expect(wrapper.findAll('.suit-group')).toHaveLength(3);
+    expect(wrapper.findAll('.void')).toHaveLength(0);
   });
 
   it('暗手只渲染牌背，不泄露牌型', () => {
