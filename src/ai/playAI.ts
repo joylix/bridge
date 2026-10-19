@@ -168,7 +168,14 @@ function topOfSequence(hand: Hand, trumpSuit: SuitIndex | null): number {
 /* ------------------------------------------------------------------ *
  * 跟牌 / 垫牌（硬编码启发式 + 信号约定）
  *
- * 约定（与 rules/play/signals.yml 保持一致）：
+ * 基本桥牌技巧（与 rules/play/signals.yml 保持一致）：
+ * - 第二家：通常出小牌；若上家（对手）领出 10 以上的荣誉大牌，
+ *   用“最小能盖过它的牌”盖打（cover an honor with an honor）。
+ * - 第三家：同伴的大牌正在赢则出小牌；同伴的小牌虽然当前赢、
+ *   但第四家可能超打时，出最小能赢的牌保护（third hand high）；
+ *   对手当前赢时同样出最小能赢的牌。
+ * - 第四家：能赢则用最小赢张；若同伴（第二家）已经赢墩，
+ *   不得无谓超打同伴。
  * - 跟牌张数信号：偶数张“先大后小”，奇数张“先小后大”；
  *   信号张只用 10 及以下，保留 J 以上大牌。
  * - 无将垫牌：从“不鼓励”（最弱）的花色垫最小牌。
@@ -210,9 +217,42 @@ function selectFollow(
     isDefender ? lowCardOrSignal(legalCards, leadSuit, trumpSuit, following) : lowest(legalCards);
   const numPlayed = currentTrick.length;
 
-  if (numPlayed === 3) return fourthHandPlay(legalCards, currentTrick, trumpSuit, leadSuit, lowPlay);
+  if (numPlayed === 3) {
+    return fourthHandPlay(legalCards, currentTrick, trumpSuit, position, leadSuit, lowPlay);
+  }
   if (numPlayed === 2) {
-    return thirdHandPlay(legalCards, currentTrick, trumpSuit, position, leadSuit, lowPlay);
+    return thirdHandPlay(legalCards, currentTrick, trumpSuit, position, leadSuit, following, lowPlay);
+  }
+  return secondHandPlay(legalCards, currentTrick, trumpSuit, position, leadSuit, following, lowPlay);
+}
+
+/** 10 及以上视为荣誉大牌（10/J/Q/K/A） */
+function isHonor(card: number): boolean {
+  return getRank(card) >= 8;
+}
+
+/**
+ * 第二家：
+ * - 默认第二家出小牌，让第三家/同伴处理；
+ * - 对手领出荣誉大牌时，若手里有更大的牌，用最小能盖过的牌盖打。
+ * 同伴领出的牌不盖（避免浪费己方大牌）。
+ */
+function secondHandPlay(
+  legalCards: Hand,
+  currentTrick: CardPlay[],
+  trumpSuit: SuitIndex | null,
+  position: Position,
+  leadSuit: SuitIndex,
+  following: boolean,
+  lowPlay: () => number,
+): number {
+  if (!following) return lowPlay();
+
+  const leader = currentTrick[0];
+  const leaderIsOpponent = getSide(leader.position) !== getSide(position);
+  if (leaderIsOpponent && isHonor(leader.card)) {
+    const winners = legalCards.filter((card) => beatsCard(card, leader.card, leadSuit, trumpSuit));
+    if (winners.length > 0) return lowest(winners);
   }
   return lowPlay();
 }
@@ -294,22 +334,12 @@ function chooseDiscard(legalCards: Hand, trumpSuit: SuitIndex | null): number {
   return lowest(legalCards.filter((card) => getSuit(card) === leastEncouraging.suit));
 }
 
-/** 第四家：能赢则用足够赢的最小牌，否则按信号/垫牌约定出牌 */
+/**
+ * 第四家：
+ * - 同伴（第二家）已经赢墩时出小牌，不无谓超打同伴；
+ * - 否则能赢则用足够赢的最小牌，不能赢则按信号/垫牌约定出牌。
+ */
 function fourthHandPlay(
-  legalCards: Hand,
-  currentTrick: CardPlay[],
-  trumpSuit: SuitIndex | null,
-  leadSuit: SuitIndex,
-  lowPlay: () => number,
-): number {
-  const bestSoFar = getTrickWinnerCard(currentTrick, trumpSuit);
-  const winners = legalCards.filter((card) => beatsCard(card, bestSoFar, leadSuit, trumpSuit));
-  if (winners.length > 0) return lowest(winners);
-  return lowPlay();
-}
-
-/** 第三家：同伴已赢则给信号；否则尝试以最小赢张超吃 */
-function thirdHandPlay(
   legalCards: Hand,
   currentTrick: CardPlay[],
   trumpSuit: SuitIndex | null,
@@ -324,6 +354,40 @@ function thirdHandPlay(
   const winners = legalCards.filter((card) => beatsCard(card, bestSoFar, leadSuit, trumpSuit));
   if (winners.length > 0) return lowest(winners);
   return lowPlay();
+}
+
+/**
+ * 第三家：
+ * - 同伴领出荣誉大牌且正在赢：出小牌，保留己方大牌；
+ * - 同伴领出小牌虽然当前赢，但第四家可能超打：出最小能赢的牌保护；
+ * - 对手当前赢：出最小能赢的牌（third hand high，连张时保留更大牌）；
+ * - 无法赢：按张数信号/垫牌约定出小牌。
+ */
+function thirdHandPlay(
+  legalCards: Hand,
+  currentTrick: CardPlay[],
+  trumpSuit: SuitIndex | null,
+  position: Position,
+  leadSuit: SuitIndex,
+  following: boolean,
+  lowPlay: () => number,
+): number {
+  const partnerWinning = determineTrickWinner(currentTrick, trumpSuit) === getPartner(position);
+  const bestSoFar = getTrickWinnerCard(currentTrick, trumpSuit);
+  const winners = legalCards.filter((card) => beatsCard(card, bestSoFar, leadSuit, trumpSuit));
+
+  if (!following) {
+    // 缺门时：同伴已赢就不将吃；对手赢则尝试用最小将牌赢墩。
+    return partnerWinning || winners.length === 0 ? lowPlay() : lowest(winners);
+  }
+
+  if (partnerWinning) {
+    // 同伴领出的是荣誉大牌，通常不超打；小牌则需要第三家高牌保护。
+    if (isHonor(currentTrick[0].card)) return lowPlay();
+    return winners.length > 0 ? lowest(winners) : lowPlay();
+  }
+
+  return winners.length > 0 ? lowest(winners) : lowPlay();
 }
 
 /** 取点数最小的牌（并列时取较低花色，保证确定性） */

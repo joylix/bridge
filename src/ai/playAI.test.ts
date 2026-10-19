@@ -78,6 +78,85 @@ describe('打牌 AI（playAI）', () => {
     expect(card).toBe(parseHand('S4')[0]);
   });
 
+  it('第二家：对手领出小牌时按第二家低牌原则出小牌', () => {
+    const hand = parseHand('SKQ2 H543 D5432 C5432');
+    const lead: CardPlay = { position: 'S', card: parseHand('S5')[0] };
+    const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('S2')[0]);
+  });
+
+  it('第二家：对手领出荣誉大牌时用最小能盖过的牌盖打', () => {
+    const hand = parseHand('SA2 H543 D5432 C5432');
+    const lead: CardPlay = { position: 'S', card: parseHand('SK')[0] };
+    const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SA')[0]);
+  });
+
+  it('第二家：盖打连张荣誉时只出最小盖张，保留更大牌', () => {
+    const hand = parseHand('SKQ2 H543 D5432 C5432');
+    const lead: CardPlay = { position: 'S', card: parseHand('SJ')[0] };
+    const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SQ')[0]);
+  });
+
+  it('第二家：同伴领出的荣誉大牌不盖', () => {
+    const hand = parseHand('SA2 H543 D5432 C5432');
+    const lead: CardPlay = { position: 'W', card: parseHand('SK')[0] }; // W 是 E 的同伴
+    const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('S2')[0]);
+  });
+
+  it('第三家：同伴的小牌当前虽赢，也要出高牌防止第四家超打', () => {
+    const hand = parseHand('SK2 H543 D5432 C5432');
+    const trick: CardPlay[] = [
+      { position: 'E', card: parseHand('S5')[0] }, // 同伴领出小牌
+      { position: 'S', card: parseHand('S4')[0] },
+    ];
+    const card = playAI(hand, null, trick, null, 'W', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SK')[0]);
+  });
+
+  it('第三家（庄家侧）：明手领出小牌时同样出高牌保护', () => {
+    const hand = parseHand('SK2 H543 D5432 C5432');
+    const trick: CardPlay[] = [
+      { position: 'N', card: parseHand('S5')[0] }, // 明手领出小牌
+      { position: 'E', card: parseHand('S4')[0] },
+    ];
+    const card = playAI(hand, null, trick, null, 'S', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SK')[0]);
+  });
+
+  it('第三家：同伴的荣誉大牌已赢时出小牌，不超打同伴', () => {
+    const hand = parseHand('SA2 H543 D5432 C5432');
+    const trick: CardPlay[] = [
+      { position: 'E', card: parseHand('SK')[0] },
+      { position: 'S', card: parseHand('S5')[0] },
+    ];
+    const card = playAI(hand, null, trick, null, 'W', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('S2')[0]);
+  });
+
+  it('第三家：对手当前赢时用最小赢张，连张时保留更大牌', () => {
+    const hand = parseHand('SQJ2 H543 D5432 C5432');
+    const trick: CardPlay[] = [
+      { position: 'E', card: parseHand('S5')[0] },
+      { position: 'S', card: parseHand('ST')[0] },
+    ];
+    const card = playAI(hand, null, trick, null, 'W', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SJ')[0]);
+  });
+
+  it('第四家：同伴（第二家）已赢时不得无谓超打', () => {
+    const hand = parseHand('SA2 H543 D5432 C5432');
+    const trick: CardPlay[] = [
+      { position: 'W', card: parseHand('S5')[0] },
+      { position: 'N', card: parseHand('SK')[0] }, // N 是 S 的同伴，当前赢
+      { position: 'E', card: parseHand('S4')[0] },
+    ];
+    const card = playAI(hand, null, trick, null, 'S', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('S2')[0]);
+  });
+
   it('NT 定约无长套时，首攻敌方未叫过的高花', () => {
     const hand = parseHand('SAQ76 H54 D932 C8642'); // 四门均 ≤4 张
     const card = playAI(hand, null, [], null, 'W', ntContract, 0, leads, 1, {
