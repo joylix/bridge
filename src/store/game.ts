@@ -19,7 +19,7 @@ import { createDeck, deal, shuffle } from '../core/deck';
 import { sortHand } from '../models/hand';
 import { getSuit } from '../models/card';
 import { isCallLegal } from '../core/bidding/validator';
-import { isCardLegal } from '../core/playing';
+import { getLegalCards, isCardLegal } from '../core/playing';
 import { determineTrickWinner } from '../core/trick';
 import { computeScore, type ScoreResult } from '../core/scoring';
 import { hcpAdjustedPoints, impsFromScoreDiff } from '../core/imps';
@@ -421,7 +421,17 @@ export const useGameStore = defineStore('game', () => {
     );
   }
 
-  /** AI 主循环：仅接管“非人类控制”的座位；轮到人类即返回等待输入 */
+  /** 当前座位所有合法出牌（首攻/领出时整手牌都合法） */
+  function legalCardsFor(pos: Position): Hand {
+    if (!state.contract) return [];
+    const leadSuit = state.currentTrick.length === 0 ? null : getSuit(state.currentTrick[0].card);
+    return getLegalCards(state.hands[pos], leadSuit, trumpSuitOf(state.contract));
+  }
+
+  /**
+   * AI 主循环：接管“非人类控制”的座位；轮到人类即返回等待输入。
+   * 任何座位（包括人类控制的座位）只剩唯一合法出牌时，直接自动打出。
+   */
   async function runAILoop(): Promise<void> {
     const token = ++loopToken;
     for (;;) {
@@ -442,11 +452,21 @@ export const useGameStore = defineStore('game', () => {
       }
       if (state.phase === 'play_waiting_lead' || state.phase === 'play') {
         const pos = state.nextPlayer;
-        if (pos === null || isHumanControlled(pos)) return;
-        state.isAiThinking = true;
-        await sleep(AI_DELAY_MS);
-        if (token !== loopToken) return;
-        const card = decideAiPlay(pos);
+        if (pos === null) return;
+        const legal = legalCardsFor(pos);
+        if (legal.length === 0) return;
+        const forced = legal.length === 1 ? legal[0] : null;
+        if (isHumanControlled(pos) && forced === null) return;
+
+        let card: number;
+        if (forced !== null) {
+          card = forced;
+        } else {
+          state.isAiThinking = true;
+          await sleep(AI_DELAY_MS);
+          if (token !== loopToken) return;
+          card = decideAiPlay(pos);
+        }
         applyPlay(pos, card);
         state.isAiThinking = false;
         continue;

@@ -74,35 +74,39 @@ const roundDone = computed(
   <div class="panel">
     <h3>定约</h3>
     <div class="contract-box" :class="{ empty: !store.contract }">
-      <span class="contract-value">{{ store.contract ? describeContract(store.contract) : '—' }}</span>
+      <span class="contract-value">
+        {{ store.contract ? describeContract(store.contract) : store.phase === 'scoring' ? '流局' : '—' }}
+      </span>
       <span class="contract-sub">
         <span>局况 {{ vulName(store.vulnerability) }}</span>
         <span v-if="store.contract">需 {{ requiredTricks }} 墩（{{ store.contract.level }} + 6）</span>
-        <span v-else>尚未确立定约</span>
+        <span v-else>{{ store.phase === 'scoring' ? '四家不叫，本局流局' : '尚未确立定约' }}</span>
       </span>
     </div>
 
-    <h3 class="section-title">赢墩</h3>
-    <div class="tricks">
-      <div class="side" :class="{ 'is-decl': declSide === 'NS' }">
-        <span class="side-name">NS</span>
-        <span class="side-value">{{ tricksBySide.NS }}</span>
-        <span v-if="declSide === 'NS'" class="decl-tag">定约方</span>
+    <template v-if="store.contract">
+      <h3 class="section-title">赢墩</h3>
+      <div class="tricks">
+        <div class="side" :class="{ 'is-decl': declSide === 'NS' }">
+          <span class="side-name">NS</span>
+          <span class="side-value">{{ tricksBySide.NS }}</span>
+          <span v-if="declSide === 'NS'" class="decl-tag">定约方</span>
+        </div>
+        <div class="side" :class="{ 'is-decl': declSide === 'EW' }">
+          <span class="side-name">EW</span>
+          <span class="side-value">{{ tricksBySide.EW }}</span>
+          <span v-if="declSide === 'EW'" class="decl-tag">定约方</span>
+        </div>
       </div>
-      <div class="side" :class="{ 'is-decl': declSide === 'EW' }">
-        <span class="side-name">EW</span>
-        <span class="side-value">{{ tricksBySide.EW }}</span>
-        <span v-if="declSide === 'EW'" class="decl-tag">定约方</span>
-      </div>
-    </div>
-    <p v-if="store.contract" class="progress">{{ declSide }} · {{ progressText }}</p>
+      <p class="progress">{{ declSide }} · {{ progressText }}</p>
+    </template>
 
     <h3 class="section-title">
       计点（第 {{ store.pointsSummary.roundNumber }} 循环 ·
       {{ store.pointsSummary.roundSize }} 副）
     </h3>
     <div class="points">
-      <div class="points-row">
+      <div v-if="store.phase === 'scoring'" class="points-row">
         <span>本局点数</span>
         <strong>{{ dealPointsLabel }}</strong>
       </div>
@@ -110,7 +114,7 @@ const roundDone = computed(
         <input type="checkbox" :checked="store.useHcpAdjust" @change="toggleHcpAdjust" />
         贴点制
       </label>
-      <template v-if="store.useHcpAdjust">
+      <template v-if="store.useHcpAdjust && store.phase === 'scoring'">
         <div class="points-row">
           <span>本局双方大牌点</span>
           <strong>{{ store.pointsSummary.dealHcp.NS }} : {{ store.pointsSummary.dealHcp.EW }}</strong>

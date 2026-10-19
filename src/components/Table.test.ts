@@ -167,14 +167,32 @@ describe('Table 明手与庄家手牌可见性', () => {
   });
 });
 
-describe('Table 上一墩回顾', () => {
-  it('无已完成墩时按钮禁用', async () => {
-    const { wrapper } = newStoreAndTable();
-    expect(wrapper.get('.last-trick-btn').attributes('disabled')).toBeDefined();
+describe('Table 中央出牌区', () => {
+  it('打牌阶段按上下左右位置显示四家出牌', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.tricks = [];
+    store.currentTrick = [
+      { position: 'N', card: parseHand('SA')[0] },
+      { position: 'E', card: parseHand('H2')[0] },
+      { position: 'S', card: parseHand('D3')[0] },
+    ];
+    store.nextPlayer = 'W';
+    await nextTick();
+
+    expect(wrapper.get('.trick-slot.slot-N .board-card').text()).toBe('♠A');
+    expect(wrapper.get('.trick-slot.slot-E .board-card').text()).toBe('♥2');
+    expect(wrapper.get('.trick-slot.slot-E .board-card').classes()).toContain('red');
+    expect(wrapper.get('.trick-slot.slot-S .board-card').text()).toBe('♦3');
+    expect(wrapper.find('.trick-slot.slot-W .board-card').exists()).toBe(false);
+    expect(wrapper.get('.trick-center .board-label').text()).toBe('第 1 墩');
   });
 
-  it('点击“看上一墩”按钮展示上一墩出牌与赢家', async () => {
+  it('本轮为空时自动展示上一墩与赢家，不显示切换按钮', async () => {
     const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play_waiting_lead';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
     const plays = [
       { position: 'S' as const, card: parseHand('SA')[0] },
       { position: 'W' as const, card: parseHand('H2')[0] },
@@ -182,22 +200,41 @@ describe('Table 上一墩回顾', () => {
       { position: 'E' as const, card: parseHand('C4')[0] },
     ];
     store.tricks = [{ plays, leader: 'S', winner: 'S' }];
+    store.currentTrick = [];
+    store.nextPlayer = 'S';
     await nextTick();
 
+    expect(wrapper.get('.trick-slot.slot-S .board-card').text()).toBe('♠A');
+    expect(wrapper.get('.trick-center').text()).toContain('上一墩');
+    expect(wrapper.get('.trick-center').text()).toContain('赢家 S');
+    expect(wrapper.find('.last-trick-btn').exists()).toBe(false);
+  });
+
+  it('本轮进行中可切换到上一墩查看，再切回本轮', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    const plays = [
+      { position: 'S' as const, card: parseHand('SA')[0] },
+      { position: 'W' as const, card: parseHand('H2')[0] },
+      { position: 'N' as const, card: parseHand('D3')[0] },
+      { position: 'E' as const, card: parseHand('C4')[0] },
+    ];
+    store.tricks = [{ plays, leader: 'S', winner: 'S' }];
+    store.currentTrick = [{ position: 'W', card: parseHand('C2')[0] }];
+    store.nextPlayer = 'N';
+    await nextTick();
+
+    expect(wrapper.get('.trick-slot.slot-W .board-card').text()).toBe('♣2');
     const btn = wrapper.get('.last-trick-btn');
-    expect(btn.attributes('disabled')).toBeUndefined();
-    expect(wrapper.find('.last-trick').exists()).toBe(false);
+    expect(btn.text()).toBe('看上一墩');
 
     await btn.trigger('click');
     await nextTick();
 
-    const panel = wrapper.get('.last-trick');
-    expect(panel.text()).toContain('赢家 S');
-    for (const play of plays) {
-      expect(panel.text()).toContain(playedText(play.card));
-    }
-    expect(panel.get('.trick-card.is-winner').text()).toContain('S');
-    expect(panel.findAll('.trick-card')).toHaveLength(4);
-    expect(cardLabel(plays[0].card)).toBe('♠A');
+    expect(wrapper.get('.trick-slot.slot-S .board-card').text()).toBe('♠A');
+    expect(wrapper.get('.trick-center').text()).toContain('上一墩');
+    expect(wrapper.get('.trick-center').text()).toContain('赢家 S');
+    expect(btn.text()).toBe('看本轮');
   });
 });

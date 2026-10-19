@@ -6,6 +6,7 @@ import { getLegalCards } from '../core/playing';
 import { getSuit } from '../models/card';
 import { trumpSuitOf, type Position } from '../models/gameState';
 import { sortHand } from '../models/hand';
+import { parseHand } from '../testing/testUtils';
 import { clearRuleOverrides } from '../engine/loader';
 
 const SEATS: Position[] = ['N', 'E', 'S', 'W'];
@@ -114,6 +115,31 @@ describe('人类控制权模型（用例 14、15）', () => {
   it('人类为防守方：只操作自己', () => {
     store.contract = { level: 2, suit: 'S', doubled: false, redoubled: false, declarer: 'E', dummy: 'W' };
     expect(store.controlledSeats()).toEqual(['S']);
+  });
+});
+
+describe('唯一合法出牌自动进行', () => {
+  it('人类控制的座位只剩唯一合法牌时，AI 循环直接替其打出', async () => {
+    const store = newStore();
+    store.startNewGame({ autoStart: false, seed: 2 });
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
+    store.phase = 'play';
+    store.tricks = [];
+    store.currentTrick = [{ position: 'W', card: parseHand('H2')[0] }];
+    store.nextPlayer = 'N';
+
+    const onlyCard = parseHand('SA')[0];
+    store.hands.N = [onlyCard];
+    store.hands.E = [parseHand('H5')[0]]; // 东家同样只有一张合法牌，也应无延迟自动出牌
+    store.hands.S = parseHand('H3 H4'); // 轮到人类时有两张合法牌，循环应停下
+
+    await store.runAILoop();
+
+    expect(store.hands.N).toEqual([]);
+    expect(store.currentTrick.find((p) => p.position === 'N')?.card).toBe(onlyCard);
+    expect(store.currentTrick.find((p) => p.position === 'E')?.card).toBe(parseHand('H5')[0]);
+    expect(store.nextPlayer).toBe('S');
+    expect(store.isAiThinking).toBe(false);
   });
 });
 

@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import ElementPlus from 'element-plus';
+import BiddingBox from './BiddingBox.vue';
+import { useGameStore } from '../store/game';
+
+function setup(phase: 'bidding' | 'play' | 'scoring') {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const store = useGameStore();
+  store.startNewGame({ autoStart: false, seed: 9 });
+  store.phase = phase;
+  if (phase !== 'bidding') {
+    store.contract = { level: 4, suit: 'H', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.biddingHistory = [
+      { position: 'N', call: { type: 'pass' } },
+      { position: 'E', call: { type: 'pass' } },
+      { position: 'S', call: { type: 'bid', level: 4, suit: 'H' } },
+      { position: 'W', call: { type: 'pass' } },
+    ];
+  }
+  if (phase === 'scoring') {
+    store.score = { NS: 420, EW: 0 };
+  }
+  const wrapper = mount(BiddingBox, { global: { plugins: [pinia, ElementPlus] } });
+  return { store, wrapper };
+}
+
+describe('BiddingBox 阶段切换', () => {
+  it('叫牌阶段显示叫牌按钮，不显示叫牌过程', () => {
+    const { wrapper } = setup('bidding');
+    expect(wrapper.findAll('.bid-btn').length).toBeGreaterThan(0);
+    expect(wrapper.find('.bid-history').exists()).toBe(false);
+  });
+
+  it('叫牌结束后显示叫牌过程，不再显示叫牌按钮', () => {
+    const { wrapper } = setup('play');
+    expect(wrapper.find('.bid-history').exists()).toBe(true);
+    expect(wrapper.findAll('.bid-btn')).toHaveLength(0);
+    expect(wrapper.get('.bid-title-row').text()).toContain('局况');
+  });
+
+  it('打牌结束后显示最终结果和查看详细结果入口', () => {
+    const { wrapper } = setup('scoring');
+    expect(wrapper.find('.bid-history').exists()).toBe(true);
+    const notice = wrapper.get('.flow-notice');
+    expect(notice.text()).toContain('最终结果');
+    expect(notice.text()).toContain('查看详细结果');
+    expect(notice.text()).toContain('S 4♥');
+  });
+});
