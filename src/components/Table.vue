@@ -150,7 +150,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <div class="seat north" :class="{ active: isActive('N') }">
       <div class="seat-profile">
         <span class="avatar">北</span>
-        <span class="profile-text"><strong>北家</strong><small>机器人</small></span>
+        <span class="profile-text"><strong>N</strong><small>机器人</small></span>
         <span v-if="isDummySeat('N')" class="dummy-tag">明手</span>
       </div>
       <Hand
@@ -169,7 +169,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <div class="seat west" :class="{ active: isActive('W') }">
       <div class="seat-profile">
         <span class="avatar">西</span>
-        <span class="profile-text"><strong>西家</strong><small>机器人</small></span>
+        <span class="profile-text"><strong>W</strong><small>机器人</small></span>
         <span v-if="isDummySeat('W')" class="dummy-tag">明手</span>
       </div>
       <Hand
@@ -239,7 +239,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <div class="seat east" :class="{ active: isActive('E') }">
       <div class="seat-profile">
         <span class="avatar">东</span>
-        <span class="profile-text"><strong>东家</strong><small>机器人</small></span>
+        <span class="profile-text"><strong>E</strong><small>机器人</small></span>
         <span v-if="isDummySeat('E')" class="dummy-tag">明手</span>
       </div>
       <Hand
@@ -259,7 +259,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <div class="seat south" :class="{ active: isActive('S') }">
       <div class="seat-profile">
         <span class="avatar you">南</span>
-        <span class="profile-text"><strong>南家</strong><small>你</small></span>
+        <span class="profile-text"><strong>S</strong><small>你</small></span>
         <span v-if="isDummySeat('S')" class="dummy-tag">明手</span>
       </div>
       <Hand

@@ -35,7 +35,7 @@ describe('Table 叫牌高亮', () => {
     await nextTick();
 
     expect(wrapper.find('.hand.pos-E').classes()).toContain('active');
-    expect(wrapper.get('.seat.east .seat-profile').text()).toContain('东家');
+    expect(wrapper.get('.seat.east .seat-profile').text()).toContain('E');
     // 非当前叫牌人不高亮
     expect(wrapper.find('.hand.pos-S').classes()).not.toContain('active');
     expect(wrapper.find('.hand.pos-N').classes()).not.toContain('active');
@@ -47,7 +47,7 @@ describe('Table 叫牌高亮', () => {
     await nextTick();
 
     expect(wrapper.find('.hand.pos-S').classes()).toContain('active');
-    expect(wrapper.get('.seat.south .seat-profile').text()).toContain('南家');
+    expect(wrapper.get('.seat.south .seat-profile').text()).toContain('S');
   });
 });
 
