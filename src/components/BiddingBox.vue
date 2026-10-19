@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useGameStore, describeContract } from '../store/game';
+import { useGameStore } from '../store/game';
 import { isCallLegal } from '../core/bidding/validator';
 import type { BidCall, BidSuit } from '../models/gameState';
 import BidHistory from './BidHistory.vue';
+import ContractDisplay from './ContractDisplay.vue';
 import DealResultDialog from './DealResultDialog.vue';
 
 const store = useGameStore();
@@ -31,8 +32,6 @@ const dealPointsLabel = computed(() => {
   }
   return base;
 });
-
-const finalContractText = computed(() => (store.contract ? describeContract(store.contract) : '流局'));
 
 const outcomeText = computed(() => {
   if (store.phase !== 'scoring') return '';
@@ -137,7 +136,9 @@ function makeSimple(type: 'pass' | 'double' | 'redouble'): void {
       <div v-if="store.phase === 'scoring'" class="flow-notice">
         <h4 class="result-title">最终结果</h4>
         <div class="final-hero">
-          <strong class="final-contract">{{ finalContractText }}</strong>
+          <strong class="final-contract">
+            <ContractDisplay :contract="store.contract" empty-text="流局" />
+          </strong>
           <span class="final-outcome">{{ outcomeText }}</span>
         </div>
         <div class="final-score">

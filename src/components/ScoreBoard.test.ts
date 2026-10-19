@@ -30,6 +30,7 @@ describe('ScoreBoard 定约与赢墩', () => {
   it('显示当前定约、成约所需墩数与局况', () => {
     const { wrapper } = setup();
     expect(wrapper.get('.contract-value').text()).toBe('S 4♥');
+    expect(wrapper.get('.contract-value .suit').classes()).toContain('red');
     const sub = wrapper.get('.contract-sub').text();
     expect(sub).toContain('需 10 墩');
     expect(sub).toContain('局况');

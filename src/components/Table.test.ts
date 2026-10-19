@@ -103,7 +103,10 @@ describe('Table 状态与局况显示', () => {
     const trickLabel = wrapper.get('.trick-label');
     expect(trickLabel.text()).toBe('等待首攻');
     expect(trickLabel.classes()).not.toContain('pending');
-    expect(wrapper.get('.contract').text()).toBe('N 4♥');
+    const contract = wrapper.get('.contract');
+    expect(contract.text()).toBe('N 4♥');
+    expect(contract.get('.suit').text()).toBe('♥');
+    expect(contract.get('.suit').classes()).toContain('red');
   });
 
   it('四家 Pass 流局后才显示“流局”', async () => {

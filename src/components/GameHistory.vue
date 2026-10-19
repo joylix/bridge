@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useGameStore, describeCall, describeContract, vulName, type DealRecord } from '../store/game';
+import { useGameStore, describeCall, vulName, type DealRecord } from '../store/game';
+import ContractDisplay from './ContractDisplay.vue';
 import { cardLabel, getSuit, isRedSuit } from '../models/card';
 import { impsFromScoreDiff, hcpAdjustedPoints } from '../core/imps';
 import type { BidRecord, Position } from '../models/gameState';
@@ -80,7 +81,7 @@ function dealPointsText(rec: DealRecord): string {
         <span class="deal-meta">局况 {{ vulName(item.record.vulnerability) }} · 发牌人 {{ item.record.dealer }}</span>
         <span class="deal-points">{{ dealPointsText(item.record) }}</span>
         <span class="deal-contract">
-          {{ item.record.contract ? describeContract(item.record.contract) : '未定约' }}
+          <ContractDisplay :contract="item.record.contract" empty-text="未定约" />
         </span>
       </div>
 

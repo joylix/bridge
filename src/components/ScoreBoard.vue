@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useGameStore, describeContract, vulName } from '../store/game';
+import { useGameStore, vulName } from '../store/game';
 import { getSide } from '../models/gameState';
+import ContractDisplay from './ContractDisplay.vue';
 
 const store = useGameStore();
 
@@ -75,7 +76,10 @@ const roundDone = computed(
     <h3>定约</h3>
     <div class="contract-box" :class="{ empty: !store.contract }">
       <span class="contract-value">
-        {{ store.contract ? describeContract(store.contract) : store.phase === 'scoring' ? '流局' : '—' }}
+        <ContractDisplay
+          :contract="store.contract"
+          :empty-text="store.phase === 'scoring' ? '流局' : '—'"
+        />
       </span>
       <span class="contract-sub">
         <span>局况 {{ vulName(store.vulnerability) }}</span>

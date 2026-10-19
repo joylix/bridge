@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useGameStore, describeContract, vulName } from '../store/game';
+import { useGameStore, vulName } from '../store/game';
 import BidHistory from './BidHistory.vue';
+import ContractDisplay from './ContractDisplay.vue';
 
 const open = defineModel<boolean>({ default: false });
 const store = useGameStore();
 
-const contractText = computed(() => (store.contract ? describeContract(store.contract) : '流局'));
 const declarerTricks = computed(() => store.declarerTricksWon());
 const requiredTricks = computed(() => (store.contract ? store.contract.level + 6 : 0));
 
@@ -47,7 +47,9 @@ const dealAdjustLabel = computed(() => {
     <div class="result-hero" :class="{ passed: !store.contract }">
       <div class="hero-main">
         <span class="hero-label">定约</span>
-        <strong class="hero-contract">{{ contractText }}</strong>
+        <strong class="hero-contract">
+          <ContractDisplay :contract="store.contract" empty-text="流局" />
+        </strong>
       </div>
       <span class="hero-outcome">{{ outcomeText }}</span>
     </div>

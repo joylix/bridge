@@ -64,5 +64,6 @@ describe('BiddingBox 阶段切换', () => {
     expect(notice.text()).toContain('最终结果');
     expect(notice.text()).toContain('查看详细结果');
     expect(notice.text()).toContain('S 4♥');
+    expect(notice.get('.final-contract .suit').classes()).toContain('red');
   });
 });

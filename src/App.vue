@@ -54,7 +54,7 @@ function onRoundSize(value: number): void {
 <template>
   <div>
     <header class="app-header">
-      <h1>♠ 桥牌 MVP · 人机对战 ♥</h1>
+      <h1><span class="suit-black">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red">♥</span></h1>
       <div class="status">
         <strong>{{ phaseLabel }}</strong> · {{ store.message }}
       </div>
@@ -165,6 +165,12 @@ function onRoundSize(value: number): void {
 </template>
 
 <style scoped>
+.app-header h1 .suit-black {
+  color: #eaf5ee;
+}
+.app-header h1 .suit-red {
+  color: #ff7b6b;
+}
 .autopilot {
   padding: 10px 12px;
 }

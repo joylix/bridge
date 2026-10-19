@@ -55,6 +55,8 @@ describe('GameHistory 对局记录', () => {
     expect(text).toContain('局况');
     expect(text).toContain('Both'); // 局况英文
     expect(text).toContain('S 4♥'); // 定约
+    expect(wrapper.get('.deal-contract .suit').text()).toBe('♥');
+    expect(wrapper.get('.deal-contract .suit').classes()).toContain('red');
     expect(text).toContain('1♥'); // 叫牌记录
     expect(text).toContain('出牌过程');
     expect(text).toContain('♠A'); // 出牌记录：花色在前

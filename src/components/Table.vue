@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useGameStore, describeContract } from '../store/game';
+import { useGameStore } from '../store/game';
 import type { CardPlay, Position } from '../models/gameState';
 import { cardLabel, getSuit, isRedSuit } from '../models/card';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
+import ContractDisplay from './ContractDisplay.vue';
 
 const store = useGameStore();
 
@@ -49,11 +50,11 @@ function onCardClick(pos: Position, card: number): void {
 
 const declarerTricks = computed(() => store.declarerTricksWon());
 
-/** 定约文案：未成约前不显示“流局”，用灰色占位避免误导 */
+/** 定约占位：未成约前不显示“流局”，用灰色占位避免误导 */
 const contractDisplay = computed(() => {
-  if (store.contract) return { text: describeContract(store.contract), pending: false };
-  if (store.phase === 'scoring') return { text: '流局', pending: false };
-  return { text: '尚未定约', pending: true };
+  if (store.contract) return { emptyText: '', pending: false };
+  if (store.phase === 'scoring') return { emptyText: '流局', pending: false };
+  return { emptyText: '尚未定约', pending: true };
 });
 
 /** 出牌阶段文案：未进入打牌前只显示灰色占位 */
@@ -178,7 +179,12 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     <!-- 中央：叫牌时显示叫牌过程，打牌时显示四家方向的出牌 -->
     <div class="center">
       <div class="center-top">
-        <span class="contract" :class="{ pending: contractDisplay.pending }">{{ contractDisplay.text }}</span>
+        <ContractDisplay
+          class="contract"
+          :class="{ pending: contractDisplay.pending }"
+          :contract="store.contract"
+          :empty-text="contractDisplay.emptyText"
+        />
         <span class="trick-label" :class="{ pending: playStatus.pending }">{{ playStatus.text }}</span>
         <button
           v-if="canReviewLast"

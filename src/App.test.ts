@@ -10,6 +10,7 @@ describe('App 冒烟测试', () => {
     try {
       const wrapper = mount(App, { global: { plugins: [createPinia(), ElementPlus] } });
       expect(wrapper.text()).toContain('桥牌 MVP');
+      expect(wrapper.get('.app-header .suit-red').text()).toBe('♥');
       expect(wrapper.find('.table').exists()).toBe(true);
       // 四个座位的手牌组件均应渲染
       expect(wrapper.findAll('.hand').length).toBeGreaterThanOrEqual(4);
