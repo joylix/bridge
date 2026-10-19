@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useGameStore, describeCall, describeContract, vulName, type DealRecord } from '../store/game';
-import { getSuit, isRedSuit, rankName, suitSymbol } from '../models/card';
+import { cardLabel, getSuit, isRedSuit } from '../models/card';
 import { impsFromScoreDiff, hcpAdjustedPoints } from '../core/imps';
 import type { BidRecord, Position } from '../models/gameState';
 
@@ -55,7 +55,7 @@ function bidRounds(history: BidRecord[]): (BidRecord | null)[][] {
 }
 
 function cardText(card: number): string {
-  return `${rankName(card)}${suitSymbol(getSuit(card))}`;
+  return cardLabel(card);
 }
 
 /** 单局点数文案（启用贴点时按「IMP −（胜方大牌点 − 20）」折算） */

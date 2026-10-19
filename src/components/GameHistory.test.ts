@@ -57,7 +57,7 @@ describe('GameHistory 对局记录', () => {
     expect(text).toContain('S 4♥'); // 定约
     expect(text).toContain('1♥'); // 叫牌记录
     expect(text).toContain('出牌过程');
-    expect(text).toContain('A♠'); // 出牌记录
+    expect(text).toContain('♠A'); // 出牌记录：花色在前
     expect(text).toContain('本局点数 未结算'); // 未到结算阶段
 
     wrapper.unmount();

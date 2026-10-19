@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useGameStore, describeCall, describeContract, suitName } from '../store/game';
 import type { BidRecord, Position } from '../models/gameState';
-import { getSuit, isRedSuit, rankName, suitSymbol } from '../models/card';
+import { cardLabel, getSuit, isRedSuit } from '../models/card';
 import Hand from './Hand.vue';
 
 const store = useGameStore();
@@ -146,7 +146,7 @@ function toggleLastTrick(): void {
         <div v-for="play in store.currentTrick" :key="play.card" class="trick-card">
           <span class="seat-tag">{{ play.position }}</span>
           <span class="mini-card" :class="{ red: isRedSuit(getSuit(play.card)) }">
-            {{ rankName(play.card) }}{{ suitSymbol(getSuit(play.card)) }}
+            {{ cardLabel(play.card) }}
           </span>
         </div>
         <div v-if="store.currentTrick.length === 0" class="muted">—</div>
@@ -167,7 +167,7 @@ function toggleLastTrick(): void {
           >
             <span class="seat-tag">{{ play.position }}</span>
             <span class="mini-card" :class="{ red: isRedSuit(getSuit(play.card)) }">
-              {{ rankName(play.card) }}{{ suitSymbol(getSuit(play.card)) }}
+              {{ cardLabel(play.card) }}
             </span>
           </div>
           <div v-if="!lastTrick" class="muted">尚无已完成的墩</div>

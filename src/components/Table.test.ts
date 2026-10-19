@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import Table from './Table.vue';
 import { useGameStore } from '../store/game';
-import { cardLabel, rankName, suitSymbol, getSuit } from '../models/card';
+import { cardLabel } from '../models/card';
 import { parseHand } from '../testing/testUtils';
 
 function newStoreAndTable() {
@@ -16,9 +16,9 @@ function newStoreAndTable() {
   return { store, wrapper };
 }
 
-/** Hand 组件渲染的已出牌文本，如 "A♠" */
+/** Hand 组件渲染的已出牌文本，如 "♠A" */
 function playedText(card: number): string {
-  return `${rankName(card)}${suitSymbol(getSuit(card))}`;
+  return cardLabel(card);
 }
 
 describe('Table 叫牌高亮', () => {
@@ -76,13 +76,15 @@ describe('Table 出牌显示', () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
-    const card = parseHand('SA')[0];
+    const card = parseHand('D4')[0];
     store.currentTrick = [{ position: 'S', card }];
     await nextTick();
 
     const played = wrapper.find('.hand.pos-S .played-out');
     expect(played.exists()).toBe(true);
+    expect(played.get('.played-card').text()).toBe('♦4');
     expect(played.get('.played-card').text()).toBe(playedText(card));
+    expect(played.classes()).toContain('red');
     // 其他座位本轮未出牌，不显示已出牌
     expect(wrapper.find('.hand.pos-W .played-out').exists()).toBe(false);
   });

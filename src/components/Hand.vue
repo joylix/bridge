@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { getSuit, isRedSuit, rankName, suitSymbol, type SuitIndex } from '../models/card';
+import { cardLabel, getSuit, isRedSuit, rankName, suitSymbol, type SuitIndex } from '../models/card';
 import { sortHand } from '../models/hand';
 import type { Position } from '../models/gameState';
 
@@ -41,7 +41,7 @@ const played = computed(() => {
   const card = props.playedCard;
   if (card === undefined || card === null) return null;
   const suit = getSuit(card);
-  return { text: `${rankName(card)}${suitSymbol(suit)}`, red: isRedSuit(suit) };
+  return { text: cardLabel(card), red: isRedSuit(suit) };
 });
 </script>
 
