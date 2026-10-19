@@ -35,7 +35,7 @@ describe('Table 叫牌高亮', () => {
     await nextTick();
 
     expect(wrapper.find('.hand.pos-E').classes()).toContain('active');
-    expect(wrapper.find('.hand.pos-E .hand-label').text()).toContain('E');
+    expect(wrapper.get('.seat.east .seat-profile').text()).toContain('东家');
     // 非当前叫牌人不高亮
     expect(wrapper.find('.hand.pos-S').classes()).not.toContain('active');
     expect(wrapper.find('.hand.pos-N').classes()).not.toContain('active');
@@ -47,7 +47,7 @@ describe('Table 叫牌高亮', () => {
     await nextTick();
 
     expect(wrapper.find('.hand.pos-S').classes()).toContain('active');
-    expect(wrapper.find('.hand.pos-S .hand-label').text()).toContain('南');
+    expect(wrapper.get('.seat.south .seat-profile').text()).toContain('南家');
   });
 });
 
@@ -66,7 +66,7 @@ describe('Table 叫牌过程', () => {
     expect(cells[0].get('.bid-level').text()).toBe('1');
     expect(cells[0].get('.bid-suit').text()).toBe('♥');
     expect(cells[0].get('.bid-suit').classes()).toContain('red');
-    expect(cells[1].get('.bid-label').text()).toBe('Pass');
+    expect(cells[1].get('.bid-label').text()).toBe('—');
     expect(cells[2].get('.bid-suit').text()).toBe('♠');
   });
 });

@@ -18,7 +18,6 @@ const props = defineProps<{
   compact?: boolean;
   /** 高亮当前行动（叫牌或出牌轮到该座位） */
   active?: boolean;
-  label?: string;
   /** 本轮该座位已出的牌（无则为 null） */
   playedCard?: number | null;
 }>();
@@ -51,13 +50,6 @@ const played = computed(() => {
 <template>
   <div class="hand" :class="[{ 'is-dummy': isDummy, active, compact }, `pos-${position}`]">
     <div class="hand-inner">
-      <div class="hand-label">
-        <span class="seat-dot" />
-        <span>{{ label ?? position }}</span>
-        <span v-if="isDummy" class="dummy-tag">明手</span>
-        <span v-if="!faceDown" class="count">({{ cards.length }})</span>
-      </div>
-
       <div v-if="faceDown" class="cards backs">
         <PlayingCard
           v-for="i in cards.length"
@@ -128,7 +120,7 @@ const played = computed(() => {
   gap: 10px;
   min-width: 0;
 }
-/* 手牌主体（座位 + 牌型）竖向排列 */
+/* 手牌主体 */
 .hand-inner {
   display: flex;
   flex-direction: column;
@@ -138,60 +130,6 @@ const played = computed(() => {
 /* 东家：已出牌显示在手牌左侧（朝向中央） */
 .pos-E {
   flex-direction: row-reverse;
-}
-.hand-label {
-  align-self: flex-start;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(5, 28, 18, 0.42);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  font-size: 11px;
-  font-weight: 600;
-  color: #eaf5ee;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-.seat-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #7ee2a8;
-  box-shadow: 0 0 6px rgba(126, 226, 168, 0.75);
-  flex: none;
-}
-
-/* 轮到该座位行动：座位标签闪烁 */
-.hand.active .hand-label {
-  animation: hand-active-pulse 0.9s ease-in-out infinite;
-}
-@keyframes hand-active-pulse {
-  0%,
-  100% {
-    background: #ffd666;
-    color: #2c2200;
-    box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.75);
-  }
-  50% {
-    background: rgba(255, 214, 102, 0.16);
-    color: #ffe9a8;
-    box-shadow: none;
-  }
-}
-.hand.active .seat-dot {
-  background: #8a5a00;
-}
-.dummy-tag {
-  background: #d9a300;
-  color: #2c2200;
-  border-radius: 3px;
-  padding: 0 4px;
-  font-size: 10px;
-}
-.count {
-  opacity: 0.75;
-  font-weight: 400;
 }
 
 /* 4 行分花色：S / H / D / C */

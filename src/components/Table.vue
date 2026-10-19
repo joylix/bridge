@@ -151,11 +151,11 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
       <div class="seat-profile">
         <span class="avatar">北</span>
         <span class="profile-text"><strong>北家</strong><small>机器人</small></span>
+        <span v-if="isDummySeat('N')" class="dummy-tag">明手</span>
       </div>
       <Hand
         :cards="store.hands.N"
         position="N"
-        label="北 N"
         :face-down="!isFaceUp('N')"
         :is-dummy="isDummySeat('N')"
         :clickable="isClickable('N')"
@@ -170,11 +170,11 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
       <div class="seat-profile">
         <span class="avatar">西</span>
         <span class="profile-text"><strong>西家</strong><small>机器人</small></span>
+        <span v-if="isDummySeat('W')" class="dummy-tag">明手</span>
       </div>
       <Hand
         :cards="store.hands.W"
         position="W"
-        label="西 W"
         compact
         :face-down="!isFaceUp('W')"
         :is-dummy="isDummySeat('W')"
@@ -240,11 +240,11 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
       <div class="seat-profile">
         <span class="avatar">东</span>
         <span class="profile-text"><strong>东家</strong><small>机器人</small></span>
+        <span v-if="isDummySeat('E')" class="dummy-tag">明手</span>
       </div>
       <Hand
         :cards="store.hands.E"
         position="E"
-        label="东 E"
         compact
         :face-down="!isFaceUp('E')"
         :is-dummy="isDummySeat('E')"
@@ -260,11 +260,11 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
       <div class="seat-profile">
         <span class="avatar you">南</span>
         <span class="profile-text"><strong>南家</strong><small>你</small></span>
+        <span v-if="isDummySeat('S')" class="dummy-tag">明手</span>
       </div>
       <Hand
         :cards="store.hands.S"
         position="S"
-        label="南 (你)"
         :face-down="!isFaceUp('S')"
         :is-dummy="isDummySeat('S')"
         :clickable="isClickable('S')"
@@ -386,6 +386,18 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 .profile-text small {
   font-size: 9px;
   color: rgba(234, 245, 238, 0.7);
+}
+.dummy-tag {
+  background: #d9a300;
+  color: #2c2200;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.seat.active .seat-profile {
+  border-color: rgba(255, 214, 102, 0.75);
+  box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.16), 0 3px 10px rgba(0, 0, 0, 0.18);
 }
 .seat.active .avatar {
   outline: 2px solid #ffd666;

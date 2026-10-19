@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useGameStore, describeCall, suitName, vulName } from '../store/game';
+import { FINAL_PASS_TEXT, useGameStore, describeCall, suitName, vulName } from '../store/game';
 import type { BidRecord, Position } from '../models/gameState';
 
 const props = withDefaults(defineProps<{ title?: string; variant?: 'panel' | 'table' }>(), {
@@ -16,10 +16,19 @@ interface BidCell {
   suit: string;
   red: boolean;
   label: string;
+  final: boolean;
 }
 
+/** 叫牌结束时的最后一个 Pass 用双横杠强调 */
+const finalPassIndex = computed(() => {
+  if (store.phase === 'bidding') return -1;
+  const last = store.biddingHistory.length - 1;
+  if (last < 0) return -1;
+  return store.biddingHistory[last]?.call.type === 'pass' ? last : -1;
+});
+
 /** 将叫品拆成“阶数 + 花色符号”，便于单独放大花色符号 */
-function toBidCell(rec: BidRecord | null): BidCell | null {
+function toBidCell(rec: BidRecord | null, final = false): BidCell | null {
   if (!rec) return null;
   if (rec.call.type === 'bid') {
     return {
@@ -27,9 +36,16 @@ function toBidCell(rec: BidRecord | null): BidCell | null {
       suit: suitName(rec.call.suit),
       red: rec.call.suit === 'D' || rec.call.suit === 'H',
       label: '',
+      final: false,
     };
   }
-  return { level: '', suit: '', red: false, label: describeCall(rec.call) };
+  return {
+    level: '',
+    suit: '',
+    red: false,
+    label: final ? FINAL_PASS_TEXT : describeCall(rec.call),
+    final,
+  };
 }
 
 /** 叫牌历史按 4 个一行（N E S W 列）组织 */
@@ -38,7 +54,7 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   store.biddingHistory.forEach((rec, i) => {
     const r = Math.floor(i / 4);
     if (!rows[r]) rows[r] = [null, null, null, null];
-    rows[r][COLUMNS.indexOf(rec.position)] = toBidCell(rec);
+    rows[r][COLUMNS.indexOf(rec.position)] = toBidCell(rec, i === finalPassIndex.value);
   });
   return rows;
 });
@@ -65,7 +81,7 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
               <span class="bid-level">{{ cell.level }}</span>
               <span class="bid-suit" :class="{ red: cell.red, nt: cell.suit === 'NT' }">{{ cell.suit }}</span>
             </template>
-            <span v-else class="bid-label">{{ cell.label }}</span>
+            <span v-else class="bid-label" :class="{ final: cell.final }">{{ cell.label }}</span>
           </template>
         </span>
       </div>
@@ -152,6 +168,10 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
 .bid-label {
   font-size: 12px;
   color: #3a4a40;
+}
+.bid-label.final {
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 .muted {
   color: #9aa7a0;

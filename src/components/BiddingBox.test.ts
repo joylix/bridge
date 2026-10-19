@@ -55,6 +55,8 @@ describe('BiddingBox 阶段切换', () => {
     expect(wrapper.find('.bid-history').exists()).toBe(true);
     expect(wrapper.findAll('.bid-btn')).toHaveLength(0);
     expect(wrapper.get('.bid-title-row').text()).toContain('局况');
+    const labels = wrapper.findAll('.bid-label').map((node) => node.text());
+    expect(labels).toEqual(['—', '—', '——']);
   });
 
   it('打牌结束后显示最终结果和查看详细结果入口', () => {

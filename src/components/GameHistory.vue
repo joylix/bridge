@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useGameStore, describeCall, vulName, type DealRecord } from '../store/game';
+import { FINAL_PASS_TEXT, useGameStore, describeCall, vulName, type DealRecord } from '../store/game';
 import ContractDisplay from './ContractDisplay.vue';
 import { cardLabel, getSuit, isRedSuit } from '../models/card';
 import { impsFromScoreDiff, hcpAdjustedPoints } from '../core/imps';
@@ -42,8 +42,12 @@ const records = computed(() => {
   return list;
 });
 
-function bidText(rec: BidRecord | null): string {
-  return rec ? describeCall(rec.call) : '';
+function bidText(rec: BidRecord | null, record: DealRecord): string {
+  if (!rec) return '';
+  const last = record.biddingHistory[record.biddingHistory.length - 1];
+  const isFinalPass =
+    record.phase !== 'bidding' && rec === last && rec.call.type === 'pass';
+  return isFinalPass ? FINAL_PASS_TEXT : describeCall(rec.call);
 }
 
 function bidRounds(history: BidRecord[]): (BidRecord | null)[][] {
@@ -94,7 +98,7 @@ function dealPointsText(rec: DealRecord): string {
               <span v-for="c in COLUMNS" :key="c">{{ c }}</span>
             </div>
             <div v-for="(row, i) in bidRounds(item.record.biddingHistory)" :key="i" class="bid-row">
-              <span v-for="(rec, j) in row" :key="j" class="bid-cell">{{ bidText(rec) }}</span>
+              <span v-for="(rec, j) in row" :key="j" class="bid-cell">{{ bidText(rec, item.record) }}</span>
             </div>
           </div>
           <div v-else class="muted">尚无叫牌</div>
