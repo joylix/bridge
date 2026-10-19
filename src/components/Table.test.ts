@@ -71,6 +71,54 @@ describe('Table 叫牌过程', () => {
   });
 });
 
+describe('Table 状态与局况显示', () => {
+  it('叫牌阶段未成约时显示灰色占位，不提前显示“流局”或“等待首攻”', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'bidding';
+    store.contract = null;
+    store.vulnerability = 'both';
+    await nextTick();
+
+    const contract = wrapper.get('.contract');
+    expect(contract.text()).toBe('尚未定约');
+    expect(contract.classes()).toContain('pending');
+    expect(contract.text()).not.toBe('流局');
+
+    const trickLabel = wrapper.get('.trick-label');
+    expect(trickLabel.text()).toBe('尚未开始出牌');
+    expect(trickLabel.classes()).toContain('pending');
+    expect(trickLabel.text()).not.toBe('等待首攻');
+
+    expect(wrapper.get('.bid-title-row').text()).toContain('局况 Both');
+  });
+
+  it('进入等待首攻后，“等待首攻”以正常颜色显示', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play_waiting_lead';
+    store.contract = { level: 4, suit: 'H', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
+    store.tricks = [];
+    store.currentTrick = [];
+    await nextTick();
+
+    const trickLabel = wrapper.get('.trick-label');
+    expect(trickLabel.text()).toBe('等待首攻');
+    expect(trickLabel.classes()).not.toContain('pending');
+    expect(wrapper.get('.contract').text()).toBe('N 4♥');
+  });
+
+  it('四家 Pass 流局后才显示“流局”', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'scoring';
+    store.contract = null;
+    store.message = '四家不叫，本局流局';
+    await nextTick();
+
+    const contract = wrapper.get('.contract');
+    expect(contract.text()).toBe('流局');
+    expect(contract.classes()).not.toContain('pending');
+  });
+});
+
 describe('Table 出牌显示', () => {
   it('本轮出牌显示在对应座位手牌旁边', async () => {
     const { store, wrapper } = newStoreAndTable();

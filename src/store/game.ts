@@ -720,7 +720,7 @@ export function suitName(suit: BidSuit): string {
 }
 
 export function describeContract(contract: GameState['contract']): string {
-  if (!contract) return '流局';
+  if (!contract) return '未定约';
   const doubled = contract.doubled ? '×2' : contract.redoubled ? '×4' : '';
   return `${contract.declarer} ${contract.level}${suitName(contract.suit)}${doubled}`;
 }

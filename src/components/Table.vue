@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useGameStore, describeCall, describeContract, suitName } from '../store/game';
+import { useGameStore, describeCall, describeContract, suitName, vulName } from '../store/game';
 import type { BidRecord, Position } from '../models/gameState';
 import { cardLabel, getSuit, isRedSuit } from '../models/card';
 import Hand from './Hand.vue';
@@ -82,9 +82,23 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
 
 const declarerTricks = computed(() => store.declarerTricksWon());
 
-const currentTrickLabel = computed(() =>
-  store.currentTrick.length ? `第 ${store.tricks.length + 1} 墩` : store.tricks.length ? `本墩已结束` : '等待首攻',
-);
+/** 定约文案：未成约前不显示“流局”，用灰色占位避免误导 */
+const contractDisplay = computed(() => {
+  if (store.contract) return { text: describeContract(store.contract), pending: false };
+  if (store.phase === 'scoring') return { text: '流局', pending: false };
+  return { text: '尚未定约', pending: true };
+});
+
+/** 出牌阶段文案：未进入打牌前只显示灰色占位 */
+const playStatus = computed(() => {
+  if (store.phase === 'idle' || store.phase === 'bidding') {
+    return { text: '尚未开始出牌', pending: true };
+  }
+  if (store.phase === 'scoring') return { text: '本局结束', pending: false };
+  if (store.currentTrick.length) return { text: `第 ${store.tricks.length + 1} 墩`, pending: false };
+  if (store.tricks.length) return { text: '等待出牌', pending: false };
+  return { text: '等待首攻', pending: false };
+});
 
 /** 上一墩（最近一次完成的墩） */
 const lastTrick = computed(() => (store.tricks.length ? store.tricks[store.tricks.length - 1] : null));
@@ -130,8 +144,8 @@ function toggleLastTrick(): void {
     <!-- 中央 -->
     <div class="center">
       <div class="center-top">
-        <span class="contract">{{ describeContract(store.contract) }}</span>
-        <span class="trick-label">{{ currentTrickLabel }}</span>
+        <span class="contract" :class="{ pending: contractDisplay.pending }">{{ contractDisplay.text }}</span>
+        <span class="trick-label" :class="{ pending: playStatus.pending }">{{ playStatus.text }}</span>
         <button
           type="button"
           class="last-trick-btn"
@@ -174,6 +188,10 @@ function toggleLastTrick(): void {
         </div>
       </div>
 
+      <div class="bid-title-row">
+        <span class="bid-title">叫牌过程</span>
+        <span class="vul-tag">局况 {{ vulName(store.vulnerability) }}</span>
+      </div>
       <div class="bid-history">
         <div class="bid-header">
           <span v-for="c in COLUMNS" :key="c">{{ c }}</span>
@@ -282,6 +300,11 @@ function toggleLastTrick(): void {
   font-weight: 700;
   color: #14563a;
 }
+.contract.pending,
+.trick-label.pending {
+  color: #9aa7a0;
+  font-weight: 500;
+}
 .trick-label {
   color: #5a6a61;
 }
@@ -366,6 +389,26 @@ function toggleLastTrick(): void {
   font-size: 14px;
   overflow: auto;
   max-height: 160px;
+}
+.bid-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.bid-title {
+  font-weight: 700;
+  color: #14563a;
+}
+.vul-tag {
+  color: #3a4a40;
+  background: #eef4ef;
+  border: 1px solid #c9d6cf;
+  border-radius: 4px;
+  padding: 0 6px;
+  font-weight: 600;
 }
 .bid-header,
 .bid-row {
