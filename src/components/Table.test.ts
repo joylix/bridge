@@ -88,6 +88,35 @@ describe('Table 出牌显示', () => {
   });
 });
 
+describe('Table 明手与庄家手牌可见性', () => {
+  it('南家为明手、北家做庄时，首攻后同时显示北家与南家的牌', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 4, suit: 'H', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
+    store.dummyOpen = true;
+    store.nextPlayer = 'N';
+    await nextTick();
+
+    expect(wrapper.find('.hand.pos-N .suits').exists()).toBe(true);
+    expect(wrapper.find('.hand.pos-N .cards.backs').exists()).toBe(false);
+    expect(wrapper.find('.hand.pos-S .suits').exists()).toBe(true);
+    expect(wrapper.find('.hand.pos-N .suits').classes()).toContain('clickable');
+  });
+
+  it('人类为防守方时，庄家的牌保持牌背，明手仍然可见', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 2, suit: 'S', doubled: false, redoubled: false, declarer: 'E', dummy: 'W' };
+    store.dummyOpen = true;
+    store.nextPlayer = 'E';
+    await nextTick();
+
+    expect(wrapper.find('.hand.pos-E .cards.backs').exists()).toBe(true);
+    expect(wrapper.find('.hand.pos-E .suits').exists()).toBe(false);
+    expect(wrapper.find('.hand.pos-W .suits').exists()).toBe(true);
+  });
+});
+
 describe('Table 上一墩回顾', () => {
   it('无已完成墩时按钮禁用', async () => {
     const { wrapper } = newStoreAndTable();

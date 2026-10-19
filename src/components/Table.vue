@@ -9,10 +9,12 @@ const store = useGameStore();
 
 const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
 
-/** 手牌是否摊开（明）：人类自己的座位恒可见；明手在首攻后可见 */
+/** 手牌是否摊开（明）：人类自己的座位恒可见；首攻后明手与人类控制的牌可见 */
 function isFaceUp(pos: Position): boolean {
   if (store.humanSeats.includes(pos)) return true;
-  return store.dummyOpen && store.contract?.dummy === pos;
+  if (!store.dummyOpen || !store.contract) return false;
+  // 明手始终摊牌；人类在定约方时还控制庄家，因此庄家的牌也应可见。
+  return store.contract.dummy === pos || store.controlledSeats().includes(pos);
 }
 
 /** 该座位当前是否可点击（人类控制 + 轮到其行动 + 非 AI 思考中） */
