@@ -6,7 +6,7 @@
 
 rules:
   - id: nt_lead_unbid_major
-    description: "NT 定约：防守时若无长套（四门均 ≤4 张），首攻敌方未叫过的高级花色（长四）"
+    description: "NT 定约：防守时若无长套（四门均 ≤4 张），首攻敌方未叫过的高级花色（长四；顶张连张时出连张顶张）"
     context: { contract_type: "NT" }
     role: defender
     when: { spades: "0-4", hearts: "0-4", diamonds: "0-4", clubs: "0-4" }
@@ -14,7 +14,7 @@ rules:
     priority: 12
 
   - id: nt_longest_4th
-    description: "无将定约长四首攻"
+    description: "无将定约长四首攻（顶张连张时出连张顶张）"
     context: { contract_type: "NT" }
     when: {}
     lead: "4th_best_of_longest"

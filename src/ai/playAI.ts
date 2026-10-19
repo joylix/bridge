@@ -1,6 +1,6 @@
 import type { Hand } from '../models/hand';
 import type { BidRecord, CardPlay, Contract, Position, StyleLevel } from '../models/gameState';
-import { getPartner, getSide } from '../models/gameState';
+import { bidSuitToIndex, getPartner, getSide } from '../models/gameState';
 import type { LeadRule } from '../engine/types';
 import { STYLE_PARAMS } from '../engine/types';
 import { getLegalCards } from '../core/playing';
@@ -44,7 +44,16 @@ export function playAI(
   if (currentTrick.length === 0) {
     selected = selectLead(hand, contract, trumpSuit, leadRules, style, opts.biddingHistory ?? [], rng, position);
   } else {
-    selected = selectFollow(legalCards, currentTrick, trumpSuit, position, contract, dummyHand, tricksWonByDeclarer);
+    selected = selectFollow(
+      legalCards,
+      currentTrick,
+      trumpSuit,
+      position,
+      contract,
+      dummyHand,
+      tricksWonByDeclarer,
+      opts.biddingHistory ?? [],
+    );
   }
 
   if (!legalCards.includes(selected)) {
@@ -114,7 +123,19 @@ function fourthBestOfLongest(hand: Hand, trumpSuit: SuitIndex | null): number {
   if (nonTrump.length === 0) nonTrump = all;
   const best = nonTrump.reduce((a, b) => (suitStrength(hand, b) > suitStrength(hand, a) ? b : a));
   const cards = hand.filter((c) => getSuit(c) === best).sort((a, b) => getRank(b) - getRank(a));
-  return cards.length >= 4 ? cards[3] : cards[cards.length - 1];
+  return fourthBestOrTopOfSequence(cards);
+}
+
+/**
+ * 长套首攻：默认取第 4 张；若长套顶张本身是连张（如 AKQ/KQJ/QJT/JT9），
+ * 则按桥牌惯例改出连张顶张，避免从 AKQx 中攻小牌。
+ */
+function fourthBestOrTopOfSequence(cards: Hand): number {
+  const sorted = [...cards].sort((a, b) => getRank(b) - getRank(a));
+  let run = 1;
+  while (run < sorted.length && getRank(sorted[run - 1]) - getRank(sorted[run]) === 1) run++;
+  if (run >= 2 && getRank(sorted[0]) >= 9) return sorted[0]; // J 及以上领头的连张
+  return sorted.length >= 4 ? sorted[3] : sorted[sorted.length - 1];
 }
 
 /** 攻敌方（定约方）未叫过的高级花色，取长四 */
@@ -138,7 +159,7 @@ function fourthBestOfUnbidMajor(
   if (pool.length === 0) return fourthBestOfLongest(hand, trumpSuit);
   const best = pool.reduce((a, b) => (suitStrength(hand, b) > suitStrength(hand, a) ? b : a));
   const cards = hand.filter((c) => getSuit(c) === best).sort((a, b) => getRank(b) - getRank(a));
-  return cards.length >= 4 ? cards[3] : cards[cards.length - 1];
+  return fourthBestOrTopOfSequence(cards);
 }
 
 /** 连张首攻：找最长的顶部连张（如 AKQ/KQJ/QJT/JT9），出连张顶张 */
@@ -178,7 +199,8 @@ function topOfSequence(hand: Hand, trumpSuit: SuitIndex | null): number {
  *   不得无谓超打同伴。
  * - 跟牌张数信号：偶数张“先大后小”，奇数张“先小后大”；
  *   信号张只用 10 及以下，保留 J 以上大牌。
- * - 无将垫牌：从“不鼓励”（最弱）的花色垫最小牌。
+ * - 无将垫牌：从“不鼓励”（最弱）的花色垫最小牌；已知同伴长套时优先避开，
+ *   只能从同伴长套垫牌时保留低牌，避免堵塞。
  * - 有将垫牌：若某非将花色有力量且存在无损失的高信号张（8/9/10），
  *   垫该张以鼓励同伴攻此花色；否则回退到无将垫牌逻辑。
  * ------------------------------------------------------------------ */
@@ -205,16 +227,25 @@ function selectFollow(
   contract: Contract,
   dummyHand: Hand | null,
   tricksWonByDeclarer: number,
+  biddingHistory: BidRecord[],
 ): number {
-  void dummyHand;
   void tricksWonByDeclarer;
 
   const leadSuit = getSuit(currentTrick[0].card);
   const following = legalCards.some((card) => getSuit(card) === leadSuit);
-  // 防守信号只对防守方生效；庄家侧按普通“低牌优先”处理
+  // 防守信号只对防守方生效；庄家侧跟牌时低牌优先，垫牌时考虑避免堵塞同伴长套。
   const isDefender = getSide(position) !== getSide(contract.declarer);
-  const lowPlay = (): number =>
-    isDefender ? lowCardOrSignal(legalCards, leadSuit, trumpSuit, following) : lowest(legalCards);
+  const partnerLongSuits = inferPartnerLongSuits(
+    position,
+    contract,
+    dummyHand,
+    biddingHistory,
+  );
+  const lowPlay = (): number => {
+    if (isDefender) return lowCardOrSignal(legalCards, leadSuit, trumpSuit, following, partnerLongSuits);
+    if (following) return lowest(legalCards);
+    return chooseDeclarerDiscard(legalCards, trumpSuit, partnerLongSuits);
+  };
   const numPlayed = currentTrick.length;
 
   if (numPlayed === 3) {
@@ -229,6 +260,38 @@ function selectFollow(
 /** 10 及以上视为荣誉大牌（10/J/Q/K/A） */
 function isHonor(card: number): boolean {
   return getRank(card) >= 8;
+}
+
+/**
+ * 推断同伴的长套，用于垫牌时避免堵塞：
+ * - 同伴是明手（可见）时，直接读取其 5+ 张且有荣誉的花色；
+ * - 否则参考同伴在叫牌中叫过的花色（叫牌通常承诺长度）。
+ */
+function inferPartnerLongSuits(
+  position: Position,
+  contract: Contract,
+  dummyHand: Hand | null,
+  history: BidRecord[],
+): Set<SuitIndex> {
+  const partner = getPartner(position);
+  const suits = new Set<SuitIndex>();
+
+  if (dummyHand && partner === contract.dummy) {
+    for (const suit of ALL_SUITS) {
+      if (suitLength(dummyHand, suit) >= 5 && honorPoints(dummyHand, suit) >= 1) suits.add(suit);
+    }
+    return suits;
+  }
+
+  for (const rec of history) {
+    if (rec.position !== partner || rec.call.type !== 'bid' || rec.call.suit === 'NT') continue;
+    const suit = bidSuitToIndex(rec.call.suit);
+    // 1C/1D 在精确制中可能是短套或虚叫，先不作为“同伴长套”；后续再叫该花色时再纳入。
+    if (rec.call.level === 1 && (suit === 0 || suit === 1)) continue;
+    suits.add(suit);
+  }
+
+  return suits;
 }
 
 /**
@@ -263,9 +326,10 @@ function lowCardOrSignal(
   leadSuit: SuitIndex,
   trumpSuit: SuitIndex | null,
   following: boolean,
+  partnerLongSuits: Set<SuitIndex>,
 ): number {
   if (following) return followWithCountSignal(legalCards, leadSuit);
-  return chooseDiscard(legalCards, trumpSuit);
+  return chooseDiscard(legalCards, trumpSuit, partnerLongSuits);
 }
 
 /**
@@ -289,10 +353,15 @@ function followWithCountSignal(legalCards: Hand, leadSuit: SuitIndex): number {
 
 /**
  * 垫牌：
- * - 有将定约先尝试“无损失鼓励垫牌”（高信号张 8/9/10）；
- * - 否则从不鼓励（荣誉力量最弱、同力量时较长）的花色垫最小牌。
+ * - 有将定约先尝试“无损失鼓励垫牌”（高信号张 8/9/10），但不从同伴长套垫；
+ * - 否则从不鼓励（荣誉力量最弱、同力量时较长）的花色垫牌；
+ * - 若该花色是已知的同伴长套，保留低牌、改垫最小荣誉牌，避免堵塞桥引。
  */
-function chooseDiscard(legalCards: Hand, trumpSuit: SuitIndex | null): number {
+function chooseDiscard(
+  legalCards: Hand,
+  trumpSuit: SuitIndex | null,
+  partnerLongSuits: Set<SuitIndex>,
+): number {
   const candidateSuits = ALL_SUITS.filter(
     (suit) => (trumpSuit === null || suit !== trumpSuit) && legalCards.some((card) => getSuit(card) === suit),
   );
@@ -305,7 +374,8 @@ function chooseDiscard(legalCards: Hand, trumpSuit: SuitIndex | null): number {
         honor: honorPoints(legalCards, suit),
         length: suitLength(legalCards, suit),
       }))
-      .filter((entry) => entry.honor > 0 && entry.length >= 3)
+      // 不从已知同伴长套里做鼓励垫牌，优先保留该花色的桥引。
+      .filter((entry) => entry.honor > 0 && entry.length >= 3 && !partnerLongSuits.has(entry.suit))
       .sort((a, b) => b.honor - a.honor || b.length - a.length)[0];
 
     if (encouraging) {
@@ -328,10 +398,72 @@ function chooseDiscard(legalCards: Hand, trumpSuit: SuitIndex | null): number {
       suit,
       honor: honorPoints(legalCards, suit),
       length: suitLength(legalCards, suit),
+      partnerLong: partnerLongSuits.has(suit),
     }))
-    .sort((a, b) => a.honor - b.honor || b.length - a.length || a.suit - b.suit)[0];
+    .sort(
+      (a, b) =>
+        Number(a.partnerLong) - Number(b.partnerLong) ||
+        a.honor - b.honor ||
+        b.length - a.length ||
+        a.suit - b.suit,
+    )[0];
 
-  return lowest(legalCards.filter((card) => getSuit(card) === leastEncouraging.suit));
+  const cards = legalCards.filter((card) => getSuit(card) === leastEncouraging.suit);
+  return leastEncouraging.partnerLong ? lowestAvoidingBlock(cards) : lowest(cards);
+}
+
+/**
+ * 庄家侧垫牌：优先避开已知的同伴长套（明手可见或同伴叫过），
+ * 避免垫掉同伴长套的桥引；若只能从同伴长套垫牌，则保留低牌、改垫最小荣誉牌。
+ */
+function chooseDeclarerDiscard(
+  legalCards: Hand,
+  trumpSuit: SuitIndex | null,
+  partnerLongSuits: Set<SuitIndex>,
+): number {
+  const allCandidates = ALL_SUITS.filter((suit) => legalCards.some((card) => getSuit(card) === suit));
+  const nonTrump = allCandidates.filter((suit) => trumpSuit === null || suit !== trumpSuit);
+  const candidateSuits = nonTrump.length > 0 ? nonTrump : allCandidates;
+  if (candidateSuits.length === 0) return lowest(legalCards);
+
+  const chosen = candidateSuits
+    .map((suit) => ({
+      suit,
+      honor: honorPoints(legalCards, suit),
+      length: suitLength(legalCards, suit),
+      partnerLong: partnerLongSuits.has(suit),
+    }))
+    // 普通花色优先于同伴长套；同为普通/长套时，从最弱、较长的花色垫。
+    .sort(
+      (a, b) =>
+        Number(a.partnerLong) - Number(b.partnerLong) ||
+        a.honor - b.honor ||
+        b.length - a.length ||
+        a.suit - b.suit,
+    )[0];
+
+  const cards = legalCards.filter((card) => getSuit(card) === chosen.suit);
+  return chosen.partnerLong ? lowestAvoidingBlock(cards) : lowest(cards);
+}
+
+/**
+ * 避免堵塞的最低牌：
+ * 若垫掉最低牌后，该花色只剩荣誉牌（例如 K2 垫 2 后只剩 K），
+ * 后续容易被堵在手里、缺少低牌桥引；此时改垫最小荣誉牌，保留低牌。
+ * 若整门都是荣誉牌（如 KQ 双张），无法避免，仍按最低牌处理。
+ */
+function lowestAvoidingBlock(cards: Hand): number {
+  if (cards.length <= 1) return cards[0];
+  const sorted = [...cards].sort((a, b) => getRank(a) - getRank(b) || getSuit(a) - getSuit(b));
+  const lowestCard = sorted[0];
+  if (!sorted.slice(1).every(isHonor)) return lowestCard;
+
+  for (const card of sorted) {
+    if (!isHonor(card)) continue;
+    const rest = sorted.filter((c) => c !== card);
+    if (rest.length === 0 || rest.some((c) => !isHonor(c))) return card;
+  }
+  return lowestCard;
 }
 
 /**

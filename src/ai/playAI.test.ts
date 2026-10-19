@@ -177,6 +177,24 @@ describe('打牌 AI（playAI）', () => {
     expect(card).toBe(parseHand('D6')[0]); // 方块长四
   });
 
+  it('NT 定约长套 6 张时，仍从第 4 张首攻', () => {
+    const hand = parseHand('SAQ7654 H32 D32 C32');
+    const card = playAI(hand, null, [], null, 'W', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('S6')[0]); // A Q 7 [6] 5 4
+  });
+
+  it('NT 定约长套顶张为连张时，首攻连张顶张而不是长四', () => {
+    const hand = parseHand('SAKQ2 HJT98 D543 C87'); // 黑桃 AKQ 连张
+    const card = playAI(hand, null, [], null, 'W', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SA')[0]);
+  });
+
+  it('NT 定约 5 张长套顶张为连张时，同样首攻连张顶张', () => {
+    const hand = parseHand('SAKQ76 H32 D32 C32');
+    const card = playAI(hand, null, [], null, 'W', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SA')[0]);
+  });
+
   it('NT 首攻的“未叫高花”约定只对防守方生效', () => {
     const hand = parseHand('SAQ7 H543 D876 C9876');
     const card = playAI(hand, null, [], null, 'N', ntContract, 0, leads, 1, {
@@ -192,6 +210,42 @@ describe('打牌 AI（playAI）', () => {
     const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, { rng: makeRng(3) });
     // 方块与梅花均无大牌；方块更长，优先保留梅花 → 垫方块最小牌
     expect(card).toBe(parseHand('D4')[0]);
+  });
+
+  it('防守方垫牌：优先避开同伴叫过的长套', () => {
+    const hand = parseHand('SK2 DAQJ CAQJ'); // 无红桃
+    const lead: CardPlay = { position: 'S', card: parseHand('H5')[0] }; // 庄家领出
+    const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, {
+      rng: makeRng(3),
+      biddingHistory: history(['W', '1S']), // 同伴 W 叫过黑桃
+    });
+    expect(getSuit(card)).not.toBe(3); // 不垫同伴长套
+  });
+
+  it('防守方垫牌：只能从同伴长套垫牌时，保留低牌避免堵塞', () => {
+    const hand = parseHand('SK2'); // 只剩同伴长套中的 K2
+    const lead: CardPlay = { position: 'S', card: parseHand('H5')[0] };
+    const card = playAI(hand, null, [lead], null, 'E', ntContract, 0, leads, 1, {
+      rng: makeRng(3),
+      biddingHistory: history(['W', '1S']),
+    });
+    expect(card).toBe(parseHand('SK')[0]); // 垫 K，保留 2 作桥引
+  });
+
+  it('庄家侧垫牌：优先避开明手的长套', () => {
+    const hand = parseHand('SK2 DAQJ CAQJ'); // 庄家 S，无红桃
+    const dummy = parseHand('SAQJT98 H543 D543 C32'); // 明手 N 有黑桃长套
+    const lead: CardPlay = { position: 'W', card: parseHand('H5')[0] };
+    const card = playAI(hand, dummy, [lead], null, 'S', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(getSuit(card)).not.toBe(3); // 不垫明手黑桃长套
+  });
+
+  it('庄家侧垫牌：只能从明手长套垫牌时，保留低牌避免堵塞', () => {
+    const hand = parseHand('SK2');
+    const dummy = parseHand('SAQJT98 H543 D543 C32');
+    const lead: CardPlay = { position: 'W', card: parseHand('H5')[0] };
+    const card = playAI(hand, dummy, [lead], null, 'S', ntContract, 0, leads, 1, { rng: makeRng(3) });
+    expect(card).toBe(parseHand('SK')[0]);
   });
 
   it('有将定约：用无损失高信号张垫牌，鼓励同伴攻该花色', () => {
