@@ -45,9 +45,26 @@ describe('BiddingBox 阶段切换', () => {
     store.currentBidder = 'S';
     await nextTick();
 
-    const spadeRow = wrapper.findAll('.row').find((row) => row.get('.row-head').text() === '♠')!;
-    const oneSpade = spadeRow.findAll('.bid-btn')[0];
+    const oneSpade = wrapper.get('button.bid-btn[data-level="1"][data-suit="S"]');
     expect(oneSpade.attributes('disabled')).toBeUndefined();
+  });
+
+  it('选择叫品后点击“确认”才提交', async () => {
+    const { store, wrapper } = setup('bidding');
+    store.biddingHistory = [];
+    store.currentBid = null;
+    store.currentBidder = 'S';
+    await nextTick();
+
+    const oneSpade = wrapper.get('button.bid-btn[data-level="1"][data-suit="S"]');
+    await oneSpade.trigger('click');
+    expect(store.biddingHistory).toHaveLength(0);
+    expect(oneSpade.classes()).toContain('selected');
+
+    const confirm = wrapper.get('.confirm-btn');
+    expect(confirm.attributes('disabled')).toBeUndefined();
+    await confirm.trigger('click');
+    expect(store.biddingHistory[0]?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
   });
 
   it('叫牌结束后显示叫牌过程，不再显示叫牌按钮', () => {
