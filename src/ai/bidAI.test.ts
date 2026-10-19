@@ -23,6 +23,53 @@ describe('叫牌 AI（bidAI）', () => {
     expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 
+  it('精确制：13 点均型开叫 1NT（不受自然制 15-17 风格影响）', () => {
+    const hand = parseHand('SAK2 HAQ3 D5432 C876'); // 13 HCP, 3-3-4-3
+    for (const style of [0, 1, 2] as const) {
+      const call = bidAI(hand, [], 'S', null, precision, { style, randomness: 0, rng: makeRng(1) });
+      expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
+    }
+  });
+
+  it('精确制：15 点均型开叫 1NT', () => {
+    const hand = parseHand('SAKJ HAK3 D5432 C876'); // 15 HCP, 3-3-4-3
+    const call = bidAI(hand, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
+  });
+
+  it('精确制：15 点均型对 1C 不争叫 1NT（争叫下限 16）', () => {
+    const hand = parseHand('SAKJ HAK3 D5432 C876'); // 15 HCP
+    const h = history(['E', '1C']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'C' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).not.toEqual({ type: 'bid', level: 1, suit: 'NT' });
+  });
+
+  it('精确制：16 点均型对 1C 争叫 1NT', () => {
+    const hand = parseHand('SAKJ HAK3 DJ432 C876'); // 16 HCP, 3-3-4-3
+    const h = history(['E', '1C']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'C' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
+  });
+
+  it('精确制：16 点均型对 1S 也争叫 1NT', () => {
+    const hand = parseHand('SAKJ HAK3 DJ432 C876'); // 16 HCP, 3-3-4-3
+    const h = history(['N', '1S']);
+    const call = bidAI(hand, h, 'E', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
+  });
+
   it('无规则命中时兜底 Pass（第 9 用例：^$ 与兜底）', () => {
     const hand = parseHand('SJ32 H854 D763 C92'); // 1 HCP，无任何开叫条件
     const call = bidAI(hand, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
@@ -75,9 +122,9 @@ describe('用户牌例：北 13 点 2-3-3-5 不应连续 Pass', () => {
   // ♠K7 ♥954 ♦AQJ ♣K10643：13 HCP，2-3-3-5
   const north = parseHand('SK7 H954 DAQJ CKT643');
 
-  it('作为发牌人应开叫 1D（精确 1D = 11-15 预备叫）', () => {
+  it('作为发牌人应开叫 1NT（13 点均型，精确 1NT = 13-15）', () => {
     const call = bidAI(north, [], 'N', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
-    expect(call).toEqual({ type: 'bid', level: 1, suit: 'D' });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 
   it('同伴开叫 1H 后应叫 3H（13 点，3 张支持）', () => {
@@ -148,10 +195,10 @@ describe('开叫门槛：13 点必开、弱 12 点可 Pass', () => {
     expect(call).toEqual({ type: 'bid', level: 1, suit: 'D' });
   });
 
-  it('13 点弱均型必须开叫（1D）', () => {
+  it('13 点弱均型必须开叫（1NT）', () => {
     const hand = parseHand('SQJ2 HJ32 DQJ3 CKQJ2'); // 13 HCP，4-3-3-3
     const call = bidAI(hand, [], 'N', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
-    expect(call).toEqual({ type: 'bid', level: 1, suit: 'D' });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 });
 
@@ -194,10 +241,10 @@ describe('1D 开叫的方块长度保证与第三/四家例外', () => {
     expect(call).toEqual({ type: 'pass' });
   });
 
-  it('第一/二家 13 点不足 4 张方块、无其他叫品时由 1D 兜底', () => {
-    const hand = parseHand('SQJ2 HQ2 DKQ3 CK8765'); // 13 HCP，3 张方块，5 张梅花
+  it('第一/二家 13 点不足 4 张方块、均型时开叫 1NT（不再由 1D 兜底）', () => {
+    const hand = parseHand('SQJ2 HQ2 DKQ3 CK8765'); // 13 HCP，3 张方块，5 张梅花，均型
     const call = bidAI(hand, [], 'N', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
-    expect(call).toEqual({ type: 'bid', level: 1, suit: 'D' });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 
   it('第三家首叫时 1D 不保证方块长度', () => {

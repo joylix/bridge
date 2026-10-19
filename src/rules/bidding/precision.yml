@@ -29,9 +29,9 @@ rules:
     priority: 98
 
   - id: open_1nt
-    description: "1NT 开叫：均型，点力区间随风格浮动"
+    description: "1NT 开叫：13-15 均型，无 5 张高花"
     sequence: "^$"
-    when: { hcp: "${open1ntMin}-${open1ntMax}", balanced: true, spades: "0-4", hearts: "0-4" }
+    when: { hcp: "13-15", balanced: true, spades: "0-4", hearts: "0-4" }
     action: "1NT"
     priority: 95
 
@@ -208,7 +208,7 @@ rules:
     priority: 30
 
   # ------------------------------------------------------------------
-  # 应叫同伴 1NT（15-17 均型）
+  # 应叫同伴 1NT（13-15 均型）
   # ------------------------------------------------------------------
   - id: resp_1nt_3nt
     description: "1NT 后 10+ 直接 3NT"
@@ -420,23 +420,30 @@ rules:
   # 争叫（RHO 刚开叫，即第二家位置）
   # ------------------------------------------------------------------
   - id: overcall_1nt
-    description: "1NT 争叫：15-18 均型，且有牌力"
+    description: "1NT 争叫：16-18 均型（对 1C）"
     sequence: "R:1C"
-    when: { hcp: "15-18", balanced: true }
+    when: { hcp: "16-18", balanced: true }
     action: "1NT"
     priority: 80
 
   - id: overcall_1nt_after_1d
-    description: "1NT 争叫：15-18 均型（对 1D）"
+    description: "1NT 争叫：16-18 均型（对 1D）"
     sequence: "R:1D"
-    when: { hcp: "15-18", balanced: true }
+    when: { hcp: "16-18", balanced: true }
     action: "1NT"
     priority: 80
 
-  - id: overcall_1nt_after_major
-    description: "1NT 争叫：15-18 均型（对高花开叫）"
+  - id: overcall_1nt_after_1h
+    description: "1NT 争叫：16-18 均型（对 1H）"
     sequence: "R:1H"
-    when: { hcp: "15-18", balanced: true }
+    when: { hcp: "16-18", balanced: true }
+    action: "1NT"
+    priority: 80
+
+  - id: overcall_1nt_after_1s
+    description: "1NT 争叫：16-18 均型（对 1S）"
+    sequence: "R:1S"
+    when: { hcp: "16-18", balanced: true }
     action: "1NT"
     priority: 80
 
