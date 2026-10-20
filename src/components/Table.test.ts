@@ -184,7 +184,7 @@ describe('Table 明手与庄家手牌可见性', () => {
 });
 
 describe('Table 中央出牌区', () => {
-  it('四家出牌按出牌次序斜向叠放，状态信息显示在中央顶部', async () => {
+  it('四家出牌保持固定方位，按出牌次序叠放并标出序号', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
@@ -197,9 +197,16 @@ describe('Table 中央出牌区', () => {
     store.nextPlayer = 'W';
     await nextTick();
 
-    const cards = wrapper.findAll('.trick-stack .trick-play');
-    expect(cards.map((c) => c.text())).toEqual(['♠A', '♥2', '♦3']);
-    expect(cards[1].classes()).toContain('red');
+    const plays = wrapper.findAll('.trick-stack .trick-play');
+    expect(plays.map((p) => p.get('.playing-card').text())).toEqual(['♠A', '♥2', '♦3']);
+    expect(plays[1].get('.playing-card').classes()).toContain('red');
+    expect(plays.map((p) => p.get('.play-order').text())).toEqual(['1', '2', '3']);
+    expect(plays[0].classes()).toContain('slot-N');
+    expect(plays[1].classes()).toContain('slot-E');
+    expect(plays[2].classes()).toContain('slot-S');
+    expect(plays[0].attributes('style')).toContain('z-index: 1');
+    expect(plays[1].attributes('style')).toContain('z-index: 2');
+    expect(plays[2].attributes('style')).toContain('z-index: 3');
     expect(wrapper.get('.center-top .trick-label').text()).toBe('第 1 墩');
     expect(wrapper.get('.center-top .turn-tag').text()).toBe('轮到 W');
     expect(wrapper.find('.center-top .winner-tag').exists()).toBe(false);
@@ -224,8 +231,13 @@ describe('Table 中央出牌区', () => {
     await nextTick();
 
     const cards = wrapper.findAll('.trick-stack .trick-play');
-    expect(cards.map((c) => c.text())).toEqual(['♠A', '♥2', '♦3', '♣4']);
+    expect(cards.map((c) => c.get('.playing-card').text())).toEqual(['♠A', '♥2', '♦3', '♣4']);
+    expect(cards.map((c) => c.get('.play-order').text())).toEqual(['1', '2', '3', '4']);
     expect(cards[0].classes()).toContain('winner');
+    expect(cards[0].classes()).toContain('slot-S');
+    expect(cards[1].classes()).toContain('slot-W');
+    expect(cards[2].classes()).toContain('slot-N');
+    expect(cards[3].classes()).toContain('slot-E');
     expect(wrapper.get('.center-top .winner-tag').text()).toBe('赢家 S');
     expect(wrapper.find('.last-trick-btn').exists()).toBe(false);
   });
@@ -245,18 +257,28 @@ describe('Table 中央出牌区', () => {
     store.nextPlayer = 'N';
     await nextTick();
 
-    expect(wrapper.findAll('.trick-stack .trick-play').map((c) => c.text())).toEqual(['♣2']);
+    const currentPlays = wrapper.findAll('.trick-stack .trick-play');
+    expect(currentPlays.map((c) => c.get('.playing-card').text())).toEqual(['♣2']);
+    expect(currentPlays[0].classes()).toContain('slot-W');
     const btn = wrapper.get('.last-trick-btn');
     expect(btn.text()).toBe('看上一墩');
 
     await btn.trigger('click');
     await nextTick();
 
-    expect(wrapper.findAll('.trick-stack .trick-play').map((c) => c.text())).toEqual([
+    const lastPlays = wrapper.findAll('.trick-stack .trick-play');
+    expect(lastPlays.map((c) => c.get('.playing-card').text())).toEqual([
       '♠A',
       '♥2',
       '♦3',
       '♣4',
+    ]);
+    expect(lastPlays.map((c) => c.get('.play-order').text())).toEqual(['1', '2', '3', '4']);
+    expect(lastPlays.map((c) => c.classes().find((name) => name.startsWith('slot-')))).toEqual([
+      'slot-S',
+      'slot-W',
+      'slot-N',
+      'slot-E',
     ]);
     expect(wrapper.get('.center-top .winner-tag').text()).toBe('赢家 S');
     expect(btn.text()).toBe('看本轮');

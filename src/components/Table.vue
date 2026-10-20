@@ -167,16 +167,6 @@ function toggleLastTrick(): void {
   if (canReviewLast.value) lastTrickVisible.value = !lastTrickVisible.value;
 }
 
-/** 本墩/上一墩的四张牌按出牌次序斜向叠放，越晚出的牌层次越高 */
-function playOffset(index: number, total: number): Record<string, string | number> {
-  const mid = (total - 1) / 2;
-  return {
-    '--dx': `${(index - mid) * 32}px`,
-    '--dy': `${(index - mid) * 18}px`,
-    zIndex: index + 1,
-  };
-}
-
 const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play_waiting_lead');
 </script>
 
@@ -252,16 +242,16 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 
       <div v-else-if="store.phase !== 'idle'" class="trick-board" :class="{ 'is-last': boardTrick.isLast }">
         <div v-if="boardTrick.plays.length" class="trick-stack">
-          <PlayingCard
+          <div
             v-for="(play, index) in boardTrick.plays"
             :key="`${play.position}-${play.card}`"
             class="trick-play"
-            :class="{ winner: boardTrick.winner === play.position }"
-            :style="playOffset(index, boardTrick.plays.length)"
-            :card="play.card"
-            size="xl"
-            label-mode="suit-first"
-          />
+            :class="[`slot-${play.position}`, { winner: boardTrick.winner === play.position }]"
+            :style="{ zIndex: index + 1 }"
+          >
+            <PlayingCard :card="play.card" size="xl" label-mode="suit-first" />
+            <span class="play-order" aria-hidden="true">{{ index + 1 }}</span>
+          </div>
         </div>
         <span v-else class="trick-empty">等待出牌</span>
       </div>
@@ -323,8 +313,9 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     'north north north'
     'west center east'
     'south south south';
-  grid-template-columns: 300px minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 380px) minmax(240px, 280px) minmax(0, 380px);
   grid-template-rows: auto minmax(230px, 1fr) auto;
+  justify-content: center;
   gap: 8px 12px;
   min-height: 560px;
   overflow: hidden;
@@ -384,6 +375,13 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   align-items: flex-end;
   gap: 4px;
 }
+/* 手牌靠近中央出牌区，减少东西家与中央之间的空白 */
+.west .hand {
+  align-self: flex-end;
+}
+.east .hand {
+  align-self: flex-start;
+}
 .seat-profile {
   display: flex;
   align-items: center;
@@ -420,7 +418,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-height: 230px;
+  min-height: 262px;
   padding: 6px;
   border-radius: 14px;
   background: rgba(3, 34, 22, 0.3);
@@ -532,26 +530,73 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 184px;
+  min-height: 224px;
   padding: 8px 0;
 }
-/* 四张牌按出牌次序斜向叠放，取代原先占满中央的上下左右四格 */
+/* 四家牌保持固定方位，按出牌次序决定叠放层次并标出序号 */
 .trick-stack {
   position: relative;
   flex: none;
-  width: 180px;
-  height: 168px;
+  width: 216px;
+  height: 216px;
 }
 .trick-play {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)));
-  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.32));
+  width: 76px;
+  height: 106px;
+  line-height: 0;
+  transform: translate(-50%, -50%);
 }
-.trick-play.winner {
+/* 西左、东右，同一水平线；北在上、南在下，同一垂直线 */
+.trick-play.slot-W {
+  transform: translate(calc(-50% - 64px), -50%);
+}
+.trick-play.slot-E {
+  transform: translate(calc(-50% + 64px), -50%);
+}
+.trick-play.slot-N {
+  transform: translate(-50%, calc(-50% - 48px));
+}
+.trick-play.slot-S {
+  transform: translate(-50%, calc(-50% + 48px));
+}
+.trick-play.winner :deep(.playing-card) {
   outline: 2px solid #ffe19a;
   outline-offset: 2px;
+}
+.play-order {
+  position: absolute;
+  z-index: 2;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #ffe19a;
+  color: #2c2200;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+/* 序号放在各自外侧且避开牌名所在的角 */
+.slot-W .play-order {
+  bottom: -6px;
+  left: -6px;
+}
+.slot-E .play-order {
+  top: -6px;
+  right: -6px;
+}
+.slot-N .play-order {
+  top: -6px;
+  right: -6px;
+}
+.slot-S .play-order {
+  bottom: -6px;
+  left: -6px;
 }
 .trick-empty {
   color: rgba(234, 245, 238, 0.55);
@@ -579,17 +624,17 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 
 @media (max-width: 900px) {
   .table {
-    grid-template-columns: 280px minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 250px) minmax(0, 1fr);
     grid-template-rows: auto minmax(226px, 1fr) auto;
     min-height: 520px;
     padding: 10px;
     gap: 6px;
   }
   .trick-board {
-    min-height: 184px;
+    min-height: 224px;
   }
   .center {
-    min-height: 226px;
+    min-height: 262px;
     padding: 5px;
   }
   .center-bid-history {
@@ -616,8 +661,12 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     align-self: auto;
     align-items: center;
   }
+  .west .hand,
+  .east .hand {
+    align-self: center;
+  }
   .center {
-    min-height: 230px;
+    min-height: 262px;
   }
 }
 </style>

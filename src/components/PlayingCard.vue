@@ -81,6 +81,8 @@ const ace = computed(() => {
   >
     <span class="pc-label">{{ label }}</span>
     <span class="pc-corner-suit" :data-suit="suit" aria-hidden="true" />
+    <span class="pc-label pc-label-bottom" :data-label="label" aria-hidden="true"></span>
+    <span class="pc-corner-suit pc-corner-suit-bottom" :data-suit="suit" aria-hidden="true" />
     <span class="pc-pips" :class="`pips-${pipCount}`" aria-hidden="true">
       <i v-for="i in pipCount" :key="i" class="pc-pip" :data-suit="suit" />
     </span>
@@ -212,6 +214,29 @@ const ace = computed(() => {
 }
 .suit-first .pc-corner-suit {
   display: none;
+}
+
+/* 右下角再显示一份同尺寸的牌名与花色，任意叠放顺序下至少有一侧可见 */
+.pc-label-bottom {
+  top: auto;
+  right: 4px;
+  bottom: 2px;
+  left: auto;
+}
+.pc-label-bottom::before {
+  content: attr(data-label);
+}
+.pc-corner-suit-bottom {
+  top: auto;
+  right: 4px;
+  bottom: calc(2px + var(--pc-label-size) + 1px);
+  left: auto;
+}
+.suit-first .pc-label-bottom {
+  right: 3px;
+  left: auto;
+  font-size: calc(var(--pc-label-size) - 1px);
+  letter-spacing: -0.08em;
 }
 
 /* 中央点阵 */

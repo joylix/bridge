@@ -183,7 +183,7 @@ const played = computed(() => {
 
 /* 东/西家紧凑模式：两行、牌张稍小、叠放更紧 */
 .hand.compact {
-  --card-overlap: -64px;
+  --card-overlap: -60px;
   gap: 4px;
 }
 .compact .hand-row {
@@ -195,10 +195,20 @@ const played = computed(() => {
 }
 
 /* 窄屏时进一步加大叠放，避免 13 张牌横向溢出 */
-@media (max-width: 900px) {
-  /* 东西家侧栏同步收窄，紧凑手牌叠得更紧，避免被牌桌裁切 */
+@media (max-width: 1320px) {
   .hand.compact {
-    --card-overlap: -66px;
+    --card-overlap: -64px;
+  }
+}
+/* 单列布局东西家拥有整行宽度，恢复较舒展的牌距 */
+@media (max-width: 820px) {
+  .hand.compact {
+    --card-overlap: -54px;
+  }
+}
+@media (max-width: 440px) {
+  .hand.compact {
+    --card-overlap: -60px;
   }
 }
 @media (max-width: 600px) {
