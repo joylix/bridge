@@ -66,7 +66,7 @@ const played = computed(() => {
           v-for="i in cards.length"
           :key="i"
           back
-          :size="compact ? 'md' : 'xl'"
+          :size="compact ? 'lg' : 'xxl'"
         />
       </div>
 
@@ -86,7 +86,7 @@ const played = computed(() => {
               v-for="card in group.cards"
               :key="card"
               :card="card"
-              :size="compact ? 'md' : 'xl'"
+              :size="compact ? 'lg' : 'xxl'"
               :clickable="clickable"
               :active="active && clickable"
               @click="emit('card-click', card)"
@@ -136,7 +136,7 @@ const played = computed(() => {
 .hand-row {
   display: flex;
   align-items: flex-end;
-  min-height: 106px;
+  min-height: 118px;
   padding-left: 3px;
   max-width: 100%;
 }
@@ -149,7 +149,7 @@ const played = computed(() => {
   margin-left: 8px;
 }
 .suit-group .playing-card + .playing-card {
-  margin-left: -46px;
+  margin-left: -52px;
 }
 .suits.no-events {
   pointer-events: none;
@@ -160,10 +160,10 @@ const played = computed(() => {
 .cards.backs {
   display: flex;
   align-items: center;
-  min-height: 106px;
+  min-height: 118px;
 }
 .cards.backs .playing-card + .playing-card {
-  margin-left: -46px;
+  margin-left: -52px;
 }
 
 /* 东/西家紧凑模式：两行、牌张稍小、叠放更紧 */
@@ -171,29 +171,29 @@ const played = computed(() => {
   gap: 4px;
 }
 .compact .hand-row {
-  min-height: 76px;
+  min-height: 90px;
   padding-left: 2px;
 }
 .compact .suit-group + .suit-group {
   margin-left: 5px;
 }
 .compact .suit-group .playing-card + .playing-card {
-  margin-left: -40px;
+  margin-left: -52px;
 }
 .compact .cards.backs {
-  min-height: 76px;
+  min-height: 90px;
 }
 .compact .cards.backs .playing-card + .playing-card {
-  margin-left: -44px;
+  margin-left: -56px;
 }
 
 /* 窄屏时进一步加大叠放，避免 13 张牌横向溢出 */
-@media (max-width: 680px) {
+@media (max-width: 760px) {
   .hand:not(.compact) .suit-group .playing-card + .playing-card {
-    margin-left: -56px;
+    margin-left: -58px;
   }
   .hand:not(.compact) .cards.backs .playing-card + .playing-card {
-    margin-left: -56px;
+    margin-left: -58px;
   }
 }
 @media (max-width: 560px) {
@@ -201,10 +201,10 @@ const played = computed(() => {
     margin-left: 4px;
   }
   .hand:not(.compact) .suit-group .playing-card + .playing-card {
-    margin-left: -64px;
+    margin-left: -68px;
   }
   .hand:not(.compact) .cards.backs .playing-card + .playing-card {
-    margin-left: -62px;
+    margin-left: -66px;
   }
 }
 @media (max-width: 440px) {

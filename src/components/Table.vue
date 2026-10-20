@@ -217,7 +217,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
             v-if="slotInfo(pos).card !== null"
             class="board-card"
             :card="slotInfo(pos).card"
-            size="md"
+            size="lg"
             label-mode="suit-first"
           />
           <span v-else class="slot-empty">·</span>
@@ -281,9 +281,9 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     'west center east'
     'south south south';
   grid-template-columns: 250px minmax(0, 1fr) 250px;
-  grid-template-rows: auto minmax(220px, 1fr) auto;
-  gap: 6px 12px;
-  min-height: 480px;
+  grid-template-rows: auto minmax(320px, 1fr) auto;
+  gap: 8px 12px;
+  min-height: 640px;
   overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 42%, rgba(72, 167, 112, 0.36), transparent 58%),
@@ -376,9 +376,9 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   grid-area: center;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  min-height: 220px;
-  padding: 7px;
+  gap: 6px;
+  min-height: 320px;
+  padding: 8px;
   border-radius: 14px;
   background: rgba(3, 34, 22, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -434,10 +434,15 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   color: #2c2200;
   border-color: #ffe19a;
 }
+/* 叫牌过程按内容高度展示，不随中央区域一起拉高 */
 .center-bid-history {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
+  max-height: 240px;
   overflow: hidden;
+}
+.center-bid-history.variant-table :deep(.bid-scroll) {
+  max-height: 170px;
 }
 /* 中央叫牌纸压缩为紧凑表格，避免占据过多牌桌空间 */
 .center-bid-history :deep(.variant-table) {
@@ -488,10 +493,10 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     '. north .'
     'west center east'
     '. south .';
-  grid-template-columns: minmax(76px, 1fr) minmax(116px, 1.1fr) minmax(76px, 1fr);
-  grid-template-rows: repeat(3, minmax(64px, 1fr));
-  gap: 3px;
-  min-height: 210px;
+  grid-template-columns: minmax(84px, 1fr) minmax(130px, 1.1fr) minmax(84px, 1fr);
+  grid-template-rows: repeat(3, minmax(86px, 1fr));
+  gap: 4px;
+  min-height: 280px;
 }
 .trick-slot {
   position: relative;
@@ -599,19 +604,25 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 @media (max-width: 900px) {
   .table {
     grid-template-columns: 220px minmax(0, 1fr) 220px;
-    grid-template-rows: auto minmax(220px, 1fr) auto;
-    min-height: 460px;
+    grid-template-rows: auto minmax(300px, 1fr) auto;
+    min-height: 600px;
     padding: 10px;
     gap: 6px;
   }
   .trick-board {
-    grid-template-columns: 62px minmax(104px, 1fr) 62px;
-    grid-template-rows: repeat(3, minmax(58px, 1fr));
-    min-height: 200px;
+    grid-template-columns: 76px minmax(112px, 1fr) 76px;
+    grid-template-rows: repeat(3, minmax(80px, 1fr));
+    min-height: 270px;
   }
   .center {
-    min-height: 220px;
+    min-height: 300px;
     padding: 6px;
+  }
+  .center-bid-history {
+    max-height: 220px;
+  }
+  .center-bid-history.variant-table :deep(.bid-scroll) {
+    max-height: 150px;
   }
 }
 
@@ -634,7 +645,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     align-items: center;
   }
   .center {
-    min-height: 240px;
+    min-height: 300px;
   }
 }
 </style>

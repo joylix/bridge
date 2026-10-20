@@ -8,7 +8,7 @@ const props = withDefaults(
     /** 牌背（暗手） */
     back?: boolean;
     /** 牌面尺寸：手牌、中央出牌、结果弹窗等共用 */
-    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
     /** 是否可点击 */
     clickable?: boolean;
     /** 当前行动高亮 */
@@ -168,6 +168,15 @@ const ace = computed(() => {
   width: 76px;
   height: 106px;
   border-radius: 8px;
+}
+.size-xxl {
+  --pc-label-size: 19px;
+  --pc-corner-size: 14px;
+  --pc-pip-size: 23px;
+  --pc-court-size: 48px;
+  width: 84px;
+  height: 118px;
+  border-radius: 9px;
 }
 
 /* 左上角点数与花色 */
