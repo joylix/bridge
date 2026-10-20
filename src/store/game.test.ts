@@ -119,12 +119,53 @@ describe('人类控制权模型（用例 14、15）', () => {
 });
 
 describe('唯一合法出牌自动进行', () => {
+  it('人类控制的座位只剩唯一合法牌时也等待确认，不自动出牌', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    try {
+      const store = newStore();
+      store.startNewGame({ autoStart: false, seed: 22 });
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+      store.phase = 'play_waiting_lead';
+      store.tricks = [
+        {
+          plays: [
+            { position: 'S', card: parseHand('SA')[0] },
+            { position: 'W', card: parseHand('H2')[0] },
+            { position: 'N', card: parseHand('D3')[0] },
+            { position: 'E', card: parseHand('C4')[0] },
+          ],
+          leader: 'S',
+          winner: 'S',
+        },
+      ];
+      store.currentTrick = [];
+      store.nextPlayer = 'S';
+      store.hands.S = parseHand('C2');
+
+      const loop = store.runAILoop();
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS + 50);
+
+      // 南家是唯一合法牌，但仍应停下来等待人类确认
+      expect(store.hands.S).toEqual(parseHand('C2'));
+      expect(store.currentTrick).toHaveLength(0);
+      expect(store.tricks).toHaveLength(1);
+      expect(store.nextPlayer).toBe('S');
+      expect(store.isAiThinking).toBe(false);
+      await loop;
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it('自动出牌也至少展示 1 秒后才进行下一手', async () => {
     vi.useFakeTimers();
     try {
       const store = newStore();
       store.startNewGame({ autoStart: false, seed: 2 });
-      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
+      // 人类为防守方，只控制南家；北/东为 AI，仍应自动打出唯一合法牌
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'E', dummy: 'W' };
       store.phase = 'play';
       store.tricks = [];
       store.currentTrick = [{ position: 'W', card: parseHand('H2')[0] }];

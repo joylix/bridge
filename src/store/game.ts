@@ -280,8 +280,12 @@ export const useGameStore = defineStore('game', () => {
    * 底层的“落子”操作
    * ---------------------------------------------------------------- */
 
-  function applyBid(pos: Position, call: BidCall): void {
-    state.biddingHistory.push({ position: pos, call });
+  function applyBid(pos: Position, call: BidCall, meta?: { alerted?: boolean; alertText?: string }): void {
+    state.biddingHistory.push({
+      position: pos,
+      call,
+      ...(meta?.alerted ? { alerted: true, alertText: meta.alertText } : {}),
+    });
     if (call.type === 'bid') {
       state.currentBid = { level: call.level, suit: call.suit };
       state.doubleState = 'none';
@@ -484,7 +488,9 @@ export const useGameStore = defineStore('game', () => {
         const legal = legalCardsFor(pos);
         if (legal.length === 0) return;
         const forced = legal.length === 1 ? legal[0] : null;
-        const humanChooses = isHumanControlled(pos) && forced === null;
+        // 人类控制的座位即使只剩唯一合法牌，也停下来等待确认；
+        // 否则自动出牌会立刻进入下一墩，把刚完成的上一墩顶掉。
+        const humanChooses = isHumanControlled(pos);
 
         // 先让上一张牌展示满 1 秒，再进行下一个动作（包括人类回合）
         if (!(await holdLastPlay(token))) return;
@@ -560,7 +566,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   /** 人类叫牌（仅受核心法律约束，可诈叫） */
-  async function humanBid(call: BidCall): Promise<void> {
+  async function humanBid(call: BidCall, meta?: { alerted?: boolean; alertText?: string }): Promise<void> {
     if (state.phase !== 'bidding') return;
     const pos = state.currentBidder;
     if (!isHumanControlled(pos)) return;
@@ -568,7 +574,7 @@ export const useGameStore = defineStore('game', () => {
       state.message = '该叫品不合法';
       return;
     }
-    applyBid(pos, call);
+    applyBid(pos, call, meta);
     const bidEnd = checkBiddingEnd();
     if (bidEnd === 'passed_out') return; // 流局
     if (bidEnd === 'contract') setContractAndStartPlay();
@@ -751,7 +757,7 @@ export const useGameStore = defineStore('game', () => {
 
 /** 叫牌过程里的 Pass 统一用单横杠表示 */
 export const PASS_TEXT = '—';
-/** 叫牌结束的最后一个 Pass 用等号（上下双横杠）表示 */
+/** 叫牌结束符：另起一行写在第一列（上下双横杠） */
 export const FINAL_PASS_TEXT = '=';
 
 export function describeCall(call: BidCall): string {
@@ -761,9 +767,9 @@ export function describeCall(call: BidCall): string {
     case 'bid':
       return `${call.level}${suitName(call.suit)}`;
     case 'double':
-      return '加倍';
+      return 'X';
     case 'redouble':
-      return '再加倍';
+      return 'XX';
   }
 }
 

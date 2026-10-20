@@ -16,8 +16,8 @@ const props = withDefaults(
   { label: '', role: '' },
 );
 
-/** 展示顺序与牌桌一致：♠ ♥ ♦ ♣ */
-const SUIT_ROWS: SuitIndex[] = [3, 2, 1, 0];
+/** 展示顺序与牌桌一致：♠ ♥ ♣ ♦ */
+const SUIT_ROWS: SuitIndex[] = [3, 2, 0, 1];
 
 const rows = computed(() =>
   SUIT_ROWS.map((suit) => ({
@@ -43,7 +43,7 @@ const displayLabel = computed(() => props.label || props.position);
     </header>
     <div class="hd-body">
       <div v-for="row in rows" :key="row.suit" class="hd-row">
-        <span class="hd-suit" :class="{ red: row.red }">{{ row.symbol }}</span>
+        <span class="hd-suit suit-symbol" :class="{ red: row.red, 'suit-club': row.symbol === '♣' }">{{ row.symbol }}</span>
         <span class="hd-ranks" :class="{ red: row.red }">
           <template v-if="row.ranks.length">{{ row.ranks.join(' ') }}</template>
           <span v-else class="hd-void">—</span>
@@ -111,6 +111,9 @@ const displayLabel = computed(() => props.label || props.position);
 .hd-suit.red,
 .hd-ranks.red {
   color: #c0392b;
+}
+.hd-suit.suit-club {
+  color: var(--club-ink);
 }
 .hd-ranks {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;

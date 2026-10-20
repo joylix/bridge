@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
-import { describeCall, useGameStore } from '../store/game';
+import { useGameStore } from '../store/game';
 import { isCallLegal } from '../core/bidding/validator';
 import type { BidCall, BidSuit } from '../models/gameState';
 import { getSavedBiddingPopupPosition, saveBiddingPopupPosition } from './biddingPopupPosition';
@@ -27,6 +26,7 @@ watch(
   [() => store.currentBidder, () => store.phase, () => store.isAiThinking],
   () => {
     selectedCall.value = null;
+    alertText.value = '';
   },
 );
 
@@ -75,17 +75,13 @@ const confirmDisabled = computed(() => {
   return isDisabled(call);
 });
 
+/** “确认+提醒”只把该次叫牌在叫牌表里标为白底，不再弹出提醒框 */
 function confirmBid(withAlert = false): void {
   const call = selectedCall.value;
   if (!call || isDisabled(call)) return;
 
-  if (withAlert) {
-    const detail = alertText.value ? `${describeCall(call)}（${alertText.value}）` : describeCall(call);
-    ElMessage({ message: `已提醒：${detail}`, type: 'info', duration: 1600 });
-  }
-
   selectedCall.value = null;
-  void store.humanBid(call);
+  void store.humanBid(call, withAlert ? { alerted: true, alertText: alertText.value } : undefined);
 }
 
 /* ---------------------------------------------------------------- *
@@ -186,7 +182,15 @@ onBeforeUnmount(stopDrag);
             @dblclick="bidImmediately(level, suit)"
           >
             <span class="bid-level">{{ level }}</span>
-            <span class="bid-suit" :class="{ red: RED_SUITS.has(suit), nt: suit === 'NT' }">
+            <span
+              class="bid-suit"
+              :class="{
+                red: RED_SUITS.has(suit),
+                nt: suit === 'NT',
+                'suit-symbol': suit !== 'NT',
+                'suit-club': suit === 'C',
+              }"
+            >
               {{ SUIT_SYMBOL[suit] }}
             </span>
           </button>

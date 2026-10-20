@@ -78,6 +78,21 @@ describe('BiddingBox 叫牌浮窗', () => {
     expect(store.biddingHistory[0]?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
   });
 
+  it('“确认+提醒”提交时标记该次叫牌（不弹提醒框）', async () => {
+    const { store, wrapper } = setup();
+    store.biddingHistory = [];
+    store.currentBid = null;
+    store.currentBidder = 'S';
+    await nextTick();
+
+    await wrapper.get('button.bid-btn[data-level="1"][data-suit="S"]').trigger('click');
+    const confirms = wrapper.findAll('.confirm-btn');
+    await confirms[1].trigger('click');
+
+    expect(store.biddingHistory[0]?.alerted).toBe(true);
+    expect(store.biddingHistory[0]?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
+  });
+
   it('双击叫牌卡直接提交，无需再点确认', async () => {
     const { store, wrapper } = setup();
     store.biddingHistory = [];

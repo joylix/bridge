@@ -15,6 +15,10 @@ export type BidCall =
 export interface BidRecord {
   position: Position;
   call: BidCall;
+  /** 该叫牌通过“确认+提醒”提交（叫牌表以白底突出，不弹提醒框） */
+  alerted?: boolean;
+  /** 提醒内容（如“约定叫”），仅供悬停查看 */
+  alertText?: string;
 }
 
 export interface Contract {

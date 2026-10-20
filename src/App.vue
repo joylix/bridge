@@ -69,7 +69,7 @@ function onRoundSize(value: number): void {
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <h1><span class="suit-black">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red">♥</span></h1>
+      <h1><span class="suit-black suit-symbol">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red suit-symbol">♥</span></h1>
 
       <div class="status">
         <strong>{{ phaseLabel }}</strong> · {{ store.message }}

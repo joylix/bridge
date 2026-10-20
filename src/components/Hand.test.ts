@@ -4,7 +4,7 @@ import Hand from './Hand.vue';
 import { parseHand } from '../testing/testUtils';
 
 describe('Hand 牌面布局', () => {
-  it('南家单行显示，按 ♠ ♥ ♦ ♣ 从大到小排列', () => {
+  it('南家单行显示，按 ♠ ♥ ♣ ♦ 从大到小排列', () => {
     const wrapper = mount(Hand, {
       props: { cards: parseHand('SAKQ2 HJT9 D5 C876'), position: 'S' },
     });
@@ -20,10 +20,10 @@ describe('Hand 牌面布局', () => {
       'J',
       '10',
       '9',
-      '5',
       '8',
       '7',
       '6',
+      '5',
     ]);
   });
 

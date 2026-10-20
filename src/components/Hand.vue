@@ -26,8 +26,8 @@ const emit = defineEmits<{
   (e: 'card-dblclick', card: number): void;
 }>();
 
-/** 展示顺序：♠ > ♥ > ♦ > ♣ */
-const SUIT_ROWS: SuitIndex[] = [3, 2, 1, 0];
+/** 展示顺序：♠ > ♥ > ♣ > ♦（方块与红桃颜色接近，隔开更易区分） */
+const SUIT_ROWS: SuitIndex[] = [3, 2, 0, 1];
 
 const rows = computed(() =>
   SUIT_ROWS.map((suit) => ({
@@ -36,7 +36,7 @@ const rows = computed(() =>
   })),
 );
 
-/** 按 ♠ ♥ ♦ ♣ 分组，缺门不占位 */
+/** 按 ♠ ♥ ♣ ♦ 分组，缺门不占位 */
 const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 </script>
 
@@ -113,7 +113,7 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 }
 .suits.no-events {
   pointer-events: none;
-  opacity: 0.74;
+  opacity: 0.88;
 }
 
 /* 暗手：横向叠放牌背 */

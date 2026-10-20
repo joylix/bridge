@@ -26,7 +26,10 @@ const parts = computed(() => {
   <span class="contract-display">
     <template v-if="parts">
       <span class="declarer">{{ parts.declarer }}</span>{{ ' ' }}<span class="level">{{ parts.level }}</span>
-      <span class="suit" :class="{ red: parts.red, nt: parts.nt }">{{ parts.suit }}</span>
+      <span
+        class="suit"
+        :class="{ red: parts.red, nt: parts.nt, 'suit-symbol': !parts.nt, 'suit-club': parts.suit === '♣' }"
+      >{{ parts.suit }}</span>
       <span v-if="parts.doubled" class="doubled">{{ parts.doubled }}</span>
     </template>
     <template v-else>{{ emptyText ?? '未定约' }}</template>

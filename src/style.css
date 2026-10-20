@@ -3,7 +3,24 @@
   --felt-dark: #14563a;
   --ink: #1c2b22;
   --paper: #f7f7f2;
+  /* 花色符号单独使用符号字体，避免小字号下 ♣/♠、♦/♥ 混淆 */
+  --suit-font: 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'Arial Unicode MS',
+    'DejaVu Sans', sans-serif;
+  --club-ink: #172b63;
+  --club-on-dark: #a9c9ff;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+/* 只用于花色符号本身，不改变点数和其它文字字体 */
+.suit-symbol {
+  font-family: var(--suit-font);
+  font-variant-emoji: text;
+  font-style: normal;
+}
+
+/* 草花使用蓝黑色，和黑桃区分；深色背景上改用浅蓝 */
+.suit-club {
+  color: var(--club-color, var(--club-ink));
 }
 
 * {

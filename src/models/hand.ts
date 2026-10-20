@@ -3,11 +3,11 @@ import { getRank, getSuit } from './card';
 /** 一手牌（牌号数组） */
 export type Hand = number[];
 
-/** 花色展示顺序：♠ > ♥ > ♦ > ♣ */
-const SUIT_DISPLAY_ORDER = [3, 2, 1, 0];
+/** 花色展示顺序：♠ > ♥ > ♣ > ♦（方块与红桃颜色接近，隔开更易区分） */
+const SUIT_DISPLAY_ORDER = [3, 2, 0, 1];
 
 /**
- * 排序：♠ > ♥ > ♦ > ♣，同花色点数从 A 到 2 降序。
+ * 排序：♠ > ♥ > ♣ > ♦，同花色点数从 A 到 2 降序。
  */
 export function sortHand(hand: Hand): Hand {
   return [...hand].sort((a, b) => {

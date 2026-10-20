@@ -79,12 +79,24 @@ const ace = computed(() => {
     :disabled="!clickable"
     @click="emit('click')"
   >
-    <span class="pc-label">{{ label }}</span>
-    <span class="pc-corner-suit" :data-suit="suit" aria-hidden="true" />
-    <span class="pc-label pc-label-bottom" :data-label="label" aria-hidden="true"></span>
-    <span class="pc-corner-suit pc-corner-suit-bottom" :data-suit="suit" aria-hidden="true" />
+    <span class="pc-label">
+      <template v-if="labelMode === 'suit-first'">
+        <span class="suit-symbol">{{ suit }}</span><span>{{ rank }}</span>
+      </template>
+      <template v-else>{{ label }}</template>
+    </span>
+    <span class="pc-corner-suit suit-symbol" :data-suit="suit" aria-hidden="true" />
+    <span
+      class="pc-label pc-label-bottom"
+      :class="{ 'split-label': labelMode === 'suit-first' }"
+      :data-label="label"
+      :data-suit="suit"
+      :data-rank="rank"
+      aria-hidden="true"
+    ></span>
+    <span class="pc-corner-suit pc-corner-suit-bottom suit-symbol" :data-suit="suit" aria-hidden="true" />
     <span class="pc-pips" :class="`pips-${pipCount}`" aria-hidden="true">
-      <i v-for="i in pipCount" :key="i" class="pc-pip" :data-suit="suit" />
+      <i v-for="i in pipCount" :key="i" class="pc-pip suit-symbol" :data-suit="suit" />
     </span>
     <span v-if="court" class="pc-court" :data-court="rank" aria-hidden="true" />
   </button>
@@ -104,13 +116,17 @@ const ace = computed(() => {
   overflow: hidden;
   padding: 0;
   appearance: none;
-  border: 1px solid #cfc6b4;
+  border: 1px solid #c8bfae;
   background:
-    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.95), transparent 45%),
-    linear-gradient(145deg, #fffef9 0%, #f8f4e9 58%, #ece5d3 100%);
-  color: #1c2b22;
-  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+    radial-gradient(circle at 30% 16%, #ffffff 0%, rgba(255, 255, 255, 0) 54%),
+    linear-gradient(145deg, #ffffff 0%, #fffefa 64%, #fdf9f2 100%);
+  color: #111;
+  font-family: 'Ubuntu Sans', 'Segoe UI', 'Helvetica Neue', Arial, 'PingFang SC',
+    'Microsoft YaHei', system-ui, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.92);
   vertical-align: middle;
   user-select: none;
 }
@@ -118,16 +134,16 @@ const ace = computed(() => {
   content: '';
   position: absolute;
   inset: 2px;
-  border: 1px solid rgba(120, 105, 72, 0.14);
+  border: 1px solid rgba(120, 105, 72, 0.07);
   border-radius: inherit;
   pointer-events: none;
 }
 
 .playing-card.red {
-  color: #c22b2b;
+  color: #c51f2a;
 }
 .playing-card.black {
-  color: #17241d;
+  color: #101010;
 }
 
 /* 尺寸 */
@@ -178,12 +194,17 @@ const ace = computed(() => {
 }
 .size-xxl {
   --pc-label-size: 21px;
-  --pc-corner-size: 15px;
-  --pc-pip-size: 25px;
+  --pc-corner-size: 13px;
+  --pc-pip-size: 21px;
   --pc-court-size: 52px;
+  --pc-back-spade-size: 34px;
   width: 96px;
   height: 134px;
   border-radius: 10px;
+}
+/* 手牌（xxl）中间点阵向内侧收，给角部花色留出空间 */
+.size-xxl .pc-pips {
+  inset: 22% 24% 20% 24%;
 }
 
 /* 左上角点数与花色 */
@@ -194,8 +215,10 @@ const ace = computed(() => {
   z-index: 2;
   font-size: var(--pc-label-size);
   line-height: 1;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  /* 角部索引与中央点阵接近时，用极浅描边隔开，避免变糊 */
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.9);
 }
 .pc-corner-suit {
   position: absolute;
@@ -204,7 +227,21 @@ const ace = computed(() => {
   z-index: 2;
   font-size: var(--pc-corner-size);
   line-height: 1;
-  font-weight: 700;
+  font-weight: 500;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.9);
+}
+/* 花色符号比数字更细，接近参考图的清秀字形 */
+.pc-label .suit-symbol,
+.pc-label-bottom.split-label::before {
+  font-weight: 400;
+}
+
+/* 草花：只把花色符号改成蓝黑色，点数保持黑色 */
+.playing-card[data-suit='♣'] .pc-label .suit-symbol,
+.playing-card[data-suit='♣'] .pc-corner-suit,
+.playing-card[data-suit='♣'] .pc-pip::before,
+.playing-card[data-suit='♣'] .pc-label-bottom.split-label::before {
+  color: var(--club-ink);
 }
 .pc-corner-suit::before {
   content: attr(data-suit);
@@ -227,6 +264,15 @@ const ace = computed(() => {
 }
 .pc-label-bottom::before {
   content: attr(data-label);
+}
+/* suit-first 模式把花色和点数拆成两个伪元素，只有花色使用符号字体 */
+.pc-label-bottom.split-label::before {
+  content: attr(data-suit);
+  font-family: var(--suit-font);
+  font-variant-emoji: text;
+}
+.pc-label-bottom.split-label::after {
+  content: attr(data-rank);
 }
 .pc-corner-suit-bottom {
   top: auto;
@@ -257,7 +303,7 @@ const ace = computed(() => {
   display: block;
   font-size: var(--pc-pip-size);
   line-height: 1;
-  font-weight: 700;
+  font-weight: 400;
 }
 .pips-1 .pc-pip {
   grid-area: 3 / 2;
@@ -448,9 +494,9 @@ const ace = computed(() => {
   align-items: center;
   justify-content: center;
   font-size: var(--pc-court-size);
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1;
-  opacity: 0.9;
+  opacity: 0.92;
   pointer-events: none;
 }
 .pc-court::before {
@@ -490,20 +536,46 @@ const ace = computed(() => {
   cursor: default;
 }
 
-/* 牌背 */
+/* 牌背：深蓝底 + 斜交浅色暗网纹；细黑轮廓 + 粗白边，内部不再加白线框 */
 .playing-card.back {
-  background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.92) 0 12%, transparent 13%),
-    repeating-linear-gradient(45deg, #1b357d 0 5px, #274b9e 5px 10px);
-  border: 2px solid #f8f3e7;
-  box-shadow: inset 0 0 0 2px #10265f, 0 2px 5px rgba(0, 0, 0, 0.35);
+  --pc-back-border: 4px;
+  background-color: #12376f;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 6px,
+      rgba(185, 219, 255, 0.42) 6px 7px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      rgba(185, 219, 255, 0.42) 6px 7px
+    ),
+    radial-gradient(circle at 50% 45%, rgba(76, 132, 205, 0.72) 0 24%, transparent 62%),
+    linear-gradient(155deg, #0e2b5f 0%, #174785 58%, #0d2c61 100%);
+  border: 1px solid #0b0b0b;
+  box-shadow:
+    inset 0 0 0 var(--pc-back-border) #f7f7f2,
+    0 2px 5px rgba(0, 0, 0, 0.36);
+}
+.size-xs.back {
+  --pc-back-border: 3px;
+}
+.size-sm.back {
+  --pc-back-border: 4px;
+}
+.size-md.back {
+  --pc-back-border: 5px;
+}
+.size-lg.back {
+  --pc-back-border: 5px;
+}
+.size-xl.back,
+.size-xxl.back {
+  --pc-back-border: 6px;
 }
 .playing-card.back::before {
-  content: '';
-  position: absolute;
-  inset: 14%;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 2px;
+  content: none;
 }
 .playing-card.back::after {
   content: '♠';
@@ -512,8 +584,10 @@ const ace = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: calc(var(--pc-pip-size) * 1.6);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: var(--suit-font);
+  font-variant-emoji: text;
+  font-size: var(--pc-back-spade-size, calc(var(--pc-pip-size) * 1.35));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 </style>

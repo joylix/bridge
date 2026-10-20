@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-import ElementPlus from 'element-plus';
+import ElementPlus, { ElDialog } from 'element-plus';
 import App from './App.vue';
 import DealResultDialog from './components/DealResultDialog.vue';
 import { useGameStore } from './store/game';
@@ -91,6 +91,7 @@ describe('App 冒烟测试', () => {
     const { store, wrapper } = setupApp();
     const result = wrapper.getComponent(DealResultDialog);
     expect(result.props('modelValue')).toBe(false);
+    expect(result.getComponent(ElDialog).props('draggable')).toBe(true);
 
     store.contract = { level: 4, suit: 'H', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
     store.phase = 'scoring';

@@ -97,7 +97,7 @@ export function rankName(card: number): string {
 export type Hand = number[];
 
 /** 
- * 排序：♠ > ♥ > ♦ > ♣，同花色点数从 A 到 2 降序。
+ * 排序：♠ > ♥ > ♣ > ♦，同花色点数从 A 到 2 降序。
  */
 export function sortHand(hand: Hand): Hand {
   const SUIT_ORDER = [3, 2, 1, 0];

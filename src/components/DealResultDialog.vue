@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useGameStore, vulName } from '../store/game';
-import type { Position, Trick } from '../models/gameState';
+import type { Position } from '../models/gameState';
 import BidHistory from './BidHistory.vue';
 import ContractDisplay from './ContractDisplay.vue';
-import HandDiagram from './HandDiagram.vue';
-import PlayingCard from './PlayingCard.vue';
+import ResultDistribution from './ResultDistribution.vue';
+import ResultPlayTable from './ResultPlayTable.vue';
 
 const open = defineModel<boolean>({ default: false });
 const store = useGameStore();
 
 const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
-const SEAT_LABEL: Record<Position, string> = { N: '北 N', E: '东 E', S: '南 S', W: '西 W' };
+const VUL_TEXT: Record<string, string> = {
+  none: '无局',
+  NS: '南北有局',
+  EW: '东西有局',
+  both: '双方有局',
+};
 
 const declarerTricks = computed(() => store.declarerTricksWon());
 const requiredTricks = computed(() => (store.contract ? store.contract.level + 6 : 0));
@@ -47,23 +52,23 @@ const dealAdjustLabel = computed(() => {
   return a > 0 ? `NS +${a}` : `EW +${-a}`;
 });
 
+/** 紧凑结果格式：= / +N / -N，与计分表一致 */
+const compactOutcome = computed(() => {
+  if (!store.contract) return '';
+  const diff = declarerTricks.value - requiredTricks.value;
+  if (diff === 0) return '=';
+  return diff > 0 ? `+${diff}` : String(diff);
+});
+
+const vulnerabilityText = computed(() => VUL_TEXT[store.vulnerability] ?? '无局');
+const resultEmptyText = computed(() => (store.phase === 'scoring' ? '流局' : '未定约'));
+
 /** 结算后 state.hands 已被出牌消耗，优先使用发牌快照 */
 const hands = computed(() => {
   const snapshot = store.dealHands;
   const hasCards = COLUMNS.some((pos) => (snapshot[pos]?.length ?? 0) > 0);
   return hasCards ? snapshot : store.hands;
 });
-
-function roleOf(pos: Position): 'declarer' | 'dummy' | '' {
-  if (!store.contract) return '';
-  if (store.contract.declarer === pos) return 'declarer';
-  if (store.contract.dummy === pos) return 'dummy';
-  return '';
-}
-
-function cardOf(trick: Trick, pos: Position): number | null {
-  return trick.plays.find((play) => play.position === pos)?.card ?? null;
-}
 </script>
 
 <template>
@@ -71,6 +76,7 @@ function cardOf(trick: Trick, pos: Position): number | null {
     v-model="open"
     :title="`第 ${store.gamesPlayed} 局详细结果`"
     width="min(1040px, 95vw)"
+    draggable
     class="deal-result-dialog"
   >
     <div class="result-hero" :class="{ passed: !store.contract }">
@@ -132,18 +138,15 @@ function cardOf(trick: Trick, pos: Position): number | null {
         </div>
       </section>
 
-      <section class="result-card hands-card">
+      <section class="result-card hands-card distribution-card">
         <h4>牌型分布</h4>
-        <div class="hands-grid">
-          <HandDiagram
-            v-for="pos in COLUMNS"
-            :key="pos"
-            :cards="hands[pos]"
-            :position="pos"
-            :label="SEAT_LABEL[pos]"
-            :role="roleOf(pos)"
-          />
-        </div>
+        <ResultDistribution
+          :hands="hands"
+          :vulnerability="vulnerabilityText"
+          :contract="store.contract"
+          :outcome="compactOutcome"
+          :empty-text="resultEmptyText"
+        />
       </section>
     </div>
 
@@ -153,28 +156,16 @@ function cardOf(trick: Trick, pos: Position): number | null {
         <BidHistory variant="table" />
       </section>
 
-      <section v-if="store.tricks.length" class="result-card">
+      <section
+        v-if="store.tricks.length || store.currentTrick.length"
+        class="result-card play-card-panel"
+      >
         <h4>打牌过程</h4>
-        <div class="trick-table">
-          <div class="trick-table-head">
-            <span>#</span>
-            <span v-for="pos in COLUMNS" :key="pos">{{ pos }}</span>
-            <span>赢家</span>
-          </div>
-          <div v-for="(trick, i) in store.tricks" :key="i" class="trick-table-row">
-            <span class="trick-no">{{ i + 1 }}</span>
-            <span v-for="pos in COLUMNS" :key="pos" class="trick-cell">
-              <PlayingCard
-                v-if="cardOf(trick, pos) !== null"
-                :card="cardOf(trick, pos)"
-                size="xs"
-                label-mode="suit-first"
-              />
-              <span v-else class="trick-empty">—</span>
-            </span>
-            <span class="trick-winner">{{ trick.winner }}</span>
-          </div>
-        </div>
+        <ResultPlayTable
+          :tricks="store.tricks"
+          :current-trick="store.currentTrick"
+          :contract="store.contract"
+        />
       </section>
     </div>
 
@@ -269,6 +260,30 @@ function cardOf(trick: Trick, pos: Position): number | null {
   color: #14563a;
   letter-spacing: 0.4px;
 }
+/* 牌型分布 / 打牌过程沿用计分表的紧凑面板 */
+.distribution-card,
+.play-card-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-color: #00552f;
+  background: #006b3f;
+}
+.distribution-card h4,
+.play-card-panel h4 {
+  margin: 0;
+  padding: 3px 8px;
+  border-bottom: 1px solid #8a8a8a;
+  background: linear-gradient(#f4f4f4, #e5e5e5);
+  color: #111;
+}
+.distribution-card :deep(.distribution) {
+  min-height: 216px;
+}
+.play-card-panel :deep(.play-table-wrap) {
+  max-height: 280px;
+}
 .score-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -318,69 +333,11 @@ function cardOf(trick: Trick, pos: Position): number | null {
   color: #8a5a00;
   font-size: 15px;
 }
-.hands-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
 .result-lower {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 12px;
   margin-top: 12px;
-}
-.trick-table {
-  max-height: 330px;
-  overflow: auto;
-  border: 1px solid #e0e7e2;
-  border-radius: 8px;
-}
-.trick-table-head,
-.trick-table-row {
-  display: grid;
-  grid-template-columns: 24px repeat(4, minmax(0, 1fr)) 38px;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 5px;
-}
-.trick-table-head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: #edf4ef;
-  border-bottom: 1px solid #dfe8e2;
-  font-size: 10px;
-  font-weight: 700;
-  color: #5a6a61;
-  text-align: center;
-}
-.trick-table-row {
-  border-bottom: 1px dashed #e6ece8;
-}
-.trick-table-row:last-child {
-  border-bottom: 0;
-}
-.trick-table-row:nth-child(odd) {
-  background: #fafcfb;
-}
-.trick-no {
-  font-size: 10px;
-  color: #8a9790;
-  text-align: center;
-}
-.trick-cell {
-  display: flex;
-  justify-content: center;
-}
-.trick-empty {
-  color: #c1cac4;
-  font-size: 11px;
-}
-.trick-winner {
-  font-size: 11px;
-  font-weight: 700;
-  color: #14563a;
-  text-align: center;
 }
 @media (max-width: 780px) {
   .result-body,

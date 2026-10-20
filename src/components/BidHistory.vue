@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FINAL_PASS_TEXT, useGameStore, describeCall, suitName, vulName } from '../store/game';
+import { FINAL_PASS_TEXT, useGameStore, describeCall, suitName } from '../store/game';
+import { auctionRows } from '../core/bidding/auctionGrid';
 import type { BidRecord, Position } from '../models/gameState';
 
-const props = withDefaults(defineProps<{ title?: string; variant?: 'panel' | 'table' }>(), {
-  title: '叫牌过程',
+const props = withDefaults(defineProps<{ variant?: 'panel' | 'table' }>(), {
   variant: 'panel',
 });
 
 const store = useGameStore();
 const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
+/** 叫牌表头直接显示座位中文名（北 东 南 西） */
+const SEAT_LABEL: Record<Position, string> = { N: '北', E: '东', S: '南', W: '西' };
 
 interface BidCell {
   level: string;
@@ -17,9 +19,14 @@ interface BidCell {
   red: boolean;
   label: string;
   final: boolean;
+  /** “确认+提醒”提交的叫牌：白底突出 */
+  alerted?: boolean;
+  alertText?: string;
+  /** 该家正在考虑叫牌：显示问号 */
+  thinking?: boolean;
 }
 
-/** 叫牌结束时的最后一个 Pass 用等号（上下双横杠）强调 */
+/** 叫牌结束时的最后一个 Pass 用等号（上下双横杠）表示 */
 const finalPassIndex = computed(() => {
   if (store.phase === 'bidding') return -1;
   const last = store.biddingHistory.length - 1;
@@ -37,6 +44,8 @@ function toBidCell(rec: BidRecord | null, final = false): BidCell | null {
       red: rec.call.suit === 'D' || rec.call.suit === 'H',
       label: '',
       final: false,
+      alerted: rec.alerted,
+      alertText: rec.alertText,
     };
   }
   return {
@@ -45,41 +54,74 @@ function toBidCell(rec: BidRecord | null, final = false): BidCell | null {
     red: false,
     label: final ? FINAL_PASS_TEXT : describeCall(rec.call),
     final,
+    alerted: rec.alerted,
+    alertText: rec.alertText,
   };
 }
 
-/** 叫牌历史按 4 个一行（N E S W 列）组织 */
+/** 叫牌历史按座位列（N E S W）组织，列号回绕时换行 */
 const bidRounds = computed<(BidCell | null)[][]>(() => {
   const rows: (BidCell | null)[][] = [];
+  const rowIndices = auctionRows(
+    store.biddingHistory.map((rec) => rec.position),
+    COLUMNS,
+  );
   store.biddingHistory.forEach((rec, i) => {
-    const r = Math.floor(i / 4);
+    const r = rowIndices[i] ?? 0;
     if (!rows[r]) rows[r] = [null, null, null, null];
     rows[r][COLUMNS.indexOf(rec.position)] = toBidCell(rec, i === finalPassIndex.value);
   });
+
+  // 叫牌进行中：当前叫牌人的空档填问号，表示“正在考虑”
+  if (store.phase === 'bidding') {
+    const positions = [...store.biddingHistory.map((rec) => rec.position), store.currentBidder];
+    const nextRows = auctionRows(positions, COLUMNS);
+    const row = nextRows[nextRows.length - 1] ?? 0;
+    const col = COLUMNS.indexOf(store.currentBidder);
+    if (col >= 0) {
+      if (!rows[row]) rows[row] = [null, null, null, null];
+      if (!rows[row][col]) {
+        rows[row][col] = { level: '', suit: '', red: false, label: '？', final: false, thinking: true };
+      }
+    }
+  }
   return rows;
 });
+
+/** 白底提醒的悬停说明 */
+function cellTitle(cell: BidCell): string | undefined {
+  if (cell.thinking) return `${SEAT_LABEL[store.currentBidder]}家正在考虑叫牌`;
+  if (cell.alerted) return cell.alertText ? `提醒：${cell.alertText}` : '提醒';
+  return undefined;
+}
 </script>
 
 <template>
   <div class="bid-history" :class="`variant-${props.variant}`">
-    <div class="bid-title-row">
-      <span class="bid-title">{{ props.title }}</span>
-      <span class="bid-meta">
-        <span>发牌 {{ store.dealer }}</span>
-        <span class="vul-tag">局况 {{ vulName(store.vulnerability) }}</span>
-      </span>
-    </div>
-
     <div class="bid-scroll">
       <div class="bid-header">
-        <span v-for="c in COLUMNS" :key="c">{{ c }}</span>
+        <span v-for="c in COLUMNS" :key="c" :title="c">{{ SEAT_LABEL[c] }}</span>
       </div>
       <div v-for="(row, i) in bidRounds" :key="i" class="bid-row">
-        <span v-for="(cell, j) in row" :key="j" class="bid-cell">
+        <span
+          v-for="(cell, j) in row"
+          :key="j"
+          class="bid-cell"
+          :class="{ alerted: cell?.alerted, thinking: cell?.thinking }"
+          :title="cell ? cellTitle(cell) : undefined"
+        >
           <template v-if="cell">
             <template v-if="cell.suit">
               <span class="bid-level">{{ cell.level }}</span>
-              <span class="bid-suit" :class="{ red: cell.red, nt: cell.suit === 'NT' }">{{ cell.suit }}</span>
+              <span
+                class="bid-suit"
+                :class="{
+                  red: cell.red,
+                  nt: cell.suit === 'NT',
+                  'suit-symbol': cell.suit !== 'NT',
+                  'suit-club': cell.suit === '♣',
+                }"
+              >{{ cell.suit }}</span>
             </template>
             <span v-else class="bid-label" :class="{ final: cell.final }">{{ cell.label }}</span>
           </template>
@@ -98,31 +140,6 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   min-height: 0;
   width: 100%;
   font-size: 14px;
-}
-.bid-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-.bid-title {
-  font-weight: 700;
-  color: #14563a;
-}
-.bid-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #6a7770;
-}
-.vul-tag {
-  color: #3a4a40;
-  background: #eef4ef;
-  border: 1px solid #c9d6cf;
-  border-radius: 4px;
-  padding: 0 6px;
-  font-weight: 600;
 }
 .bid-scroll {
   flex: 1;
@@ -148,6 +165,15 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   gap: 1px;
   padding: 2px 0;
   color: #1c2b22;
+  border-radius: 3px;
+}
+/* “确认+提醒”的叫牌：整格白底，突出显示 */
+.bid-cell.alerted {
+  background: #ffffff;
+}
+.bid-cell.thinking .bid-label {
+  font-weight: 800;
+  color: #10201b;
 }
 .bid-level {
   font-size: 13px;
@@ -170,103 +196,105 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   color: #3a4a40;
 }
 .bid-label.final {
+  display: inline-block;
+  align-self: center;
   font-size: 16px;
   font-weight: 800;
+  line-height: 1;
   letter-spacing: 0.02em;
+  /* 把“=”横向拉长，使其与 Pass 的横杠基本等长 */
+  transform: scaleX(1.5);
+  transform-origin: center;
 }
 .muted {
   color: #9aa7a0;
 }
 
-/* 中央牌桌样式：羊皮纸叫牌卡，接近线下叫牌盒/叫牌纸 */
+/* 中央牌桌样式：参考线上桥牌界面，深色描边 + 南北/东西分色表头 */
 .variant-table {
   gap: 6px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 30%),
-    #f2e8cc;
-  border: 1px solid #c9b98e;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
-    0 8px 20px rgba(0, 0, 0, 0.22);
-  color: #252017;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #eaf5ee;
   font-size: 16px;
-}
-.variant-table .bid-title-row {
-  padding-bottom: 5px;
-  border-bottom: 1px solid #d8c9a3;
-}
-.variant-table .bid-title {
-  color: #5b4315;
-  font-size: 13px;
-  letter-spacing: 0.4px;
-}
-.variant-table .bid-meta {
-  color: #7a6840;
-  font-size: 11px;
-}
-.variant-table .vul-tag {
-  color: #5b4315;
-  background: rgba(255, 255, 255, 0.55);
-  border-color: #d8c9a3;
 }
 .variant-table .bid-scroll {
   /* 由外层按场景设置上限，避免中央叫牌纸被拉满 */
   max-height: var(--bid-scroll-max, none);
-  border: 1px solid #d8c9a3;
-  border-radius: 8px;
+  border: 1px solid #10241b;
+  border-radius: 3px;
   overflow: auto;
-  background: rgba(255, 252, 242, 0.55);
+  background: #92c0bc;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
 }
 .variant-table .bid-header {
   position: sticky;
   top: 0;
   z-index: 1;
   gap: 0;
-  background: #d9c79a;
-  border-bottom: 1px solid #c9b98e;
+  background: #d5dddd;
+  border-bottom: 1px solid #10241b;
 }
 .variant-table .bid-header span {
-  padding: 4px 0;
-  color: #4e3a10;
-  font-size: 12px;
-  border-right: 1px solid rgba(120, 95, 38, 0.18);
+  padding: 5px 0;
+  color: #14211c;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  border-right: 1px solid rgba(16, 36, 27, 0.6);
+}
+/* 南北一方用橙色表头，东西一方用浅灰，和参考界面一致 */
+.variant-table .bid-header span:nth-child(1),
+.variant-table .bid-header span:nth-child(3) {
+  background: #fe7b31;
 }
 .variant-table .bid-header span:last-child {
   border-right: 0;
 }
 .variant-table .bid-row {
   gap: 0;
-  border-bottom: 1px solid rgba(120, 95, 38, 0.14);
-}
-.variant-table .bid-row:nth-child(even) {
-  background: rgba(217, 199, 154, 0.16);
-}
-.variant-table .bid-row:last-child {
-  border-bottom: 0;
 }
 .variant-table .bid-cell {
-  min-height: 30px;
-  padding: 4px 0;
-  border-right: 1px solid rgba(120, 95, 38, 0.1);
-}
-.variant-table .bid-cell:last-child {
+  min-height: 26px;
+  padding: 3px 0;
   border-right: 0;
+  border-radius: 0;
+  color: #10201b;
+}
+.variant-table .bid-cell.alerted {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(16, 36, 27, 0.25);
 }
 .variant-table .bid-level {
-  font-size: 15px;
-  color: #3a2b0b;
+  font-size: 16px;
+  color: #10201b;
 }
 .variant-table .bid-suit {
-  font-size: 24px;
+  font-size: 21px;
+}
+.variant-table .bid-suit.red {
+  color: #d81b1b;
+}
+.variant-table .bid-suit.nt {
+  font-size: 13px;
 }
 .variant-table .bid-label {
-  font-size: 13px;
-  color: #5b4315;
+  font-size: 14px;
+  color: #10201b;
+}
+.variant-table .bid-cell.thinking .bid-label {
+  font-size: 18px;
+  font-weight: 800;
+}
+.variant-table .bid-label.final {
+  font-size: 18px;
+  color: #10201b;
 }
 .variant-table .muted {
   padding: 10px;
-  color: #9b8a61;
+  color: #3f5f57;
 }
 </style>

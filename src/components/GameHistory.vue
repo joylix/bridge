@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { FINAL_PASS_TEXT, useGameStore, describeCall, vulName, type DealRecord } from '../store/game';
+import {
+  FINAL_PASS_TEXT,
+  useGameStore,
+  describeCall,
+  suitName,
+  vulName,
+  type DealRecord,
+} from '../store/game';
 import ContractDisplay from './ContractDisplay.vue';
-import { cardLabel, getSuit, isRedSuit } from '../models/card';
+import { auctionRows } from '../core/bidding/auctionGrid';
+import { getSuit, isRedSuit, rankName, suitSymbol } from '../models/card';
 import { impsFromScoreDiff, hcpAdjustedPoints } from '../core/imps';
 import type { BidRecord, Position } from '../models/gameState';
 
@@ -42,26 +50,50 @@ const records = computed(() => {
   return list;
 });
 
-function bidText(rec: BidRecord | null, record: DealRecord): string {
-  if (!rec) return '';
-  const last = record.biddingHistory[record.biddingHistory.length - 1];
-  const isFinalPass =
-    record.phase !== 'bidding' && rec === last && rec.call.type === 'pass';
-  return isFinalPass ? FINAL_PASS_TEXT : describeCall(rec.call);
+interface AuctionCell {
+  rec: BidRecord | null;
+  label?: string;
+  final?: boolean;
 }
 
-function bidRounds(history: BidRecord[]): (BidRecord | null)[][] {
-  const rows: (BidRecord | null)[][] = [];
+function cellText(cell: AuctionCell | null): string {
+  if (!cell) return '';
+  if (cell.label) return cell.label;
+  return cell.rec ? describeCall(cell.rec.call) : '';
+}
+
+function bidRounds(record: DealRecord): (AuctionCell | null)[][] {
+  const history = record.biddingHistory;
+  const finalPassIndex =
+    record.phase !== 'bidding' &&
+    history.length > 0 &&
+    history[history.length - 1]?.call.type === 'pass'
+      ? history.length - 1
+      : -1;
+  const rowIndices = auctionRows(
+    history.map((rec) => rec.position),
+    COLUMNS,
+  );
+  const rows: (AuctionCell | null)[][] = [];
   history.forEach((rec, i) => {
-    const r = Math.floor(i / 4);
+    const r = rowIndices[i] ?? 0;
     if (!rows[r]) rows[r] = [null, null, null, null];
-    rows[r][COLUMNS.indexOf(rec.position)] = rec;
+    const final = i === finalPassIndex;
+    rows[r][COLUMNS.indexOf(rec.position)] = {
+      rec,
+      label: final ? FINAL_PASS_TEXT : undefined,
+      final,
+    };
   });
   return rows;
 }
 
-function cardText(card: number): string {
-  return cardLabel(card);
+function cardSuit(card: number): string {
+  return suitSymbol(getSuit(card));
+}
+
+function cardRank(card: number): string {
+  return rankName(card);
 }
 
 /** 单局点数文案（启用贴点时按「IMP −（胜方大牌点 − 20）」折算） */
@@ -97,8 +129,17 @@ function dealPointsText(rec: DealRecord): string {
             <div class="bid-header">
               <span v-for="c in COLUMNS" :key="c">{{ c }}</span>
             </div>
-            <div v-for="(row, i) in bidRounds(item.record.biddingHistory)" :key="i" class="bid-row">
-              <span v-for="(rec, j) in row" :key="j" class="bid-cell">{{ bidText(rec, item.record) }}</span>
+            <div v-for="(row, i) in bidRounds(item.record)" :key="i" class="bid-row">
+              <span
+                v-for="(cell, j) in row"
+                :key="j"
+                class="bid-cell"
+                :class="{ alerted: cell?.rec?.alerted, final: cell?.final }"
+                :title="cell?.rec?.alerted ? (cell.rec.alertText ? `提醒：${cell.rec.alertText}` : '提醒') : undefined"
+              >
+                <template v-if="cell?.rec && cell.rec.call.type === 'bid'">{{ cell.rec.call.level }}<span class="suit-symbol" :class="{ 'suit-club': cell.rec.call.suit === 'C' }">{{ suitName(cell.rec.call.suit) }}</span></template>
+                <template v-else>{{ cellText(cell) }}</template>
+              </span>
             </div>
           </div>
           <div v-else class="muted">尚无叫牌</div>
@@ -116,14 +157,18 @@ function dealPointsText(rec: DealRecord): string {
                 :class="{ winner: play.position === trick.winner }"
               >
                 <span class="play-seat">{{ play.position }}</span>
-                <span class="play-card" :class="{ red: isRedSuit(getSuit(play.card)) }">{{ cardText(play.card) }}</span>
+                <span class="play-card" :class="{ red: isRedSuit(getSuit(play.card)) }">
+                  <span class="suit-symbol" :class="{ 'suit-club': cardSuit(play.card) === '♣' }">{{ cardSuit(play.card) }}</span>{{ cardRank(play.card) }}
+                </span>
               </span>
             </div>
             <div v-if="item.record.currentTrick.length" class="trick-line current">
               <span class="trick-no">本轮</span>
               <span v-for="play in item.record.currentTrick" :key="play.card" class="play">
                 <span class="play-seat">{{ play.position }}</span>
-                <span class="play-card" :class="{ red: isRedSuit(getSuit(play.card)) }">{{ cardText(play.card) }}</span>
+                <span class="play-card" :class="{ red: isRedSuit(getSuit(play.card)) }">
+                  <span class="suit-symbol" :class="{ 'suit-club': cardSuit(play.card) === '♣' }">{{ cardSuit(play.card) }}</span>{{ cardRank(play.card) }}
+                </span>
               </span>
             </div>
           </div>
@@ -209,6 +254,22 @@ function dealPointsText(rec: DealRecord): string {
   text-align: center;
   padding: 1px 0;
   color: #1c2b22;
+}
+.bid-cell.final {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  line-height: 1;
+  /* 把“=”横向拉长，使其与 Pass 的横杠基本等长 */
+  transform: scaleX(1.5);
+  transform-origin: center;
+}
+/* “确认+提醒”提交的叫牌：整格白底，与牌桌叫牌表一致 */
+.bid-cell.alerted {
+  background: #ffffff;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px #cfd8d2;
 }
 .tricks-log {
   display: flex;

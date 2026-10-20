@@ -10,8 +10,13 @@ describe('PlayingCard 双角标', () => {
     });
 
     expect(wrapper.get('.pc-label:not(.pc-label-bottom)').text()).toBe('♠A');
+    expect(wrapper.get('.pc-label:not(.pc-label-bottom) .suit-symbol').text()).toBe('♠');
     expect(wrapper.get('.pc-label-bottom').attributes('data-label')).toBe('♠A');
+    expect(wrapper.get('.pc-label-bottom').attributes('data-suit')).toBe('♠');
+    expect(wrapper.get('.pc-label-bottom').attributes('data-rank')).toBe('A');
     expect(wrapper.get('.pc-corner-suit-bottom').attributes('data-suit')).toBe('♠');
+    expect(wrapper.get('.pc-corner-suit-bottom').classes()).toContain('suit-symbol');
+    expect(wrapper.get('.pc-pip').classes()).toContain('suit-symbol');
   });
 
   it('手牌模式在右下角同样提供点数与花色', () => {
