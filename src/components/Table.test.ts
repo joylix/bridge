@@ -263,7 +263,7 @@ describe('Table 中央出牌区', () => {
   });
 });
 
-describe('Table 选牌与右键出牌', () => {
+describe('Table 选牌与出牌', () => {
   it('左键选中/取消，右键确认后才出牌', async () => {
     vi.useFakeTimers();
     const { store, wrapper } = newStoreAndTable();
@@ -298,5 +298,64 @@ describe('Table 选牌与右键出牌', () => {
       vi.clearAllTimers();
       vi.useRealTimers();
     }
+  });
+
+  it('点击本轮不允许出的牌不会弹出选中', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.tricks = [];
+    store.hands.S = parseHand('SAK H2 D3 C4');
+    store.currentTrick = [{ position: 'W', card: parseHand('SQ')[0] }];
+    store.nextPlayer = 'S';
+    await nextTick();
+
+    const illegal = wrapper.get('.hand.pos-S .playing-card[data-suit="♥"]');
+    await illegal.trigger('click');
+    expect(illegal.classes()).not.toContain('selected');
+
+    const legal = wrapper.get('.hand.pos-S .playing-card[data-suit="♠"]');
+    await legal.trigger('click');
+    expect(legal.classes()).toContain('selected');
+  });
+
+  it('双击卡牌直接出牌', async () => {
+    vi.useFakeTimers();
+    const { store, wrapper } = newStoreAndTable();
+    try {
+      store.phase = 'play';
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+      store.tricks = [];
+      store.currentTrick = [];
+      store.nextPlayer = 'S';
+      await nextTick();
+
+      const first = wrapper.get('.hand.pos-S .playing-card');
+      await first.trigger('dblclick');
+      await nextTick();
+
+      expect(store.currentTrick).toHaveLength(1);
+      expect(store.currentTrick[0].position).toBe('S');
+      expect(wrapper.find('.hand.pos-S .playing-card.selected').exists()).toBe(false);
+    } finally {
+      store.startNewGame({ autoStart: false, seed: 101 });
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('Table 明手显示', () => {
+  it('东家成为明手时手牌改为单行显示', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'E' };
+    store.dummyOpen = true;
+    await nextTick();
+
+    const east = wrapper.get('.hand.pos-E');
+    expect(east.classes()).toContain('compact');
+    expect(east.get('.suits').classes()).toContain('single-row');
+    expect(east.findAll('.hand-row')).toHaveLength(1);
   });
 });

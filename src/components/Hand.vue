@@ -16,6 +16,8 @@ const props = defineProps<{
   isDummy?: boolean;
   /** 紧凑模式（东西家） */
   compact?: boolean;
+  /** 强制单行显示（东西家成为明手时使用，仍采用紧凑牌面尺寸） */
+  singleRow?: boolean;
   /** 高亮当前行动（叫牌或出牌轮到该座位） */
   active?: boolean;
   /** 本轮该座位已出的牌（无则为 null） */
@@ -24,7 +26,11 @@ const props = defineProps<{
   selectedCard?: number | null;
 }>();
 
-const emit = defineEmits<{ (e: 'card-click', card: number): void; (e: 'card-confirm', card: number): void }>();
+const emit = defineEmits<{
+  (e: 'card-click', card: number): void;
+  (e: 'card-confirm', card: number): void;
+  (e: 'card-dblclick', card: number): void;
+}>();
 
 /** 展示顺序：♠ > ♥ > ♦ > ♣，每行一个花色 */
 const SUIT_ROWS: SuitIndex[] = [3, 2, 1, 0];
@@ -41,12 +47,15 @@ const rows = computed(() =>
 /** 按 ♠ ♥ ♦ ♣ 分组，缺门不占位 */
 const singleRowGroups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 
+/** 非紧凑手牌始终单行；东西家成为明手时也强制回到单行 */
+const singleRowLayout = computed(() => !props.compact || !!props.singleRow);
+
 /**
  * 东西家（紧凑模式）分成两行：♠♥ 一行、♦♣ 一行，
  * 既保持牌张可读尺寸，又避免横向占满侧栏。
  */
 const displayRows = computed(() => {
-  if (!props.compact) return [singleRowGroups.value];
+  if (singleRowLayout.value) return [singleRowGroups.value];
   const high = singleRowGroups.value.filter((row) => row.suit >= 2);
   const low = singleRowGroups.value.filter((row) => row.suit < 2);
   return [high, low].filter((row) => row.length > 0);
@@ -75,7 +84,7 @@ const played = computed(() => {
       <div
         v-else
         class="suits"
-        :class="{ clickable, 'no-events': !clickable, 'single-row': !compact, 'compact-rows': compact }"
+        :class="{ clickable, 'no-events': !clickable, 'single-row': singleRowLayout, 'compact-rows': !singleRowLayout }"
       >
         <!-- 手牌按花色分组叠放；东西家分成 ♠♥ / ♦♣ 两行 -->
         <div v-for="(row, rowIndex) in displayRows" :key="rowIndex" class="hand-row">
@@ -93,6 +102,7 @@ const played = computed(() => {
               :active="active && clickable"
               :selected="selectedCard === card"
               @click="emit('card-click', card)"
+              @dblclick="emit('card-dblclick', card)"
               @contextmenu.prevent="emit('card-confirm', card)"
             />
           </span>
@@ -110,6 +120,8 @@ const played = computed(() => {
 
 <style scoped>
 .hand {
+  /* 所有相邻牌（同花色或跨花色）共用同一叠放距离 */
+  --card-overlap: -60px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -140,7 +152,7 @@ const played = computed(() => {
 .hand-row {
   display: flex;
   align-items: flex-end;
-  min-height: 118px;
+  min-height: 134px;
   padding-left: 3px;
   max-width: 100%;
 }
@@ -149,11 +161,10 @@ const played = computed(() => {
   align-items: flex-end;
   flex: none;
 }
-.suit-group + .suit-group {
-  margin-left: 8px;
-}
+/* 同花色与跨花色均使用完全相同的叠放距离 */
+.suit-group + .suit-group,
 .suit-group .playing-card + .playing-card {
-  margin-left: -52px;
+  margin-left: var(--card-overlap);
 }
 .suits.no-events {
   pointer-events: none;
@@ -164,69 +175,45 @@ const played = computed(() => {
 .cards.backs {
   display: flex;
   align-items: center;
-  min-height: 118px;
+  min-height: 134px;
 }
 .cards.backs .playing-card + .playing-card {
-  margin-left: -52px;
+  margin-left: var(--card-overlap);
 }
 
 /* 东/西家紧凑模式：两行、牌张稍小、叠放更紧 */
 .hand.compact {
+  --card-overlap: -64px;
   gap: 4px;
 }
 .compact .hand-row {
   min-height: 106px;
   padding-left: 2px;
 }
-.compact .suit-group + .suit-group {
-  margin-left: 6px;
-}
-.compact .suit-group .playing-card + .playing-card {
-  margin-left: -60px;
-}
 .compact .cards.backs {
   min-height: 106px;
-}
-.compact .cards.backs .playing-card + .playing-card {
-  margin-left: -64px;
 }
 
 /* 窄屏时进一步加大叠放，避免 13 张牌横向溢出 */
 @media (max-width: 900px) {
   /* 东西家侧栏同步收窄，紧凑手牌叠得更紧，避免被牌桌裁切 */
-  .compact .suit-group + .suit-group {
-    margin-left: 5px;
-  }
-  .compact .suit-group .playing-card + .playing-card {
-    margin-left: -64px;
-  }
-  .compact .cards.backs .playing-card + .playing-card {
-    margin-left: -68px;
+  .hand.compact {
+    --card-overlap: -66px;
   }
 }
-@media (max-width: 760px) {
-  .hand:not(.compact) .suit-group .playing-card + .playing-card {
-    margin-left: -58px;
-  }
-  .hand:not(.compact) .cards.backs .playing-card + .playing-card {
-    margin-left: -58px;
+@media (max-width: 600px) {
+  .hand:not(.compact) {
+    --card-overlap: -70px;
   }
 }
-@media (max-width: 560px) {
-  .hand:not(.compact) .suit-group + .suit-group {
-    margin-left: 4px;
-  }
-  .hand:not(.compact) .suit-group .playing-card + .playing-card {
-    margin-left: -68px;
-  }
-  .hand:not(.compact) .cards.backs .playing-card + .playing-card {
-    margin-left: -66px;
+@media (max-width: 480px) {
+  .hand:not(.compact) {
+    --card-overlap: -76px;
   }
 }
-@media (max-width: 440px) {
-  .hand:not(.compact) .hand-row {
-    flex-wrap: wrap;
-    row-gap: 4px;
+@media (max-width: 400px) {
+  .hand:not(.compact) {
+    --card-overlap: -82px;
   }
 }
 

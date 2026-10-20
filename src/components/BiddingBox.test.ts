@@ -67,6 +67,18 @@ describe('BiddingBox 阶段切换', () => {
     expect(store.biddingHistory[0]?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
   });
 
+  it('双击叫牌卡直接提交，无需再点确认', async () => {
+    const { store, wrapper } = setup('bidding');
+    store.biddingHistory = [];
+    store.currentBid = null;
+    store.currentBidder = 'S';
+    await nextTick();
+
+    const oneSpade = wrapper.get('button.bid-btn[data-level="1"][data-suit="S"]');
+    await oneSpade.trigger('dblclick');
+    expect(store.biddingHistory[0]?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
+  });
+
   it('叫牌结束后显示叫牌过程，不再显示叫牌按钮', () => {
     const { wrapper } = setup('play');
     expect(wrapper.find('.bid-history').exists()).toBe(true);

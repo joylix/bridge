@@ -173,13 +173,13 @@ const ace = computed(() => {
   border-radius: 8px;
 }
 .size-xxl {
-  --pc-label-size: 19px;
-  --pc-corner-size: 14px;
-  --pc-pip-size: 23px;
-  --pc-court-size: 48px;
-  width: 84px;
-  height: 118px;
-  border-radius: 9px;
+  --pc-label-size: 21px;
+  --pc-corner-size: 15px;
+  --pc-pip-size: 25px;
+  --pc-court-size: 52px;
+  width: 96px;
+  height: 134px;
+  border-radius: 10px;
 }
 
 /* 左上角点数与花色 */

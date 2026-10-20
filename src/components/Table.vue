@@ -2,6 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
 import type { CardPlay, Position } from '../models/gameState';
+import { getSuit } from '../models/card';
+import { isCardLegal } from '../core/playing';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
 import ContractDisplay from './ContractDisplay.vue';
@@ -54,18 +56,39 @@ watch(
   },
 );
 
+/** 当前墩的领出花色；本轮为空时返回 null（首攻/领出） */
+function currentLeadSuit() {
+  return store.currentTrick.length ? getSuit(store.currentTrick[0].card) : null;
+}
+
+/** 该牌是否允许在本轮打出（必须跟出领出花色） */
+function isCardPlayable(pos: Position, card: number): boolean {
+  return isCardLegal(card, store.hands[pos], currentLeadSuit());
+}
+
 function onCardClick(pos: Position, card: number): void {
   if (!isClickable(pos) || store.nextPlayer !== pos) return;
+  // 不允许出的牌不弹出、不进入待选状态
+  if (!isCardPlayable(pos, card)) return;
   selectedCard.value = selectedCard.value === card ? null : card;
 }
 
 /** 右键确认：仅当该牌已用左键选中时才真正出牌 */
 function onCardConfirm(pos: Position, card: number): void {
   if (!isClickable(pos) || store.nextPlayer !== pos) return;
+  if (!isCardPlayable(pos, card)) return;
   if (selectedCard.value !== card) {
     selectedCard.value = card;
     return;
   }
+  selectedCard.value = null;
+  void store.humanPlay(card);
+}
+
+/** 双击卡牌：跳过“先选中再右键”的步骤，直接出牌 */
+function onCardDoubleClick(pos: Position, card: number): void {
+  if (!isClickable(pos) || store.nextPlayer !== pos) return;
+  if (!isCardPlayable(pos, card)) return;
   selectedCard.value = null;
   void store.humanPlay(card);
 }
@@ -148,8 +171,8 @@ function toggleLastTrick(): void {
 function playOffset(index: number, total: number): Record<string, string | number> {
   const mid = (total - 1) / 2;
   return {
-    '--dx': `${(index - mid) * 36}px`,
-    '--dy': `${(index - mid) * 22}px`,
+    '--dx': `${(index - mid) * 32}px`,
+    '--dy': `${(index - mid) * 18}px`,
     zIndex: index + 1,
   };
 }
@@ -176,6 +199,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('N', c)"
         @card-confirm="(c) => onCardConfirm('N', c)"
+        @card-dblclick="(c) => onCardDoubleClick('N', c)"
       />
     </div>
 
@@ -195,8 +219,10 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         :active="isActive('W')"
         :played-card="playedCardOf('W')"
         :selected-card="selectedCard"
+        :single-row="isDummySeat('W')"
         @card-click="(c) => onCardClick('W', c)"
         @card-confirm="(c) => onCardConfirm('W', c)"
+        @card-dblclick="(c) => onCardDoubleClick('W', c)"
       />
     </div>
 
@@ -259,8 +285,10 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         :active="isActive('E')"
         :played-card="playedCardOf('E')"
         :selected-card="selectedCard"
+        :single-row="isDummySeat('E')"
         @card-click="(c) => onCardClick('E', c)"
         @card-confirm="(c) => onCardConfirm('E', c)"
+        @card-dblclick="(c) => onCardDoubleClick('E', c)"
       />
     </div>
 
@@ -277,6 +305,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('S', c)"
         @card-confirm="(c) => onCardConfirm('S', c)"
+        @card-dblclick="(c) => onCardDoubleClick('S', c)"
       />
       <div class="seat-profile">
         <span class="seat-name">南S_你</span>
@@ -295,9 +324,9 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     'west center east'
     'south south south';
   grid-template-columns: 300px minmax(0, 1fr) 300px;
-  grid-template-rows: auto minmax(320px, 1fr) auto;
+  grid-template-rows: auto minmax(230px, 1fr) auto;
   gap: 8px 12px;
-  min-height: 640px;
+  min-height: 560px;
   overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 42%, rgba(72, 167, 112, 0.36), transparent 58%),
@@ -390,9 +419,9 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   grid-area: center;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 320px;
-  padding: 8px;
+  gap: 4px;
+  min-height: 230px;
+  padding: 6px;
   border-radius: 14px;
   background: rgba(3, 34, 22, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -404,8 +433,8 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  min-height: 24px;
-  padding: 1px 3px 5px;
+  min-height: 22px;
+  padding: 1px 3px 4px;
   font-size: 12px;
   color: #eaf5ee;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
@@ -452,9 +481,9 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 .center-bid-history {
   flex: 0 1 auto;
   min-height: 0;
-  max-height: 240px;
+  max-height: 210px;
   overflow: hidden;
-  --bid-scroll-max: 170px;
+  --bid-scroll-max: 150px;
 }
 /* 中央叫牌纸压缩为紧凑表格，避免占据过多牌桌空间 */
 .center-bid-history :deep(.variant-table) {
@@ -503,15 +532,15 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
-  padding: 12px 0;
+  min-height: 184px;
+  padding: 8px 0;
 }
 /* 四张牌按出牌次序斜向叠放，取代原先占满中央的上下左右四格 */
 .trick-stack {
   position: relative;
   flex: none;
-  width: 200px;
-  height: 190px;
+  width: 180px;
+  height: 168px;
 }
 .trick-play {
   position: absolute;
@@ -551,25 +580,25 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 @media (max-width: 900px) {
   .table {
     grid-template-columns: 280px minmax(0, 1fr) 280px;
-    grid-template-rows: auto minmax(300px, 1fr) auto;
-    min-height: 600px;
+    grid-template-rows: auto minmax(226px, 1fr) auto;
+    min-height: 520px;
     padding: 10px;
     gap: 6px;
   }
   .trick-board {
-    min-height: 270px;
+    min-height: 184px;
   }
   .center {
-    min-height: 300px;
-    padding: 6px;
+    min-height: 226px;
+    padding: 5px;
   }
   .center-bid-history {
-    max-height: 220px;
-    --bid-scroll-max: 150px;
+    max-height: 190px;
+    --bid-scroll-max: 130px;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 820px) {
   .table {
     grid-template-areas:
       'north'
@@ -588,7 +617,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     align-items: center;
   }
   .center {
-    min-height: 300px;
+    min-height: 230px;
   }
 }
 </style>

@@ -110,6 +110,14 @@ function selectBid(level: number, suit: BidSuit): void {
   selectedCall.value = { type: 'bid', level, suit };
 }
 
+/** 双击叫牌卡：直接提交，无需再点确认 */
+function bidImmediately(level: number, suit: BidSuit): void {
+  const call: BidCall = { type: 'bid', level, suit };
+  if (isDisabled(call)) return;
+  selectedCall.value = null;
+  void store.humanBid(call);
+}
+
 function selectSimple(type: 'pass' | 'double' | 'redouble'): void {
   selectedCall.value = { type };
 }
@@ -155,6 +163,7 @@ function confirmBid(withAlert = false): void {
             :data-suit="suit"
             :disabled="isDisabled({ type: 'bid', level, suit })"
             @click="selectBid(level, suit)"
+            @dblclick="bidImmediately(level, suit)"
           >
             <span class="bid-level">{{ level }}</span>
             <span class="bid-suit" :class="{ red: RED_SUITS.has(suit), nt: suit === 'NT' }">

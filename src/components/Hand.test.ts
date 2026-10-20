@@ -49,6 +49,20 @@ describe('Hand 牌面布局', () => {
     expect(wrapper.findAll('.void')).toHaveLength(0);
   });
 
+  it('东西家成为明手时可强制单行显示', () => {
+    const wrapper = mount(Hand, {
+      props: {
+        cards: parseHand('SAKQJ2 HJT9 D5432 C8'),
+        position: 'E',
+        compact: true,
+        singleRow: true,
+      },
+    });
+    expect(wrapper.get('.suits').classes()).toContain('single-row');
+    expect(wrapper.findAll('.hand-row')).toHaveLength(1);
+    expect(wrapper.findAll('.suit-group')).toHaveLength(4);
+  });
+
   it('暗手只渲染牌背，不泄露牌型', () => {
     const wrapper = mount(Hand, {
       props: { cards: parseHand('SAKQ2 HJT9 D543 C876'), position: 'E', faceDown: true },
@@ -63,6 +77,15 @@ describe('Hand 牌面布局', () => {
     });
     await wrapper.find('.card').trigger('click');
     expect(wrapper.emitted('card-click')).toBeTruthy();
+  });
+
+  it('双击卡牌派发 card-dblclick 事件', async () => {
+    const cards = parseHand('SAKQ HJT9 D5432 C87');
+    const wrapper = mount(Hand, {
+      props: { cards, position: 'S', clickable: true },
+    });
+    await wrapper.find('.card').trigger('dblclick');
+    expect(wrapper.emitted('card-dblclick')?.[0]).toEqual([cards[0]]);
   });
 
   it('选中的牌带 selected 样式，右键派发 card-confirm 事件', async () => {
