@@ -49,11 +49,11 @@ import {
 } from '../engine/loader';
 import { canEditRules as canEditRulesFor, type UserRole } from '../permissions';
 
-/** AI 出牌/叫牌前的延迟（验收用例 12：延迟 0.8s） */
+/** AI 叫牌前的思考延迟（出牌节奏由 PLAY_DISPLAY_MS 控制） */
 export const AI_DELAY_MS = 800;
 
 /** 每张出牌至少展示的时长：展示满后才进行下一个动作（含自动出牌） */
-export const PLAY_DISPLAY_MS = 2000;
+export const PLAY_DISPLAY_MS = 1000;
 
 const VULNERABILITIES: GameState['vulnerability'][] = ['none', 'NS', 'EW', 'both'];
 
@@ -486,19 +486,12 @@ export const useGameStore = defineStore('game', () => {
         const forced = legal.length === 1 ? legal[0] : null;
         const humanChooses = isHumanControlled(pos) && forced === null;
 
-        // 先让上一张牌展示满 2 秒，再进行下一个动作（包括人类回合）
+        // 先让上一张牌展示满 1 秒，再进行下一个动作（包括人类回合）
         if (!(await holdLastPlay(token))) return;
         if (humanChooses) return;
 
-        let card: number;
-        if (forced !== null) {
-          card = forced;
-        } else {
-          state.isAiThinking = true;
-          await sleep(AI_DELAY_MS);
-          if (token !== loopToken) return;
-          card = decideAiPlay(pos);
-        }
+        // AI 决策本身是同步的；展示等待已兼顾“思考”时长，避免额外拖延下一张牌
+        const card = forced !== null ? forced : decideAiPlay(pos);
         applyPlay(pos, card);
         state.isAiThinking = false;
         continue;

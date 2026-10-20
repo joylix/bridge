@@ -158,7 +158,7 @@ ScoreBoard 关闭“贴点制”开关后，历史与累计点数可即时回退
 | 9 | 兜底与开叫匹配 | `rules/bidding/precision.yml`、`ai/bidAI.test` |
 | 10 | 风格生效 | `engine/types.STYLE_PARAMS`、`conditions` 变量替换 |
 | 11 | 随机性可复现 | `engine/arbiter`、`ai/bidAI.test` |
-| 12 | 首攻规则 + 延迟 | `ai/playAI`、`store.AI_DELAY_MS` |
+| 12 | 首攻规则 + AI 叫牌延迟 | `ai/playAI`、`store.AI_DELAY_MS` |
 | 13 | 明手摊牌时机 | `store.applyPlay`、`store/game.test` |
 | 14/15 | 南做庄 / 南明手 | `models/gameState.controllableSeats`、`store/game.test` |
 | 16 | 跟牌合法性 | `core/playing(.test)` |

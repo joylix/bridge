@@ -119,7 +119,7 @@ describe('人类控制权模型（用例 14、15）', () => {
 });
 
 describe('唯一合法出牌自动进行', () => {
-  it('自动出牌也至少展示 2 秒后才进行下一手', async () => {
+  it('自动出牌也至少展示 1 秒后才进行下一手', async () => {
     vi.useFakeTimers();
     try {
       const store = newStore();
@@ -142,13 +142,13 @@ describe('唯一合法出牌自动进行', () => {
       expect(store.hands.N).toEqual([]);
       expect(store.currentTrick.find((p) => p.position === 'N')?.card).toBe(onlyCard);
 
-      // 东家的自动出牌必须等北家的牌展示满 2 秒
+      // 东家的自动出牌必须等北家的牌展示满 1 秒
       await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
       expect(store.currentTrick.find((p) => p.position === 'E')).toBeUndefined();
       await vi.advanceTimersByTimeAsync(1);
       expect(store.currentTrick.find((p) => p.position === 'E')?.card).toBe(parseHand('H5')[0]);
 
-      // 东家的牌同样展示满 2 秒后才把控制权交还人类
+      // 东家的牌同样展示满 1 秒后才把控制权交还人类
       expect(store.nextPlayer).toBe('S');
       expect(store.isAiThinking).toBe(true);
       await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS);

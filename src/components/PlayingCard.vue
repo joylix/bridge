@@ -13,6 +13,8 @@ const props = withDefaults(
     clickable?: boolean;
     /** 当前行动高亮 */
     active?: boolean;
+    /** 左键选中：牌面微微上移 */
+    selected?: boolean;
     /**
      * 文本标签：
      * - rank：只输出点数（手牌，兼容既有“按点数排序”的测试/布局）
@@ -26,6 +28,7 @@ const props = withDefaults(
     size: 'sm',
     clickable: false,
     active: false,
+    selected: false,
     labelMode: 'rank',
   },
 );
@@ -69,7 +72,7 @@ const ace = computed(() => {
     :class="[
       `size-${size}`,
       red ? 'red' : 'black',
-      { clickable, active, court, ace, 'suit-first': labelMode === 'suit-first' },
+      { clickable, active, selected, court, ace, 'suit-first': labelMode === 'suit-first' },
     ]"
     :data-suit="suit"
     :data-rank="rank"
@@ -442,6 +445,15 @@ const ace = computed(() => {
   transform: translateY(-5px);
   box-shadow: 0 7px 14px rgba(0, 0, 0, 0.38);
   z-index: 5;
+}
+/* 左键选中的牌：上移弹出，再次点击或出牌后复原 */
+.playing-card.selected,
+.playing-card.selected:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.42);
+  outline: 2px solid #ffd666;
+  outline-offset: 1px;
+  z-index: 9;
 }
 .playing-card.active {
   outline: 2px solid #ffd666;

@@ -78,7 +78,7 @@ aside {
   min-width: 0;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   .app-body {
     grid-template-columns: 1fr;
   }

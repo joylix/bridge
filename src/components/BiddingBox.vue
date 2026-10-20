@@ -52,7 +52,7 @@ const outcomeText = computed(() => {
 
 /** 单局详细结果弹窗：结算时自动打开，也可从结果摘要重新打开 */
 const resultVisible = ref(false);
-/** 结算弹窗延后打开，先让最后一墩牌展示满 2 秒 */
+/** 结算弹窗延后打开，先让最后一墩牌展示满 1 秒 */
 let resultTimer: ReturnType<typeof setTimeout> | null = null;
 function clearResultTimer(): void {
   if (resultTimer !== null) {

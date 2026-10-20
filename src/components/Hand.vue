@@ -20,9 +20,11 @@ const props = defineProps<{
   active?: boolean;
   /** 本轮该座位已出的牌（无则为 null） */
   playedCard?: number | null;
+  /** 当前被左键选中的牌（再次点击取消选择） */
+  selectedCard?: number | null;
 }>();
 
-const emit = defineEmits<{ (e: 'card-click', card: number): void }>();
+const emit = defineEmits<{ (e: 'card-click', card: number): void; (e: 'card-confirm', card: number): void }>();
 
 /** 展示顺序：♠ > ♥ > ♦ > ♣，每行一个花色 */
 const SUIT_ROWS: SuitIndex[] = [3, 2, 1, 0];
@@ -66,7 +68,7 @@ const played = computed(() => {
           v-for="i in cards.length"
           :key="i"
           back
-          :size="compact ? 'lg' : 'xxl'"
+          :size="compact ? 'xl' : 'xxl'"
         />
       </div>
 
@@ -86,10 +88,12 @@ const played = computed(() => {
               v-for="card in group.cards"
               :key="card"
               :card="card"
-              :size="compact ? 'lg' : 'xxl'"
+              :size="compact ? 'xl' : 'xxl'"
               :clickable="clickable"
               :active="active && clickable"
+              :selected="selectedCard === card"
               @click="emit('card-click', card)"
+              @contextmenu.prevent="emit('card-confirm', card)"
             />
           </span>
         </div>
@@ -171,33 +175,33 @@ const played = computed(() => {
   gap: 4px;
 }
 .compact .hand-row {
-  min-height: 90px;
+  min-height: 106px;
   padding-left: 2px;
 }
 .compact .suit-group + .suit-group {
-  margin-left: 5px;
+  margin-left: 6px;
 }
 .compact .suit-group .playing-card + .playing-card {
-  margin-left: -52px;
+  margin-left: -60px;
 }
 .compact .cards.backs {
-  min-height: 90px;
+  min-height: 106px;
 }
 .compact .cards.backs .playing-card + .playing-card {
-  margin-left: -56px;
+  margin-left: -64px;
 }
 
 /* 窄屏时进一步加大叠放，避免 13 张牌横向溢出 */
 @media (max-width: 900px) {
   /* 东西家侧栏同步收窄，紧凑手牌叠得更紧，避免被牌桌裁切 */
   .compact .suit-group + .suit-group {
-    margin-left: 4px;
+    margin-left: 5px;
   }
   .compact .suit-group .playing-card + .playing-card {
-    margin-left: -56px;
+    margin-left: -64px;
   }
   .compact .cards.backs .playing-card + .playing-card {
-    margin-left: -60px;
+    margin-left: -68px;
   }
 }
 @media (max-width: 760px) {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
@@ -184,7 +184,7 @@ describe('Table 明手与庄家手牌可见性', () => {
 });
 
 describe('Table 中央出牌区', () => {
-  it('打牌阶段按上下左右位置显示四家出牌', async () => {
+  it('四家出牌按出牌次序斜向叠放，状态信息显示在中央顶部', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
@@ -197,12 +197,15 @@ describe('Table 中央出牌区', () => {
     store.nextPlayer = 'W';
     await nextTick();
 
-    expect(wrapper.get('.trick-slot.slot-N .board-card').text()).toBe('♠A');
-    expect(wrapper.get('.trick-slot.slot-E .board-card').text()).toBe('♥2');
-    expect(wrapper.get('.trick-slot.slot-E .board-card').classes()).toContain('red');
-    expect(wrapper.get('.trick-slot.slot-S .board-card').text()).toBe('♦3');
-    expect(wrapper.find('.trick-slot.slot-W .board-card').exists()).toBe(false);
-    expect(wrapper.get('.trick-center .board-label').text()).toBe('第 1 墩');
+    const cards = wrapper.findAll('.trick-stack .trick-play');
+    expect(cards.map((c) => c.text())).toEqual(['♠A', '♥2', '♦3']);
+    expect(cards[1].classes()).toContain('red');
+    expect(wrapper.get('.center-top .trick-label').text()).toBe('第 1 墩');
+    expect(wrapper.get('.center-top .turn-tag').text()).toBe('轮到 W');
+    expect(wrapper.find('.center-top .winner-tag').exists()).toBe(false);
+    // 中央不再使用四格方位布局
+    expect(wrapper.find('.trick-slot').exists()).toBe(false);
+    expect(wrapper.find('.trick-center').exists()).toBe(false);
   });
 
   it('本轮为空时自动展示上一墩与赢家，不显示切换按钮', async () => {
@@ -220,9 +223,10 @@ describe('Table 中央出牌区', () => {
     store.nextPlayer = 'S';
     await nextTick();
 
-    expect(wrapper.get('.trick-slot.slot-S .board-card').text()).toBe('♠A');
-    expect(wrapper.get('.trick-center').text()).toContain('上一墩');
-    expect(wrapper.get('.trick-center').text()).toContain('赢家 S');
+    const cards = wrapper.findAll('.trick-stack .trick-play');
+    expect(cards.map((c) => c.text())).toEqual(['♠A', '♥2', '♦3', '♣4']);
+    expect(cards[0].classes()).toContain('winner');
+    expect(wrapper.get('.center-top .winner-tag').text()).toBe('赢家 S');
     expect(wrapper.find('.last-trick-btn').exists()).toBe(false);
   });
 
@@ -241,16 +245,58 @@ describe('Table 中央出牌区', () => {
     store.nextPlayer = 'N';
     await nextTick();
 
-    expect(wrapper.get('.trick-slot.slot-W .board-card').text()).toBe('♣2');
+    expect(wrapper.findAll('.trick-stack .trick-play').map((c) => c.text())).toEqual(['♣2']);
     const btn = wrapper.get('.last-trick-btn');
     expect(btn.text()).toBe('看上一墩');
 
     await btn.trigger('click');
     await nextTick();
 
-    expect(wrapper.get('.trick-slot.slot-S .board-card').text()).toBe('♠A');
-    expect(wrapper.get('.trick-center').text()).toContain('上一墩');
-    expect(wrapper.get('.trick-center').text()).toContain('赢家 S');
+    expect(wrapper.findAll('.trick-stack .trick-play').map((c) => c.text())).toEqual([
+      '♠A',
+      '♥2',
+      '♦3',
+      '♣4',
+    ]);
+    expect(wrapper.get('.center-top .winner-tag').text()).toBe('赢家 S');
     expect(btn.text()).toBe('看本轮');
+  });
+});
+
+describe('Table 选牌与右键出牌', () => {
+  it('左键选中/取消，右键确认后才出牌', async () => {
+    vi.useFakeTimers();
+    const { store, wrapper } = newStoreAndTable();
+    try {
+      store.phase = 'play';
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+      store.tricks = [];
+      store.currentTrick = [];
+      store.nextPlayer = 'S';
+      await nextTick();
+
+      const first = wrapper.get('.hand.pos-S .playing-card');
+      await first.trigger('click');
+      expect(first.classes()).toContain('selected');
+      expect(store.currentTrick).toHaveLength(0);
+
+      await first.trigger('click');
+      expect(first.classes()).not.toContain('selected');
+      expect(store.currentTrick).toHaveLength(0);
+
+      await first.trigger('click');
+      expect(first.classes()).toContain('selected');
+
+      await first.trigger('contextmenu');
+      await nextTick();
+
+      expect(store.currentTrick).toHaveLength(1);
+      expect(store.currentTrick[0].position).toBe('S');
+      expect(wrapper.find('.hand.pos-S .playing-card.selected').exists()).toBe(false);
+    } finally {
+      store.startNewGame({ autoStart: false, seed: 100 });
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 });

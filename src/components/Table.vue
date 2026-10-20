@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
 import type { CardPlay, Position } from '../models/gameState';
-import { getSuit, isRedSuit } from '../models/card';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
 import ContractDisplay from './ContractDisplay.vue';
@@ -45,8 +44,30 @@ function isDummySeat(pos: Position): boolean {
   return !!store.contract && store.contract.dummy === pos;
 }
 
+/** 左键选中的牌（再次点击取消）；轮到下一手或新一局时自动清空 */
+const selectedCard = ref<number | null>(null);
+
+watch(
+  [() => store.nextPlayer, () => store.phase, () => store.gamesPlayed, () => store.isAiThinking],
+  () => {
+    selectedCard.value = null;
+  },
+);
+
 function onCardClick(pos: Position, card: number): void {
-  if (store.nextPlayer === pos) void store.humanPlay(card);
+  if (!isClickable(pos) || store.nextPlayer !== pos) return;
+  selectedCard.value = selectedCard.value === card ? null : card;
+}
+
+/** 右键确认：仅当该牌已用左键选中时才真正出牌 */
+function onCardConfirm(pos: Position, card: number): void {
+  if (!isClickable(pos) || store.nextPlayer !== pos) return;
+  if (selectedCard.value !== card) {
+    selectedCard.value = card;
+    return;
+  }
+  selectedCard.value = null;
+  void store.humanPlay(card);
 }
 
 const declarerTricks = computed(() => store.declarerTricksWon());
@@ -73,6 +94,12 @@ const playStatus = computed(() => {
 const lastTrick = computed(() => (store.tricks.length ? store.tricks[store.tricks.length - 1] : null));
 const lastTrickVisible = ref(false);
 
+/** 中央顶部墩序文案：查看上一墩时给出明确提示 */
+const trickHeading = computed(() => {
+  if (lastTrickVisible.value && lastTrick.value) return `上一墩 · 第 ${store.tricks.length} 墩`;
+  return playStatus.value.text;
+});
+
 /** 新一墩开始后自动回到“本轮”视图 */
 watch(
   () => store.currentTrick.length,
@@ -84,7 +111,6 @@ watch(
 /** 中央牌桌当前展示的墩：本轮优先；本轮为空时自动展示上一墩 */
 interface BoardTrick {
   plays: CardPlay[];
-  label: string;
   winner: Position | null;
   isLast: boolean;
 }
@@ -93,7 +119,6 @@ const boardTrick = computed<BoardTrick>(() => {
   if (store.currentTrick.length > 0 && !lastTrickVisible.value) {
     return {
       plays: store.currentTrick,
-      label: `第 ${store.tricks.length + 1} 墩`,
       winner: null,
       isLast: false,
     };
@@ -101,14 +126,12 @@ const boardTrick = computed<BoardTrick>(() => {
   if (lastTrick.value) {
     return {
       plays: lastTrick.value.plays,
-      label: `上一墩 · 第 ${store.tricks.length} 墩`,
       winner: lastTrick.value.winner,
       isLast: true,
     };
   }
   return {
     plays: [],
-    label: playStatus.value.text,
     winner: null,
     isLast: false,
   };
@@ -121,27 +144,17 @@ function toggleLastTrick(): void {
   if (canReviewLast.value) lastTrickVisible.value = !lastTrickVisible.value;
 }
 
-interface SlotInfo {
-  card: number | null;
-  red: boolean;
-}
-
-function slotInfo(pos: Position): SlotInfo {
-  const card = boardTrick.value.plays.find((p) => p.position === pos)?.card ?? null;
+/** 本墩/上一墩的四张牌按出牌次序斜向叠放，越晚出的牌层次越高 */
+function playOffset(index: number, total: number): Record<string, string | number> {
+  const mid = (total - 1) / 2;
   return {
-    card,
-    red: card !== null && isRedSuit(getSuit(card)),
+    '--dx': `${(index - mid) * 36}px`,
+    '--dy': `${(index - mid) * 22}px`,
+    zIndex: index + 1,
   };
 }
 
-function isSlotActive(pos: Position): boolean {
-  if (boardTrick.value.isLast) return false;
-  return (
-    (store.phase === 'play' || store.phase === 'play_waiting_lead') && store.nextPlayer === pos
-  );
-}
-
-const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
+const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play_waiting_lead');
 </script>
 
 <template>
@@ -160,7 +173,9 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
         :clickable="isClickable('N')"
         :active="isActive('N')"
         :played-card="playedCardOf('N')"
+        :selected-card="selectedCard"
         @card-click="(c) => onCardClick('N', c)"
+        @card-confirm="(c) => onCardConfirm('N', c)"
       />
     </div>
 
@@ -179,11 +194,13 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
         :clickable="isClickable('W')"
         :active="isActive('W')"
         :played-card="playedCardOf('W')"
+        :selected-card="selectedCard"
         @card-click="(c) => onCardClick('W', c)"
+        @card-confirm="(c) => onCardConfirm('W', c)"
       />
     </div>
 
-    <!-- 中央：叫牌时显示叫牌过程，打牌时显示四家方向的出牌 -->
+    <!-- 中央：叫牌时显示叫牌过程，打牌时按出牌次序叠放本墩牌面 -->
     <div class="center">
       <div class="center-top">
         <ContractDisplay
@@ -192,7 +209,9 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
           :contract="store.contract"
           :empty-text="contractDisplay.emptyText"
         />
-        <span class="trick-label" :class="{ pending: playStatus.pending }">{{ playStatus.text }}</span>
+        <span class="trick-label" :class="{ pending: playStatus.pending }">{{ trickHeading }}</span>
+        <span v-if="boardTrick.winner" class="winner-tag">赢家 {{ boardTrick.winner }}</span>
+        <span v-else-if="isPlaying && store.nextPlayer" class="turn-tag">轮到 {{ store.nextPlayer }}</span>
         <button
           v-if="canReviewLast"
           type="button"
@@ -206,28 +225,19 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
       <BidHistory v-if="store.phase === 'bidding'" class="center-bid-history" variant="table" />
 
       <div v-else-if="store.phase !== 'idle'" class="trick-board" :class="{ 'is-last': boardTrick.isLast }">
-        <div
-          v-for="pos in POSITIONS"
-          :key="pos"
-          class="trick-slot"
-          :class="[`slot-${pos}`, { active: isSlotActive(pos), winner: boardTrick.winner === pos }]"
-        >
-          <span class="slot-seat">{{ pos }}</span>
+        <div v-if="boardTrick.plays.length" class="trick-stack">
           <PlayingCard
-            v-if="slotInfo(pos).card !== null"
-            class="board-card"
-            :card="slotInfo(pos).card"
-            size="lg"
+            v-for="(play, index) in boardTrick.plays"
+            :key="`${play.position}-${play.card}`"
+            class="trick-play"
+            :class="{ winner: boardTrick.winner === play.position }"
+            :style="playOffset(index, boardTrick.plays.length)"
+            :card="play.card"
+            size="xl"
             label-mode="suit-first"
           />
-          <span v-else class="slot-empty">·</span>
         </div>
-
-        <div class="trick-center">
-          <span class="board-label">{{ boardTrick.label }}</span>
-          <span v-if="boardTrick.winner" class="winner-tag">赢家 {{ boardTrick.winner }}</span>
-          <span v-else-if="boardTrick.plays.length === 0" class="board-note">等待出牌</span>
-        </div>
+        <span v-else class="trick-empty">等待出牌</span>
       </div>
 
       <div v-else class="muted center-idle">等待开始</div>
@@ -248,7 +258,9 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
         :clickable="isClickable('E')"
         :active="isActive('E')"
         :played-card="playedCardOf('E')"
+        :selected-card="selectedCard"
         @card-click="(c) => onCardClick('E', c)"
+        @card-confirm="(c) => onCardConfirm('E', c)"
       />
     </div>
 
@@ -262,7 +274,9 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
         :clickable="isClickable('S')"
         :active="isActive('S')"
         :played-card="playedCardOf('S')"
+        :selected-card="selectedCard"
         @card-click="(c) => onCardClick('S', c)"
+        @card-confirm="(c) => onCardConfirm('S', c)"
       />
       <div class="seat-profile">
         <span class="seat-name">南S_你</span>
@@ -280,7 +294,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
     'north north north'
     'west center east'
     'south south south';
-  grid-template-columns: 250px minmax(0, 1fr) 250px;
+  grid-template-columns: 300px minmax(0, 1fr) 300px;
   grid-template-rows: auto minmax(320px, 1fr) auto;
   gap: 8px 12px;
   min-height: 640px;
@@ -486,103 +500,33 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 }
 .trick-board {
   flex: 1;
-  display: grid;
-  grid-template-areas:
-    '. north .'
-    'west center east'
-    '. south .';
-  grid-template-columns: minmax(84px, 1fr) minmax(130px, 1.1fr) minmax(84px, 1fr);
-  grid-template-rows: repeat(3, minmax(86px, 1fr));
-  gap: 4px;
-  min-height: 280px;
-}
-.trick-slot {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  padding: 2px;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  min-height: 280px;
+  padding: 12px 0;
 }
-.trick-slot.slot-N {
-  grid-area: north;
+/* 四张牌按出牌次序斜向叠放，取代原先占满中央的上下左右四格 */
+.trick-stack {
+  position: relative;
+  flex: none;
+  width: 200px;
+  height: 190px;
 }
-.trick-slot.slot-E {
-  grid-area: east;
-}
-.trick-slot.slot-S {
-  grid-area: south;
-}
-.trick-slot.slot-W {
-  grid-area: west;
-}
-.trick-slot.active {
-  background: radial-gradient(circle, rgba(255, 214, 102, 0.18), transparent 68%);
-}
-.trick-slot.winner {
-  background: radial-gradient(circle, rgba(255, 214, 102, 0.24), transparent 70%);
-}
-.slot-seat {
+.trick-play {
   position: absolute;
-  top: 2px;
-  left: 5px;
-  z-index: 2;
-  min-width: 17px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.24);
-  color: rgba(234, 245, 238, 0.7);
-  font-size: 9px;
-  font-weight: 700;
-  text-align: center;
-}
-.trick-slot.active .slot-seat,
-.trick-slot.winner .slot-seat {
-  background: #d9a300;
-  color: #2c2200;
-}
-.board-card {
+  top: 50%;
+  left: 50%;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)));
   filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.32));
 }
-.trick-slot.active .board-card {
-  outline: 2px solid rgba(255, 214, 102, 0.8);
-  outline-offset: 1px;
-}
-.trick-slot.winner .board-card {
+.trick-play.winner {
   outline: 2px solid #ffe19a;
   outline-offset: 2px;
 }
-.slot-empty {
-  color: rgba(234, 245, 238, 0.22);
-  font-size: 22px;
-  line-height: 1;
-}
-.trick-center {
-  grid-area: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.1) 68%, transparent 72%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 8px;
-  text-align: center;
-}
-.board-label {
-  font-weight: 700;
-  color: #eaf5ee;
-  font-size: 13px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-}
-.board-note {
-  font-size: 10px;
+.trick-empty {
   color: rgba(234, 245, 238, 0.55);
+  font-size: 12px;
 }
 .winner-tag {
   font-size: 11px;
@@ -590,6 +534,11 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   background: #ffe19a;
   border-radius: 999px;
   padding: 1px 7px;
+  font-weight: 700;
+}
+.turn-tag {
+  font-size: 11px;
+  color: #ffe19a;
   font-weight: 700;
 }
 .muted {
@@ -601,15 +550,13 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
 
 @media (max-width: 900px) {
   .table {
-    grid-template-columns: 220px minmax(0, 1fr) 220px;
+    grid-template-columns: 280px minmax(0, 1fr) 280px;
     grid-template-rows: auto minmax(300px, 1fr) auto;
     min-height: 600px;
     padding: 10px;
     gap: 6px;
   }
   .trick-board {
-    grid-template-columns: 76px minmax(112px, 1fr) 76px;
-    grid-template-rows: repeat(3, minmax(80px, 1fr));
     min-height: 270px;
   }
   .center {

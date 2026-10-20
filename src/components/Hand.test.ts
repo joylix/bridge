@@ -64,4 +64,19 @@ describe('Hand 牌面布局', () => {
     await wrapper.find('.card').trigger('click');
     expect(wrapper.emitted('card-click')).toBeTruthy();
   });
+
+  it('选中的牌带 selected 样式，右键派发 card-confirm 事件', async () => {
+    const cards = parseHand('SAKQ HJT9 D5432 C87');
+    const wrapper = mount(Hand, {
+      props: {
+        cards,
+        position: 'S',
+        clickable: true,
+        selectedCard: cards[0],
+      },
+    });
+    expect(wrapper.get('.card').classes()).toContain('selected');
+    await wrapper.get('.card').trigger('contextmenu');
+    expect(wrapper.emitted('card-confirm')?.[0]).toEqual([cards[0]]);
+  });
 });
