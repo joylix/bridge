@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useGameStore } from './store/game';
 import Table from './components/Table.vue';
 import BiddingBox from './components/BiddingBox.vue';
-import ScoreBoard from './components/ScoreBoard.vue';
+import ContractDisplay from './components/ContractDisplay.vue';
+import DealResultDialog from './components/DealResultDialog.vue';
 import GameHistory from './components/GameHistory.vue';
 import RuleEditor from './components/RuleEditor.vue';
 import type { Position, StyleLevel } from './models/gameState';
@@ -13,6 +14,7 @@ const store = useGameStore();
 const settingsVisible = ref(false);
 const historyVisible = ref(false);
 const rulesVisible = ref(false);
+const resultVisible = ref(false);
 const ROBOT_SEATS: Position[] = ['N', 'E', 'W'];
 const SEAT_LABEL: Record<Position, string> = { N: '北家机器人', E: '东家机器人', S: '南家 (你)', W: '西家机器人' };
 const STYLE_OPTIONS: { label: string; value: StyleLevel }[] = [
@@ -32,9 +34,26 @@ const phaseLabel = computed(
     })[store.phase] ?? store.phase,
 );
 
+/** 只有轮到人类叫牌时才挂载叫牌弹窗，其他时间自动关闭 */
+const showBiddingPopup = computed(
+  () => store.phase === 'bidding' && store.isHumanControlled(store.currentBidder),
+);
+
+/** 左上角精简定约信息 */
+const contractEmptyText = computed(() => (store.phase === 'scoring' ? '流局' : '—'));
+
 onMounted(() => store.startNewGame());
 
+watch(
+  () => store.phase,
+  (phase) => {
+    if (phase === 'scoring') resultVisible.value = true;
+    if (phase === 'bidding') resultVisible.value = false;
+  },
+);
+
 function onNewGame(): void {
+  resultVisible.value = false;
   store.startNewGame();
 }
 
@@ -52,35 +71,37 @@ function onRoundSize(value: number): void {
 </script>
 
 <template>
-  <div>
+  <div class="app-shell">
     <header class="app-header">
-      <h1><span class="suit-black">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red">♥</span></h1>
+      <div class="header-left">
+        <h1><span class="suit-black">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red">♥</span></h1>
+        <div class="contract-chip" :class="{ pending: !store.contract && store.phase !== 'scoring' }">
+          <span class="contract-chip-label">定约</span>
+          <strong class="contract-chip-value">
+            <ContractDisplay :contract="store.contract" :empty-text="contractEmptyText" />
+          </strong>
+          <span v-if="store.contract" class="contract-chip-sub">需 {{ store.contract.level + 6 }} 墩</span>
+        </div>
+      </div>
+
       <div class="status">
         <strong>{{ phaseLabel }}</strong> · {{ store.message }}
       </div>
       <el-button type="primary" @click="onNewGame">新一局</el-button>
+      <el-button :disabled="store.phase !== 'scoring'" @click="resultVisible = true">本局结果</el-button>
       <el-button @click="historyVisible = true">对局记录</el-button>
       <el-button @click="rulesVisible = true">规则管理</el-button>
       <el-button @click="settingsVisible = true">风格 / 规则设置</el-button>
     </header>
 
-    <div class="app-body">
-      <main>
-        <Table />
-      </main>
+    <main class="app-body">
+      <Table />
+    </main>
 
-      <aside>
-        <BiddingBox />
-        <ScoreBoard />
-        <div class="panel autopilot">
-          <label class="switch-row">
-            <el-switch :model-value="store.autoPilot" @update:model-value="toggleAutoPilot" />
-            <span>自动托管南家（全机器演示）</span>
-          </label>
-        </div>
-      </aside>
-    </div>
+    <!-- 叫牌卡改为可拖动浮窗，只在轮到人类叫牌时出现 -->
+    <BiddingBox v-if="showBiddingPopup" />
 
+    <DealResultDialog v-model="resultVisible" />
     <GameHistory v-model="historyVisible" />
     <RuleEditor v-model="rulesVisible" />
 
@@ -157,6 +178,22 @@ function onRoundSize(value: number): void {
         </label>
       </div>
 
+      <el-divider />
+
+      <div class="game-options">
+        <label class="switch-row">
+          <el-switch :model-value="store.autoPilot" @update:model-value="toggleAutoPilot" />
+          <span>自动托管南家（全机器演示）</span>
+        </label>
+        <label class="switch-row">
+          <el-switch
+            :model-value="store.useHcpAdjust"
+            @update:model-value="store.setUseHcpAdjust"
+          />
+          <span>计点贴点制</span>
+        </label>
+      </div>
+
       <template #footer>
         <el-button type="primary" @click="settingsVisible = false">完成</el-button>
       </template>
@@ -171,8 +208,48 @@ function onRoundSize(value: number): void {
 .app-header h1 .suit-red {
   color: #ff7b6b;
 }
-.autopilot {
-  padding: 10px 12px;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.contract-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(255, 241, 190, 0.98), rgba(255, 225, 154, 0.92));
+  border: 1px solid rgba(255, 241, 190, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  color: #3b2a00;
+  white-space: nowrap;
+}
+.contract-chip.pending {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(234, 245, 238, 0.66);
+  box-shadow: none;
+}
+.contract-chip-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+.contract-chip-value {
+  font-size: 15px;
+  line-height: 1.1;
+}
+.contract-chip-sub {
+  font-size: 10px;
+  opacity: 0.68;
+}
+.game-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .switch-row {
   display: flex;

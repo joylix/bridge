@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { PLAY_DISPLAY_MS, describeCall, useGameStore } from '../store/game';
+import { describeCall, useGameStore } from '../store/game';
 import { isCallLegal } from '../core/bidding/validator';
 import type { BidCall, BidSuit } from '../models/gameState';
-import BidHistory from './BidHistory.vue';
-import ContractDisplay from './ContractDisplay.vue';
-import DealResultDialog from './DealResultDialog.vue';
+import { getSavedBiddingPopupPosition, saveBiddingPopupPosition } from './biddingPopupPosition';
 
 const store = useGameStore();
 
@@ -15,72 +13,14 @@ const SUITS: BidSuit[] = ['C', 'D', 'H', 'S', 'NT'];
 const SUIT_SYMBOL: Record<BidSuit, string> = { C: '♣', D: '♦', H: '♥', S: '♠', NT: 'NT' };
 const RED_SUITS = new Set<BidSuit>(['D', 'H']);
 
-const isBidding = computed(() => store.phase === 'bidding');
-const showBidHistory = computed(
-  () => store.phase === 'play' || store.phase === 'play_waiting_lead' || store.phase === 'scoring',
-);
 const isHumanTurn = computed(
-  () => isBidding.value && store.controlledSeats().includes(store.currentBidder),
+  () => store.phase === 'bidding' && store.isHumanControlled(store.currentBidder),
 );
 
 /** 叫牌卡当前选中的叫品；点击“确认”后才真正提交 */
 const selectedCall = ref<BidCall | null>(null);
 /** “确认+提醒”可附带的提醒说明 */
 const alertText = ref('');
-
-/** 本局点数文案（结算后展示；启用贴点时附上调整量） */
-const dealPointsLabel = computed(() => {
-  const p = store.pointsSummary.dealPoints;
-  const base = p > 0 ? `NS +${p}` : p < 0 ? `EW +${-p}` : '平';
-  const adj = store.pointsSummary.dealAdjust;
-  if (store.useHcpAdjust && adj !== 0) {
-    return `${base}（贴点 ${adj > 0 ? `NS +${adj}` : `EW +${-adj}`}）`;
-  }
-  return base;
-});
-
-const outcomeText = computed(() => {
-  if (store.phase !== 'scoring') return '';
-  if (!store.contract) return '无定约';
-  const need = store.contract.level + 6;
-  const won = store.declarerTricksWon();
-  const diff = won - need;
-  if (diff === 0) return '正好成约';
-  if (diff > 0) return `超 ${diff} 墩`;
-  return `宕 ${-diff} 墩`;
-});
-
-/** 单局详细结果弹窗：结算时自动打开，也可从结果摘要重新打开 */
-const resultVisible = ref(false);
-/** 结算弹窗延后打开，先让最后一墩牌展示满 1 秒 */
-let resultTimer: ReturnType<typeof setTimeout> | null = null;
-function clearResultTimer(): void {
-  if (resultTimer !== null) {
-    clearTimeout(resultTimer);
-    resultTimer = null;
-  }
-}
-watch(
-  () => store.phase,
-  (phase, previous) => {
-    clearResultTimer();
-    if (phase === 'scoring' && previous !== 'scoring') {
-      resultTimer = setTimeout(() => {
-        resultTimer = null;
-        resultVisible.value = true;
-      }, PLAY_DISPLAY_MS);
-    }
-  },
-  { immediate: true },
-);
-watch(
-  () => store.gamesPlayed,
-  () => {
-    clearResultTimer();
-    resultVisible.value = false;
-  },
-);
-onBeforeUnmount(clearResultTimer);
 
 /** 回合或阶段变化后清空选择，避免把旧叫品带到下一手 */
 watch(
@@ -147,13 +87,86 @@ function confirmBid(withAlert = false): void {
   selectedCall.value = null;
   void store.humanBid(call);
 }
+
+/* ---------------------------------------------------------------- *
+ * 可拖动弹出窗口
+ * ---------------------------------------------------------------- */
+const popupRef = ref<HTMLElement | null>(null);
+const position = ref(getSavedBiddingPopupPosition() ?? { x: 16, y: 80 });
+const dragging = ref(false);
+let dragOrigin = { pointerX: 0, pointerY: 0, left: 0, top: 0 };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+function moveDrag(event: PointerEvent): void {
+  const rect = popupRef.value?.getBoundingClientRect();
+  const width = rect?.width || 260;
+  const height = rect?.height || 360;
+  const next = {
+    x: clamp(dragOrigin.left + event.clientX - dragOrigin.pointerX, 8, window.innerWidth - width - 8),
+    y: clamp(dragOrigin.top + event.clientY - dragOrigin.pointerY, 8, window.innerHeight - height - 8),
+  };
+  position.value = next;
+  saveBiddingPopupPosition(next);
+}
+
+function stopDrag(): void {
+  dragging.value = false;
+  window.removeEventListener('pointermove', moveDrag);
+  window.removeEventListener('pointerup', stopDrag);
+}
+
+function startDrag(event: PointerEvent): void {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  dragging.value = true;
+  dragOrigin = {
+    pointerX: event.clientX,
+    pointerY: event.clientY,
+    left: position.value.x,
+    top: position.value.y,
+  };
+  window.addEventListener('pointermove', moveDrag);
+  window.addEventListener('pointerup', stopDrag);
+}
+
+onMounted(() => {
+  const width = popupRef.value?.offsetWidth || 260;
+  const height = popupRef.value?.offsetHeight || 360;
+  const maxX = window.innerWidth - width - 8;
+  const maxY = window.innerHeight - height - 8;
+  const saved = getSavedBiddingPopupPosition();
+  position.value = saved
+    ? {
+        x: clamp(saved.x, 8, maxX),
+        y: clamp(saved.y, 8, maxY),
+      }
+    : {
+        x: Math.max(12, window.innerWidth - width - 24),
+        y: 84,
+      };
+  saveBiddingPopupPosition(position.value);
+});
+
+onBeforeUnmount(stopDrag);
 </script>
 
 <template>
-  <div class="panel bidding-box" :class="{ 'bidding-card': isBidding }">
-    <template v-if="isBidding">
-      <div class="box-title">叫牌卡</div>
+  <div
+    ref="popupRef"
+    class="bidding-popup"
+    role="dialog"
+    aria-label="叫牌"
+    :style="{ left: `${position.x}px`, top: `${position.y}px` }"
+  >
+    <div class="popup-bar" :class="{ dragging }" @pointerdown="startDrag">
+      <strong>叫牌 · {{ store.currentBidder }}</strong>
+      <span>拖动移动</span>
+    </div>
 
+    <div class="bidding-card">
       <div class="bid-grid">
         <div v-for="level in LEVELS" :key="level" class="level-row">
           <button
@@ -223,88 +236,55 @@ function confirmBid(withAlert = false): void {
           确认+提醒
         </button>
       </div>
-    </template>
-
-    <template v-else>
-      <h3>
-        本局信息
-        <span v-if="store.isAiThinking" class="thinking">AI 思考中…</span>
-      </h3>
-
-      <template v-if="showBidHistory">
-        <BidHistory class="side-bid-history" />
-
-        <div v-if="store.phase === 'scoring'" class="flow-notice">
-          <h4 class="result-title">最终结果</h4>
-          <div class="final-hero">
-            <strong class="final-contract">
-              <ContractDisplay :contract="store.contract" empty-text="流局" />
-            </strong>
-            <span class="final-outcome">{{ outcomeText }}</span>
-          </div>
-          <div class="final-score">
-            <div class="score-side">
-              <span class="score-name">NS</span>
-              <span class="score-value">{{ store.score.NS }}</span>
-            </div>
-            <div class="score-side">
-              <span class="score-name">EW</span>
-              <span class="score-value">{{ store.score.EW }}</span>
-            </div>
-          </div>
-          <p class="result-text">{{ store.message }}</p>
-          <p class="result-points">
-            本局点数 <strong>{{ dealPointsLabel }}</strong>
-            · 本循环总点数差 <strong>{{ store.pointsSummary.roundDiff >= 0 ? '+' : '' }}{{ store.pointsSummary.roundDiff }}</strong>
-          </p>
-          <el-button size="small" type="primary" @click="resultVisible = true">查看详细结果</el-button>
-        </div>
-      </template>
-
-      <div v-else class="muted">尚未开始</div>
-    </template>
-
-    <DealResultDialog v-model="resultVisible" />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.bidding-box {
-  width: 100%;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.85), transparent 38%),
-    linear-gradient(165deg, #fffdf7 0%, #f4eddd 100%);
-  border: 1px solid #d7cdb5;
+.bidding-popup {
+  position: fixed;
+  z-index: 4000;
+  width: 260px;
+  padding: 0 6px 6px;
+  border: 1px solid #5f6c63;
+  border-radius: 6px;
+  background: #ededed;
+  box-shadow:
+    inset 0 0 0 1px #f8f8f8,
+    0 10px 28px rgba(0, 0, 0, 0.42);
+  color: #000;
+  user-select: none;
 }
-.bidding-box h3 {
-  color: #14563a;
-  border-left-color: #b98a2e;
-}
-.thinking {
+.popup-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 -6px 5px;
+  padding: 5px 8px;
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, #1d6d49, #12482f);
+  color: #eaf5ee;
   font-size: 11px;
-  color: #c0392b;
-  font-weight: 400;
+  cursor: move;
+  touch-action: none;
+}
+.popup-bar strong {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.popup-bar span {
+  color: rgba(234, 245, 238, 0.62);
+  font-size: 10px;
+}
+.popup-bar.dragging {
+  cursor: grabbing;
 }
 
 /* —— 叫牌卡：按 image/叫牌卡.png 的紧凑样式 —— */
 .bidding-card {
   width: 100%;
-  max-width: 248px;
-  margin: 0 auto;
-  padding: 5px 6px 6px;
-  border-radius: 1px;
-  border: 1px solid #858585;
-  background: #ededed;
-  box-shadow:
-    inset 0 0 0 1px #f8f8f8,
-    0 3px 8px rgba(0, 0, 0, 0.22);
-  color: #000;
-}
-.box-title {
-  margin: 0 0 4px 1px;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.1;
+  padding: 4px 0 0;
   color: #000;
 }
 .bid-grid {
@@ -466,82 +446,5 @@ function confirmBid(withAlert = false): void {
   box-shadow: none;
   color: #8a8a6a;
   cursor: not-allowed;
-}
-
-/* —— 打牌/结算阶段保留原来的信息面板样式 —— */
-.side-bid-history {
-  margin-bottom: 8px;
-}
-.flow-notice {
-  font-size: 13px;
-  color: #6b5200;
-  background: #fff6d8;
-  border: 1px solid #e6cf7a;
-  border-radius: 8px;
-  padding: 9px;
-}
-.result-title {
-  margin: 0 0 6px;
-  font-size: 13px;
-  color: #8a5a00;
-}
-.final-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.final-contract {
-  color: #14563a;
-  font-size: 16px;
-}
-.final-outcome {
-  font-size: 12px;
-  font-weight: 600;
-  color: #8a5a00;
-  background: #fff;
-  border: 1px solid #e6cf7a;
-  border-radius: 999px;
-  padding: 1px 8px;
-}
-.final-score {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.score-side {
-  text-align: center;
-  background: #fff;
-  border: 1px solid #e6cf7a;
-  border-radius: 6px;
-  padding: 4px;
-}
-.score-name {
-  display: block;
-  font-size: 11px;
-  color: #8a9790;
-}
-.score-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #14563a;
-}
-.result-text {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #6b5200;
-}
-.result-points {
-  margin: 4px 0 8px;
-  font-size: 12px;
-  color: #6b5200;
-}
-.result-points strong {
-  color: #14563a;
-}
-.muted {
-  color: #9aa7a0;
-  font-size: 13px;
 }
 </style>

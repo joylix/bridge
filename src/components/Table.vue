@@ -6,7 +6,6 @@ import { getSuit } from '../models/card';
 import { isCardLegal } from '../core/playing';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
-import ContractDisplay from './ContractDisplay.vue';
 import PlayingCard from './PlayingCard.vue';
 
 const store = useGameStore();
@@ -35,11 +34,6 @@ function isActive(pos: Position): boolean {
   if (store.phase === 'bidding') return store.currentBidder === pos;
   if (store.phase === 'play' || store.phase === 'play_waiting_lead') return store.nextPlayer === pos;
   return false;
-}
-
-/** 该座位本轮是否已经出牌（手牌旁的小提示） */
-function playedCardOf(pos: Position): number | null {
-  return store.currentTrick.find((p) => p.position === pos)?.card ?? null;
 }
 
 function isDummySeat(pos: Position): boolean {
@@ -94,13 +88,6 @@ function onCardDoubleClick(pos: Position, card: number): void {
 }
 
 const declarerTricks = computed(() => store.declarerTricksWon());
-
-/** 定约占位：未成约前不显示“流局”，用灰色占位避免误导 */
-const contractDisplay = computed(() => {
-  if (store.contract) return { emptyText: '', pending: false };
-  if (store.phase === 'scoring') return { emptyText: '流局', pending: false };
-  return { emptyText: '尚未定约', pending: true };
-});
 
 /** 出牌阶段文案：未进入打牌前只显示灰色占位 */
 const playStatus = computed(() => {
@@ -185,7 +172,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         :is-dummy="isDummySeat('N')"
         :clickable="isClickable('N')"
         :active="isActive('N')"
-        :played-card="playedCardOf('N')"
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('N', c)"
         @card-confirm="(c) => onCardConfirm('N', c)"
@@ -202,14 +188,11 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
       <Hand
         :cards="store.hands.W"
         position="W"
-        compact
         :face-down="!isFaceUp('W')"
         :is-dummy="isDummySeat('W')"
         :clickable="isClickable('W')"
         :active="isActive('W')"
-        :played-card="playedCardOf('W')"
         :selected-card="selectedCard"
-        :single-row="isDummySeat('W')"
         @card-click="(c) => onCardClick('W', c)"
         @card-confirm="(c) => onCardConfirm('W', c)"
         @card-dblclick="(c) => onCardDoubleClick('W', c)"
@@ -219,12 +202,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     <!-- 中央：叫牌时显示叫牌过程，打牌时按出牌次序叠放本墩牌面 -->
     <div class="center">
       <div class="center-top">
-        <ContractDisplay
-          class="contract"
-          :class="{ pending: contractDisplay.pending }"
-          :contract="store.contract"
-          :empty-text="contractDisplay.emptyText"
-        />
         <span class="trick-label" :class="{ pending: playStatus.pending }">{{ trickHeading }}</span>
         <span v-if="boardTrick.winner" class="winner-tag">赢家 {{ boardTrick.winner }}</span>
         <span v-else-if="isPlaying && store.nextPlayer" class="turn-tag">轮到 {{ store.nextPlayer }}</span>
@@ -249,7 +226,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
             :class="[`slot-${play.position}`, { winner: boardTrick.winner === play.position }]"
             :style="{ zIndex: index + 1 }"
           >
-            <PlayingCard :card="play.card" size="xl" label-mode="suit-first" />
+            <PlayingCard :card="play.card" size="xxl" label-mode="suit-first" />
             <span class="play-order" aria-hidden="true">{{ index + 1 }}</span>
           </div>
         </div>
@@ -268,14 +245,11 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
       <Hand
         :cards="store.hands.E"
         position="E"
-        compact
         :face-down="!isFaceUp('E')"
         :is-dummy="isDummySeat('E')"
         :clickable="isClickable('E')"
         :active="isActive('E')"
-        :played-card="playedCardOf('E')"
         :selected-card="selectedCard"
-        :single-row="isDummySeat('E')"
         @card-click="(c) => onCardClick('E', c)"
         @card-confirm="(c) => onCardConfirm('E', c)"
         @card-dblclick="(c) => onCardDoubleClick('E', c)"
@@ -291,7 +265,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         :is-dummy="isDummySeat('S')"
         :clickable="isClickable('S')"
         :active="isActive('S')"
-        :played-card="playedCardOf('S')"
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('S', c)"
         @card-confirm="(c) => onCardConfirm('S', c)"
@@ -313,11 +286,10 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     'north north north'
     'west center east'
     'south south south';
-  grid-template-columns: minmax(0, 380px) minmax(240px, 280px) minmax(0, 380px);
-  grid-template-rows: auto minmax(230px, 1fr) auto;
-  justify-content: center;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 280px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(290px, 1fr) auto;
   gap: 8px 12px;
-  min-height: 560px;
+  min-height: clamp(620px, calc(100vh - 140px), 920px);
   overflow: hidden;
   background:
     radial-gradient(ellipse at 50% 42%, rgba(72, 167, 112, 0.36), transparent 58%),
@@ -375,13 +347,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   align-items: flex-end;
   gap: 4px;
 }
-/* 手牌靠近中央出牌区，减少东西家与中央之间的空白 */
-.west .hand {
-  align-self: flex-end;
-}
-.east .hand {
-  align-self: flex-start;
-}
 .seat-profile {
   display: flex;
   align-items: center;
@@ -418,7 +383,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-height: 262px;
+  min-height: 290px;
   padding: 6px;
   border-radius: 14px;
   background: rgba(3, 34, 22, 0.3);
@@ -437,13 +402,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   color: #eaf5ee;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
-.contract {
-  font-weight: 800;
-  color: #ffe19a;
-  font-size: 15px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-.contract.pending,
 .trick-label.pending {
   color: rgba(234, 245, 238, 0.5);
   font-weight: 500;
@@ -530,22 +488,22 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 224px;
+  min-height: 252px;
   padding: 8px 0;
 }
 /* 四家牌保持固定方位，按出牌次序决定叠放层次并标出序号 */
 .trick-stack {
   position: relative;
   flex: none;
-  width: 216px;
-  height: 216px;
+  width: 240px;
+  height: 244px;
 }
 .trick-play {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 76px;
-  height: 106px;
+  width: 96px;
+  height: 134px;
   line-height: 0;
   transform: translate(-50%, -50%);
 }
@@ -618,24 +576,20 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 .muted {
   color: rgba(234, 245, 238, 0.55);
 }
-:deep(.contract .suit.red) {
-  color: #ff8b7d;
-}
-
 @media (max-width: 900px) {
   .table {
-    grid-template-columns: minmax(0, 1fr) minmax(230px, 250px) minmax(0, 1fr);
-    grid-template-rows: auto minmax(226px, 1fr) auto;
-    min-height: 520px;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 252px) minmax(0, 1fr);
+    grid-template-rows: auto minmax(290px, 1fr) auto;
+    min-height: 600px;
     padding: 10px;
     gap: 6px;
   }
   .trick-board {
-    min-height: 224px;
+    min-height: 252px;
   }
   .center {
-    min-height: 262px;
-    padding: 5px;
+    min-height: 290px;
+    padding: 4px;
   }
   .center-bid-history {
     max-height: 190px;
@@ -661,12 +615,8 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     align-self: auto;
     align-items: center;
   }
-  .west .hand,
-  .east .hand {
-    align-self: center;
-  }
   .center {
-    min-height: 262px;
+    min-height: 290px;
   }
 }
 </style>

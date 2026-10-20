@@ -37,30 +37,16 @@ describe('Hand 牌面布局', () => {
     expect(wrapper.findAll('.card')).toHaveLength(12);
   });
 
-  it('东西家紧凑模式使用两行叠放，不渲染空花色占位', () => {
+  it('东西家与南北家一致：单行全尺寸牌面，不渲染空花色占位', () => {
     const wrapper = mount(Hand, {
-      props: { cards: parseHand('SAKQJ2 HJT9 D5432'), position: 'E', compact: true },
-    });
-    expect(wrapper.get('.hand').classes()).toContain('compact');
-    expect(wrapper.get('.suits').classes()).toContain('compact-rows');
-    expect(wrapper.findAll('.suit-row')).toHaveLength(0);
-    expect(wrapper.findAll('.hand-row')).toHaveLength(2);
-    expect(wrapper.findAll('.suit-group')).toHaveLength(3);
-    expect(wrapper.findAll('.void')).toHaveLength(0);
-  });
-
-  it('东西家成为明手时可强制单行显示', () => {
-    const wrapper = mount(Hand, {
-      props: {
-        cards: parseHand('SAKQJ2 HJT9 D5432 C8'),
-        position: 'E',
-        compact: true,
-        singleRow: true,
-      },
+      props: { cards: parseHand('SAKQJ2 HJT9 D5432 C8'), position: 'E' },
     });
     expect(wrapper.get('.suits').classes()).toContain('single-row');
+    expect(wrapper.findAll('.suit-row')).toHaveLength(0);
     expect(wrapper.findAll('.hand-row')).toHaveLength(1);
     expect(wrapper.findAll('.suit-group')).toHaveLength(4);
+    expect(wrapper.findAll('.void')).toHaveLength(0);
+    expect(wrapper.findAll('.card').every((card) => card.classes().includes('size-xxl'))).toBe(true);
   });
 
   it('暗手只渲染牌背，不泄露牌型', () => {
@@ -69,6 +55,7 @@ describe('Hand 牌面布局', () => {
     });
     expect(wrapper.findAll('.suit-row')).toHaveLength(0);
     expect(wrapper.findAll('.card.back')).toHaveLength(13);
+    expect(wrapper.findAll('.card.back').every((card) => card.classes().includes('size-xxl'))).toBe(true);
   });
 
   it('可点击时派发 card-click 事件', async () => {

@@ -58,7 +58,7 @@ describe('GameHistory 对局记录', () => {
     expect(wrapper.get('.deal-contract .suit').text()).toBe('♥');
     expect(wrapper.get('.deal-contract .suit').classes()).toContain('red');
     expect(text).toContain('1♥'); // 叫牌记录
-    expect(text).toContain('——'); // 最后一个 Pass 用双横杠
+    expect(text).toContain('='); // 最后一个 Pass 用等号（上下双横杠）
     expect(text).toContain('出牌过程');
     expect(text).toContain('♠A'); // 出牌记录：花色在前
     expect(text).toContain('本局点数 未结算'); // 未到结算阶段

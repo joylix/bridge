@@ -19,7 +19,7 @@ interface BidCell {
   final: boolean;
 }
 
-/** 叫牌结束时的最后一个 Pass 用双横杠强调 */
+/** 叫牌结束时的最后一个 Pass 用等号（上下双横杠）强调 */
 const finalPassIndex = computed(() => {
   if (store.phase === 'bidding') return -1;
   const last = store.biddingHistory.length - 1;
@@ -170,8 +170,9 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   color: #3a4a40;
 }
 .bid-label.final {
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
 }
 .muted {
   color: #9aa7a0;

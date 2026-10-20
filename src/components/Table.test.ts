@@ -4,7 +4,6 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import Table from './Table.vue';
 import { useGameStore } from '../store/game';
-import { cardLabel } from '../models/card';
 import { parseHand } from '../testing/testUtils';
 
 function newStoreAndTable() {
@@ -14,11 +13,6 @@ function newStoreAndTable() {
   store.startNewGame({ autoStart: false, seed: 99 });
   const wrapper = mount(Table, { global: { plugins: [pinia] } });
   return { store, wrapper };
-}
-
-/** Hand 组件渲染的已出牌文本，如 "♠A" */
-function playedText(card: number): string {
-  return cardLabel(card);
 }
 
 describe('Table 叫牌高亮', () => {
@@ -84,18 +78,16 @@ describe('Table 叫牌过程', () => {
   });
 });
 
-describe('Table 状态与局况显示', () => {
-  it('叫牌阶段未成约时显示灰色占位，不提前显示“流局”或“等待首攻”', async () => {
+describe('Table 中央状态显示', () => {
+  it('定约信息已移出牌桌中央，叫牌阶段只显示灰色占位', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'bidding';
     store.contract = null;
     store.vulnerability = 'both';
     await nextTick();
 
-    const contract = wrapper.get('.contract');
-    expect(contract.text()).toBe('尚未定约');
-    expect(contract.classes()).toContain('pending');
-    expect(contract.text()).not.toBe('流局');
+    expect(wrapper.find('.contract').exists()).toBe(false);
+    expect(wrapper.find('.contract-display').exists()).toBe(false);
 
     const trickLabel = wrapper.get('.trick-label');
     expect(trickLabel.text()).toBe('尚未开始出牌');
@@ -116,27 +108,23 @@ describe('Table 状态与局况显示', () => {
     const trickLabel = wrapper.get('.trick-label');
     expect(trickLabel.text()).toBe('等待首攻');
     expect(trickLabel.classes()).not.toContain('pending');
-    const contract = wrapper.get('.contract');
-    expect(contract.text()).toBe('N 4♥');
-    expect(contract.get('.suit').text()).toBe('♥');
-    expect(contract.get('.suit').classes()).toContain('red');
+    expect(wrapper.find('.contract').exists()).toBe(false);
   });
 
-  it('四家 Pass 流局后才显示“流局”', async () => {
+  it('四家 Pass 流局后中央显示本局结束', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'scoring';
     store.contract = null;
     store.message = '四家不叫，本局流局';
     await nextTick();
 
-    const contract = wrapper.get('.contract');
-    expect(contract.text()).toBe('流局');
-    expect(contract.classes()).not.toContain('pending');
+    expect(wrapper.get('.trick-label').text()).toBe('本局结束');
+    expect(wrapper.find('.contract').exists()).toBe(false);
   });
 });
 
 describe('Table 出牌显示', () => {
-  it('本轮出牌显示在对应座位手牌旁边', async () => {
+  it('已出牌只显示在中央出牌区，不在手牌旁重复显示', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
@@ -144,13 +132,12 @@ describe('Table 出牌显示', () => {
     store.currentTrick = [{ position: 'S', card }];
     await nextTick();
 
-    const played = wrapper.find('.hand.pos-S .played-out');
-    expect(played.exists()).toBe(true);
-    expect(played.get('.played-card').text()).toBe('♦4');
-    expect(played.get('.played-card').text()).toBe(playedText(card));
-    expect(played.classes()).toContain('red');
-    // 其他座位本轮未出牌，不显示已出牌
-    expect(wrapper.find('.hand.pos-W .played-out').exists()).toBe(false);
+    expect(wrapper.find('.hand .played-out').exists()).toBe(false);
+    const play = wrapper.get('.trick-stack .trick-play');
+    expect(play.classes()).toContain('slot-S');
+    expect(play.get('.playing-card').text()).toBe('♦4');
+    expect(play.get('.playing-card').classes()).toContain('red');
+    expect(play.get('.playing-card').classes()).toContain('size-xxl');
   });
 });
 
@@ -368,7 +355,7 @@ describe('Table 选牌与出牌', () => {
 });
 
 describe('Table 明手显示', () => {
-  it('东家成为明手时手牌改为单行显示', async () => {
+  it('东家成为明手时手牌与其余三家一样单行全尺寸显示', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'E' };
@@ -376,8 +363,9 @@ describe('Table 明手显示', () => {
     await nextTick();
 
     const east = wrapper.get('.hand.pos-E');
-    expect(east.classes()).toContain('compact');
+    expect(east.classes()).not.toContain('compact');
     expect(east.get('.suits').classes()).toContain('single-row');
     expect(east.findAll('.hand-row')).toHaveLength(1);
+    expect(east.findAll('.card').every((card) => card.classes().includes('size-xxl'))).toBe(true);
   });
 });

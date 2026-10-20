@@ -751,8 +751,8 @@ export const useGameStore = defineStore('game', () => {
 
 /** 叫牌过程里的 Pass 统一用单横杠表示 */
 export const PASS_TEXT = '—';
-/** 叫牌结束的最后一个 Pass 用双横杠表示 */
-export const FINAL_PASS_TEXT = '——';
+/** 叫牌结束的最后一个 Pass 用等号（上下双横杠）表示 */
+export const FINAL_PASS_TEXT = '=';
 
 export function describeCall(call: BidCall): string {
   switch (call.type) {
