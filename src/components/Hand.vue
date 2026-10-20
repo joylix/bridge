@@ -188,6 +188,18 @@ const played = computed(() => {
 }
 
 /* 窄屏时进一步加大叠放，避免 13 张牌横向溢出 */
+@media (max-width: 900px) {
+  /* 东西家侧栏同步收窄，紧凑手牌叠得更紧，避免被牌桌裁切 */
+  .compact .suit-group + .suit-group {
+    margin-left: 4px;
+  }
+  .compact .suit-group .playing-card + .playing-card {
+    margin-left: -56px;
+  }
+  .compact .cards.backs .playing-card + .playing-card {
+    margin-left: -60px;
+  }
+}
 @media (max-width: 760px) {
   .hand:not(.compact) .suit-group .playing-card + .playing-card {
     margin-left: -58px;

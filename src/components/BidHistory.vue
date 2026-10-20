@@ -211,7 +211,8 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   border-color: #d8c9a3;
 }
 .variant-table .bid-scroll {
-  max-height: none;
+  /* 由外层按场景设置上限，避免中央叫牌纸被拉满 */
+  max-height: var(--bid-scroll-max, none);
   border: 1px solid #d8c9a3;
   border-radius: 8px;
   overflow: auto;

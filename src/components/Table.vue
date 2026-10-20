@@ -440,9 +440,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   min-height: 0;
   max-height: 240px;
   overflow: hidden;
-}
-.center-bid-history.variant-table :deep(.bid-scroll) {
-  max-height: 170px;
+  --bid-scroll-max: 170px;
 }
 /* 中央叫牌纸压缩为紧凑表格，避免占据过多牌桌空间 */
 .center-bid-history :deep(.variant-table) {
@@ -620,9 +618,7 @@ const POSITIONS: Position[] = ['N', 'E', 'S', 'W'];
   }
   .center-bid-history {
     max-height: 220px;
-  }
-  .center-bid-history.variant-table :deep(.bid-scroll) {
-    max-height: 150px;
+    --bid-scroll-max: 150px;
   }
 }
 
