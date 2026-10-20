@@ -111,11 +111,18 @@ function selectBid(level: number, suit: BidSuit): void {
 }
 
 /** 双击叫牌卡：直接提交，无需再点确认 */
-function bidImmediately(level: number, suit: BidSuit): void {
-  const call: BidCall = { type: 'bid', level, suit };
+function submitImmediately(call: BidCall): void {
   if (isDisabled(call)) return;
   selectedCall.value = null;
   void store.humanBid(call);
+}
+
+function bidImmediately(level: number, suit: BidSuit): void {
+  submitImmediately({ type: 'bid', level, suit });
+}
+
+function specialImmediately(type: 'pass' | 'double' | 'redouble'): void {
+  submitImmediately({ type });
 }
 
 function selectSimple(type: 'pass' | 'double' | 'redouble'): void {
@@ -188,6 +195,7 @@ function confirmBid(withAlert = false): void {
           :class="{ selected: isSelected({ type: 'double' }) }"
           :disabled="isDisabled({ type: 'double' })"
           @click="selectSimple('double')"
+          @dblclick="specialImmediately('double')"
         >X</button>
         <button
           type="button"
@@ -195,6 +203,7 @@ function confirmBid(withAlert = false): void {
           :class="{ selected: isSelected({ type: 'redouble' }) }"
           :disabled="isDisabled({ type: 'redouble' })"
           @click="selectSimple('redouble')"
+          @dblclick="specialImmediately('redouble')"
         >XX</button>
         <button
           type="button"
@@ -202,6 +211,7 @@ function confirmBid(withAlert = false): void {
           :class="{ selected: isSelected({ type: 'pass' }) }"
           :disabled="isDisabled({ type: 'pass' })"
           @click="selectSimple('pass')"
+          @dblclick="specialImmediately('pass')"
         >Pass</button>
       </div>
 

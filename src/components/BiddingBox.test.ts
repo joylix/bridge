@@ -79,6 +79,50 @@ describe('BiddingBox 阶段切换', () => {
     expect(store.biddingHistory[0]?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
   });
 
+  it('双击 Pass 直接提交', async () => {
+    const { store, wrapper } = setup('bidding');
+    store.biddingHistory = [];
+    store.currentBid = null;
+    store.currentBidder = 'S';
+    await nextTick();
+
+    const pass = wrapper.get('.special-btn.pass');
+    expect(pass.attributes('disabled')).toBeUndefined();
+    await pass.trigger('dblclick');
+    expect(store.biddingHistory[0]?.call).toEqual({ type: 'pass' });
+  });
+
+  it('双击 X 直接提交', async () => {
+    const { store, wrapper } = setup('bidding');
+    store.biddingHistory = [{ position: 'E', call: { type: 'bid', level: 1, suit: 'S' } }];
+    store.currentBid = { level: 1, suit: 'S' };
+    store.currentBidder = 'S';
+    await nextTick();
+
+    const double = wrapper.get('.special-btn.x');
+    expect(double.attributes('disabled')).toBeUndefined();
+    await double.trigger('dblclick');
+    expect(store.biddingHistory[1]?.call).toEqual({ type: 'double' });
+  });
+
+  it('双击 XX 直接提交', async () => {
+    const { store, wrapper } = setup('bidding');
+    store.biddingHistory = [
+      { position: 'S', call: { type: 'bid', level: 1, suit: 'S' } },
+      { position: 'W', call: { type: 'double' } },
+      { position: 'N', call: { type: 'pass' } },
+      { position: 'E', call: { type: 'pass' } },
+    ];
+    store.currentBid = { level: 1, suit: 'S' };
+    store.currentBidder = 'S';
+    await nextTick();
+
+    const redouble = wrapper.get('.special-btn.xx');
+    expect(redouble.attributes('disabled')).toBeUndefined();
+    await redouble.trigger('dblclick');
+    expect(store.biddingHistory[4]?.call).toEqual({ type: 'redouble' });
+  });
+
   it('叫牌结束后显示叫牌过程，不再显示叫牌按钮', () => {
     const { wrapper } = setup('play');
     expect(wrapper.find('.bid-history').exists()).toBe(true);
