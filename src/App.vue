@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useGameStore } from './store/game';
 import Table from './components/Table.vue';
 import BiddingBox from './components/BiddingBox.vue';
-import ContractDisplay from './components/ContractDisplay.vue';
 import DealResultDialog from './components/DealResultDialog.vue';
 import GameHistory from './components/GameHistory.vue';
 import RuleEditor from './components/RuleEditor.vue';
@@ -39,9 +38,6 @@ const showBiddingPopup = computed(
   () => store.phase === 'bidding' && store.isHumanControlled(store.currentBidder),
 );
 
-/** 左上角精简定约信息 */
-const contractEmptyText = computed(() => (store.phase === 'scoring' ? '流局' : '—'));
-
 onMounted(() => store.startNewGame());
 
 watch(
@@ -73,16 +69,7 @@ function onRoundSize(value: number): void {
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <div class="header-left">
-        <h1><span class="suit-black">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red">♥</span></h1>
-        <div class="contract-chip" :class="{ pending: !store.contract && store.phase !== 'scoring' }">
-          <span class="contract-chip-label">定约</span>
-          <strong class="contract-chip-value">
-            <ContractDisplay :contract="store.contract" :empty-text="contractEmptyText" />
-          </strong>
-          <span v-if="store.contract" class="contract-chip-sub">需 {{ store.contract.level + 6 }} 墩</span>
-        </div>
-      </div>
+      <h1><span class="suit-black">♠</span> 桥牌 MVP · 人机对战 <span class="suit-red">♥</span></h1>
 
       <div class="status">
         <strong>{{ phaseLabel }}</strong> · {{ store.message }}
@@ -207,44 +194,6 @@ function onRoundSize(value: number): void {
 }
 .app-header h1 .suit-red {
   color: #ff7b6b;
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.contract-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: linear-gradient(160deg, rgba(255, 241, 190, 0.98), rgba(255, 225, 154, 0.92));
-  border: 1px solid rgba(255, 241, 190, 0.9);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
-  color: #3b2a00;
-  white-space: nowrap;
-}
-.contract-chip.pending {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(234, 245, 238, 0.66);
-  box-shadow: none;
-}
-.contract-chip-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  opacity: 0.72;
-}
-.contract-chip-value {
-  font-size: 15px;
-  line-height: 1.1;
-}
-.contract-chip-sub {
-  font-size: 10px;
-  opacity: 0.68;
 }
 .game-options {
   display: flex;

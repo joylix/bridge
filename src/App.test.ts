@@ -66,26 +66,25 @@ describe('App 冒烟测试', () => {
     expect(wrapper.find('.bidding-popup').exists()).toBe(false);
   });
 
-  it('左上角显示精简定约信息，流局后显示流局', async () => {
+  it('牌桌左上角显示副序、局况、定约和赢墩数，流局后显示流局', async () => {
     const { store, wrapper } = setupApp();
 
     store.phase = 'play';
     store.contract = { level: 4, suit: 'H', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
     await nextTick();
 
-    const chip = wrapper.get('.contract-chip');
-    expect(chip.text()).toContain('定约');
-    expect(chip.text()).toContain('4♥');
-    expect(chip.text()).toContain('需 10 墩');
-    expect(chip.get('.contract-chip-value .suit').classes()).toContain('red');
-    expect(chip.classes()).not.toContain('pending');
+    const info = wrapper.get('.play-info-panel');
+    expect(info.text()).toContain('副序');
+    expect(info.text()).toContain('局况');
+    expect(info.text()).toContain('定约');
+    expect(info.text()).toContain('4♥');
+    expect(info.text()).toContain('赢墩数');
+    expect(info.get('.contract-display .suit').classes()).toContain('red');
 
     store.contract = null;
     store.phase = 'scoring';
     await nextTick();
-    const passedOut = wrapper.get('.contract-chip');
-    expect(passedOut.text()).toContain('流局');
-    expect(passedOut.classes()).not.toContain('pending');
+    expect(wrapper.get('.play-info-panel').text()).toContain('流局');
   });
 
   it('结算后自动弹出本局结果，并可关闭', async () => {

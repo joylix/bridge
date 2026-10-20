@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
-import type { CardPlay, Position } from '../models/gameState';
+import { getSide, type CardPlay, type Position } from '../models/gameState';
 import { getSuit } from '../models/card';
 import { isCardLegal } from '../core/playing';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
+import ContractDisplay from './ContractDisplay.vue';
 import PlayingCard from './PlayingCard.vue';
 
 const store = useGameStore();
@@ -87,7 +88,17 @@ function onCardDoubleClick(pos: Position, card: number): void {
   void store.humanPlay(card);
 }
 
-const declarerTricks = computed(() => store.declarerTricksWon());
+/** 牌桌左上角信息栏：副序、局况、定约、赢墩数 */
+const vulnerabilityText = computed(() => {
+  const labels = { none: '无局', NS: '南北有局', EW: '东西有局', both: '双方有局' } as const;
+  return labels[store.vulnerability];
+});
+const contractEmptyText = computed(() => (store.phase === 'scoring' ? '流局' : '—'));
+const tricksBySide = computed(() => {
+  const counts = { NS: 0, EW: 0 };
+  for (const trick of store.tricks) counts[getSide(trick.winner)] += 1;
+  return counts;
+});
 
 /** 出牌阶段文案：未进入打牌前只显示灰色占位 */
 const playStatus = computed(() => {
@@ -155,6 +166,8 @@ function toggleLastTrick(): void {
 }
 
 const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play_waiting_lead');
+/** 出牌阶段把叫牌过程停靠到北家手牌右侧，与左侧信息栏对称 */
+const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistory.length > 0);
 </script>
 
 <template>
@@ -178,6 +191,35 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
         @card-dblclick="(c) => onCardDoubleClick('N', c)"
       />
     </div>
+
+    <!-- 左上角牌局信息：副序、局况、定约、赢墩数 -->
+    <div v-if="store.phase !== 'idle'" class="play-info-panel" aria-label="牌局信息">
+      <div class="info-row">
+        <span class="info-label">副序</span>
+        <span class="info-value">{{ store.gamesPlayed }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">局况</span>
+        <span class="info-value">{{ vulnerabilityText }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">定约</span>
+        <span class="info-value">
+          <ContractDisplay :contract="store.contract" :empty-text="contractEmptyText" />
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">赢墩数</span>
+        <span class="info-value" title="南北 / 东西">
+          {{ tricksBySide.NS }} / {{ tricksBySide.EW }}
+        </span>
+      </div>
+    </div>
+
+    <!-- 出牌时叫牌过程停靠在北家手牌右侧，与左侧信息栏对称 -->
+    <aside v-if="showPlayBidHistory" class="play-bid-history" aria-label="叫牌过程">
+      <BidHistory variant="table" />
+    </aside>
 
     <!-- 西家 -->
     <div class="seat west" :class="{ active: isActive('W') }">
@@ -212,7 +254,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
           :class="{ on: lastTrickVisible }"
           @click="toggleLastTrick"
         >{{ lastTrickVisible ? '看本轮' : '看上一墩' }}</button>
-        <span v-if="store.contract" class="tricks-won">定约方 {{ declarerTricks }} 墩</span>
       </div>
 
       <BidHistory v-if="store.phase === 'bidding'" class="center-bid-history" variant="table" />
@@ -280,14 +321,15 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 
 <style scoped>
 .table {
+  --table-pad: 14px;
   position: relative;
   display: grid;
   grid-template-areas:
     'north north north'
     'west center east'
     'south south south';
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 280px) minmax(0, 1fr);
-  grid-template-rows: auto minmax(290px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 26vw, 360px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(320px, 1fr) auto;
   gap: 8px 12px;
   min-height: clamp(620px, calc(100vh - 140px), 920px);
   overflow: hidden;
@@ -295,7 +337,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     radial-gradient(ellipse at 50% 42%, rgba(72, 167, 112, 0.36), transparent 58%),
     radial-gradient(circle at 50% 12%, #2d8a5d 0%, #1d6d49 42%, #12482f 100%);
   border-radius: 22px;
-  padding: 14px;
+  padding: var(--table-pad);
   border: 3px solid #0b2f21;
   box-shadow:
     inset 0 0 0 2px rgba(255, 235, 180, 0.12),
@@ -380,16 +422,107 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 }
 .center {
   grid-area: center;
+  justify-self: center;
+  align-self: center;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-height: 290px;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1;
+  min-height: 0;
   padding: 6px;
   border-radius: 14px;
   background: rgba(3, 34, 22, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(2px);
+}
+/* 左右两块信息与北家手牌上沿平齐：左侧牌局信息，右侧叫牌过程 */
+.play-info-panel,
+.play-bid-history {
+  position: absolute;
+  top: calc(var(--table-pad) + 18px);
+  z-index: 2;
+  box-sizing: border-box;
+  width: clamp(200px, 22%, 300px);
+}
+.play-info-panel {
+  left: var(--table-pad);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border-radius: 4px;
+  border: 1px solid rgba(80, 66, 26, 0.55);
+  background: linear-gradient(180deg, rgba(255, 252, 232, 0.97), rgba(242, 232, 196, 0.96));
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  color: #2f2a1a;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.info-label {
+  flex: none;
+  color: #6b5e33;
+  font-weight: 600;
+}
+.info-label::after {
+  content: '：';
+}
+.info-value {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.play-bid-history {
+  right: var(--table-pad);
+  max-height: 180px;
+  overflow: hidden;
+}
+.play-bid-history :deep(.variant-table) {
+  gap: 3px;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+.play-bid-history :deep(.bid-title-row) {
+  padding-bottom: 3px;
+}
+.play-bid-history :deep(.bid-title) {
+  font-size: 12px;
+}
+.play-bid-history :deep(.bid-meta) {
+  font-size: 10px;
+}
+.play-bid-history :deep(.bid-header span) {
+  padding: 2px 0;
+  font-size: 10px;
+}
+.play-bid-history :deep(.bid-cell) {
+  min-height: 21px;
+  padding: 1px 0;
+}
+.play-bid-history :deep(.bid-level) {
+  font-size: 12px;
+}
+.play-bid-history :deep(.bid-suit) {
+  font-size: 16px;
+}
+.play-bid-history :deep(.bid-suit.nt) {
+  font-size: 10px;
+}
+.play-bid-history :deep(.bid-label) {
+  font-size: 11px;
+}
+.play-bid-history :deep(.bid-scroll) {
+  --bid-scroll-max: 118px;
 }
 .center-top {
   display: flex;
@@ -408,12 +541,6 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 }
 .trick-label {
   color: rgba(234, 245, 238, 0.82);
-}
-.tricks-won {
-  margin-left: auto;
-  color: #ffe19a;
-  font-weight: 700;
-  font-size: 12px;
 }
 .last-trick-btn {
   padding: 3px 9px;
@@ -578,17 +705,18 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
 }
 @media (max-width: 900px) {
   .table {
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 252px) minmax(0, 1fr);
-    grid-template-rows: auto minmax(290px, 1fr) auto;
+    --table-pad: 10px;
+    grid-template-columns: minmax(0, 1fr) 320px minmax(0, 1fr);
+    grid-template-rows: auto minmax(320px, 1fr) auto;
     min-height: 600px;
-    padding: 10px;
+    padding: var(--table-pad);
     gap: 6px;
   }
   .trick-board {
     min-height: 252px;
   }
   .center {
-    min-height: 290px;
+    max-width: 320px;
     padding: 4px;
   }
   .center-bid-history {
@@ -597,7 +725,7 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
   }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 880px) {
   .table {
     grid-template-areas:
       'north'
@@ -616,7 +744,12 @@ const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play
     align-items: center;
   }
   .center {
-    min-height: 290px;
+    width: min(100%, 340px);
+    max-width: 340px;
+  }
+  .play-info-panel,
+  .play-bid-history {
+    display: none;
   }
 }
 </style>

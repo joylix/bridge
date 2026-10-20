@@ -76,7 +76,7 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 <style scoped>
 .hand {
   /* 四家使用完全相同的牌面尺寸与叠放间距 */
-  --card-overlap: -61px;
+  --card-overlap: -66px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -128,29 +128,24 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 }
 
 /* 全宽牌桌下，窄屏时逐步收紧叠放，仍保持四家一致 */
-@media (max-width: 1400px) {
-  .hand {
-    --card-overlap: -63px;
-  }
-}
 @media (max-width: 1350px) {
   .hand {
-    --card-overlap: -66px;
+    --card-overlap: -67px;
   }
 }
 @media (max-width: 1280px) {
   .hand {
-    --card-overlap: -68px;
+    --card-overlap: -70px;
   }
 }
 @media (max-width: 1200px) {
   .hand {
-    --card-overlap: -70px;
+    --card-overlap: -72px;
   }
 }
 @media (max-width: 1150px) {
   .hand {
-    --card-overlap: -72px;
+    --card-overlap: -74px;
   }
 }
 @media (max-width: 1100px) {
@@ -160,7 +155,7 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 }
 @media (max-width: 1000px) {
   .hand {
-    --card-overlap: -78px;
+    --card-overlap: -80px;
   }
 }
 @media (max-width: 960px) {
@@ -168,13 +163,8 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
     --card-overlap: -82px;
   }
 }
-@media (max-width: 860px) {
-  .hand {
-    --card-overlap: -84px;
-  }
-}
-/* 单列布局后东西家拥有整行宽度，恢复舒展牌距 */
-@media (max-width: 820px) {
+/* 单列布局后拥有整行宽度，恢复舒展牌距 */
+@media (max-width: 880px) {
   .hand {
     --card-overlap: -60px;
   }

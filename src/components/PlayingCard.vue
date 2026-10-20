@@ -99,6 +99,8 @@ const ace = computed(() => {
   position: relative;
   display: inline-flex;
   flex: none;
+  /* 把角标/点阵的 z-index 限制在单张牌内，叠牌时不会透出盖住后面的牌 */
+  isolation: isolate;
   overflow: hidden;
   padding: 0;
   appearance: none;

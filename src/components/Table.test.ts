@@ -79,15 +79,24 @@ describe('Table 叫牌过程', () => {
 });
 
 describe('Table 中央状态显示', () => {
-  it('定约信息已移出牌桌中央，叫牌阶段只显示灰色占位', async () => {
+  it('定约信息已移出牌桌中央，改在左上角信息栏显示', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'bidding';
     store.contract = null;
     store.vulnerability = 'both';
     await nextTick();
 
-    expect(wrapper.find('.contract').exists()).toBe(false);
-    expect(wrapper.find('.contract-display').exists()).toBe(false);
+    expect(wrapper.find('.center .contract').exists()).toBe(false);
+    expect(wrapper.find('.center .contract-display').exists()).toBe(false);
+
+    const info = wrapper.get('.play-info-panel');
+    expect(info.text()).toContain('副序');
+    expect(info.text()).toContain('局况');
+    expect(info.text()).toContain('双方有局');
+    expect(info.text()).toContain('定约');
+    expect(info.text()).toContain('—');
+    expect(info.text()).toContain('赢墩数');
+    expect(info.text()).toContain('0 / 0');
 
     const trickLabel = wrapper.get('.trick-label');
     expect(trickLabel.text()).toBe('尚未开始出牌');
@@ -108,10 +117,11 @@ describe('Table 中央状态显示', () => {
     const trickLabel = wrapper.get('.trick-label');
     expect(trickLabel.text()).toBe('等待首攻');
     expect(trickLabel.classes()).not.toContain('pending');
-    expect(wrapper.find('.contract').exists()).toBe(false);
+    expect(wrapper.find('.center .contract').exists()).toBe(false);
+    expect(wrapper.get('.play-info-panel').text()).toContain('4♥');
   });
 
-  it('四家 Pass 流局后中央显示本局结束', async () => {
+  it('四家 Pass 流局后中央显示本局结束，左上角显示流局', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'scoring';
     store.contract = null;
@@ -119,7 +129,8 @@ describe('Table 中央状态显示', () => {
     await nextTick();
 
     expect(wrapper.get('.trick-label').text()).toBe('本局结束');
-    expect(wrapper.find('.contract').exists()).toBe(false);
+    expect(wrapper.find('.center .contract').exists()).toBe(false);
+    expect(wrapper.get('.play-info-panel').text()).toContain('流局');
   });
 });
 
@@ -138,6 +149,52 @@ describe('Table 出牌显示', () => {
     expect(play.get('.playing-card').text()).toBe('♦4');
     expect(play.get('.playing-card').classes()).toContain('red');
     expect(play.get('.playing-card').classes()).toContain('size-xxl');
+  });
+});
+
+describe('Table 出牌阶段叫牌过程', () => {
+  it('叫牌过程移到北家手牌右侧，左侧保留牌局信息', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.biddingHistory = [
+      { position: 'N', call: { type: 'pass' } },
+      { position: 'E', call: { type: 'bid', level: 1, suit: 'H' } },
+      { position: 'S', call: { type: 'pass' } },
+      { position: 'W', call: { type: 'pass' } },
+    ];
+    await nextTick();
+
+    const panel = wrapper.get('.play-bid-history');
+    expect(panel.text()).toContain('叫牌过程');
+    expect(panel.text()).toContain('1♥');
+    expect(wrapper.get('.play-info-panel').text()).toContain('副序');
+    // 中央区域出牌时只显示牌墩，不再占用空间显示叫牌过程
+    expect(wrapper.find('.center .bid-history').exists()).toBe(false);
+  });
+
+  it('叫牌阶段仍将叫牌过程显示在中央区域', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'bidding';
+    store.biddingHistory = [{ position: 'N', call: { type: 'bid', level: 1, suit: 'H' } }];
+    await nextTick();
+
+    expect(wrapper.find('.play-bid-history').exists()).toBe(false);
+    expect(wrapper.find('.center .bid-history').exists()).toBe(true);
+  });
+
+  it('左上角按南北 / 东西统计已赢墩数', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.tricks = [
+      { plays: [], leader: 'S', winner: 'N' },
+      { plays: [], leader: 'E', winner: 'E' },
+      { plays: [], leader: 'S', winner: 'N' },
+    ];
+    await nextTick();
+
+    expect(wrapper.get('.play-info-panel').text()).toContain('2 / 1');
   });
 });
 
