@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { describeCall, useGameStore } from '../store/game';
+import { PLAY_DISPLAY_MS, describeCall, useGameStore } from '../store/game';
 import { isCallLegal } from '../core/bidding/validator';
 import type { BidCall, BidSuit } from '../models/gameState';
 import BidHistory from './BidHistory.vue';
@@ -52,19 +52,35 @@ const outcomeText = computed(() => {
 
 /** 单局详细结果弹窗：结算时自动打开，也可从结果摘要重新打开 */
 const resultVisible = ref(false);
+/** 结算弹窗延后打开，先让最后一墩牌展示满 2 秒 */
+let resultTimer: ReturnType<typeof setTimeout> | null = null;
+function clearResultTimer(): void {
+  if (resultTimer !== null) {
+    clearTimeout(resultTimer);
+    resultTimer = null;
+  }
+}
 watch(
   () => store.phase,
   (phase, previous) => {
-    if (phase === 'scoring' && previous !== 'scoring') resultVisible.value = true;
+    clearResultTimer();
+    if (phase === 'scoring' && previous !== 'scoring') {
+      resultTimer = setTimeout(() => {
+        resultTimer = null;
+        resultVisible.value = true;
+      }, PLAY_DISPLAY_MS);
+    }
   },
   { immediate: true },
 );
 watch(
   () => store.gamesPlayed,
   () => {
+    clearResultTimer();
     resultVisible.value = false;
   },
 );
+onBeforeUnmount(clearResultTimer);
 
 /** 回合或阶段变化后清空选择，避免把旧叫品带到下一手 */
 watch(

@@ -52,6 +52,9 @@ import { canEditRules as canEditRulesFor, type UserRole } from '../permissions';
 /** AI 出牌/叫牌前的延迟（验收用例 12：延迟 0.8s） */
 export const AI_DELAY_MS = 800;
 
+/** 每张出牌至少展示的时长：展示满后才进行下一个动作（含自动出牌） */
+export const PLAY_DISPLAY_MS = 2000;
+
 const VULNERABILITIES: GameState['vulnerability'][] = ['none', 'NS', 'EW', 'both'];
 
 /** 单局对局记录（用于“对局历史”复盘：叫牌 + 出牌过程） */
@@ -162,6 +165,8 @@ export const useGameStore = defineStore('game', () => {
   let rng: () => number = makeRng(state.rngSeed);
   const gamesPlayed = ref(0);
   let loopToken = 0; // 用于取消进行中的 AI 循环
+  /** 最近一次出牌的时间戳，用于保证每张牌至少展示 PLAY_DISPLAY_MS */
+  let lastPlayAt = 0;
 
   /** 自动托管南家（默认关闭）：开启后全部座位由 AI 接管，便于全机器演示与集成测试 */
   const autoPilot = ref(false);
@@ -353,6 +358,7 @@ export const useGameStore = defineStore('game', () => {
     if (!state.dummyOpen && state.contract) {
       state.dummyOpen = true;
     }
+    lastPlayAt = Date.now();
     if (state.currentTrick.length === 4) {
       settleTrick();
     } else {
@@ -435,11 +441,27 @@ export const useGameStore = defineStore('game', () => {
   }
 
   /**
+   * 等待上一张出牌展示满 PLAY_DISPLAY_MS。
+   * 返回 false 表示等待期间已开始新一局/新循环，调用方应立即退出。
+   */
+  async function holdLastPlay(token: number): Promise<boolean> {
+    const remaining = PLAY_DISPLAY_MS - (Date.now() - lastPlayAt);
+    if (remaining <= 0) return token === loopToken;
+    state.isAiThinking = true;
+    await sleep(remaining);
+    if (token !== loopToken) return false;
+    state.isAiThinking = false;
+    return true;
+  }
+
+  /**
    * AI 主循环：接管“非人类控制”的座位；轮到人类即返回等待输入。
    * 任何座位（包括人类控制的座位）只剩唯一合法出牌时，直接自动打出。
    */
   async function runAILoop(): Promise<void> {
     const token = ++loopToken;
+    // 新循环接管时清理上一循环可能残留的“思考中”状态
+    state.isAiThinking = false;
     for (;;) {
       if (token !== loopToken) return; // 已被新一局/新循环取代
       if (state.phase === 'bidding') {
@@ -462,7 +484,11 @@ export const useGameStore = defineStore('game', () => {
         const legal = legalCardsFor(pos);
         if (legal.length === 0) return;
         const forced = legal.length === 1 ? legal[0] : null;
-        if (isHumanControlled(pos) && forced === null) return;
+        const humanChooses = isHumanControlled(pos) && forced === null;
+
+        // 先让上一张牌展示满 2 秒，再进行下一个动作（包括人类回合）
+        if (!(await holdLastPlay(token))) return;
+        if (humanChooses) return;
 
         let card: number;
         if (forced !== null) {
@@ -532,6 +558,7 @@ export const useGameStore = defineStore('game', () => {
     state.trickLeader = null;
     state.nextPlayer = null;
     state.dummyOpen = false;
+    lastPlayAt = 0;
     state.score = { NS: 0, EW: 0 };
     state.isAiThinking = false;
     state.message = `第 ${gamesPlayed.value} 局开始，庄家 ${state.dealer}，局况 ${vulName(state.vulnerability)}`;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { useGameStore, vulName } from './game';
+import { useGameStore, vulName, PLAY_DISPLAY_MS } from './game';
 import { parseAction } from '../core/bidding/validator';
 import { getLegalCards } from '../core/playing';
 import { getSuit } from '../models/card';
@@ -119,27 +119,48 @@ describe('人类控制权模型（用例 14、15）', () => {
 });
 
 describe('唯一合法出牌自动进行', () => {
-  it('人类控制的座位只剩唯一合法牌时，AI 循环直接替其打出', async () => {
-    const store = newStore();
-    store.startNewGame({ autoStart: false, seed: 2 });
-    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
-    store.phase = 'play';
-    store.tricks = [];
-    store.currentTrick = [{ position: 'W', card: parseHand('H2')[0] }];
-    store.nextPlayer = 'N';
+  it('自动出牌也至少展示 2 秒后才进行下一手', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = newStore();
+      store.startNewGame({ autoStart: false, seed: 2 });
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'N', dummy: 'S' };
+      store.phase = 'play';
+      store.tricks = [];
+      store.currentTrick = [{ position: 'W', card: parseHand('H2')[0] }];
+      store.nextPlayer = 'N';
 
-    const onlyCard = parseHand('SA')[0];
-    store.hands.N = [onlyCard];
-    store.hands.E = [parseHand('H5')[0]]; // 东家同样只有一张合法牌，也应无延迟自动出牌
-    store.hands.S = parseHand('H3 H4'); // 轮到人类时有两张合法牌，循环应停下
+      const onlyCard = parseHand('SA')[0];
+      store.hands.N = [onlyCard];
+      store.hands.E = [parseHand('H5')[0]]; // 东家同样只有一张合法牌，也应自动出牌
+      store.hands.S = parseHand('H3 H4'); // 轮到人类时有两张合法牌，循环应停下
 
-    await store.runAILoop();
+      const loop = store.runAILoop();
+      await vi.advanceTimersByTimeAsync(0);
 
-    expect(store.hands.N).toEqual([]);
-    expect(store.currentTrick.find((p) => p.position === 'N')?.card).toBe(onlyCard);
-    expect(store.currentTrick.find((p) => p.position === 'E')?.card).toBe(parseHand('H5')[0]);
-    expect(store.nextPlayer).toBe('S');
-    expect(store.isAiThinking).toBe(false);
+      // 本墩还没有上一张牌，北家的唯一合法牌立即打出
+      expect(store.hands.N).toEqual([]);
+      expect(store.currentTrick.find((p) => p.position === 'N')?.card).toBe(onlyCard);
+
+      // 东家的自动出牌必须等北家的牌展示满 2 秒
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
+      expect(store.currentTrick.find((p) => p.position === 'E')).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(store.currentTrick.find((p) => p.position === 'E')?.card).toBe(parseHand('H5')[0]);
+
+      // 东家的牌同样展示满 2 秒后才把控制权交还人类
+      expect(store.nextPlayer).toBe('S');
+      expect(store.isAiThinking).toBe(true);
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS);
+      await loop;
+
+      expect(store.isAiThinking).toBe(false);
+      expect(store.nextPlayer).toBe('S');
+      expect(store.currentTrick.find((p) => p.position === 'S')).toBeUndefined();
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 });
 
