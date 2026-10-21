@@ -1,11 +1,22 @@
+/* 花色符号 Web 字体：草花与黑桃的连接处更细，避免两者在小字号下混淆。
+   字形取自 Gyula Zsigri 的 Cards 字体（https://www.pagat.com/com/cardsttf.html），
+   原始授权允许自由使用与分发；完整说明见 src/assets/fonts/LICENSE.txt。 */
+@font-face {
+  font-family: 'Bridge Suit Symbols';
+  src: url('./assets/fonts/bridge-suits.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --felt: #1f6b45;
   --felt-dark: #14563a;
   --ink: #1c2b22;
   --paper: #f7f7f2;
   /* 花色符号单独使用符号字体，避免小字号下 ♣/♠、♦/♥ 混淆 */
-  --suit-font: 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'Arial Unicode MS',
-    'DejaVu Sans', sans-serif;
+  --suit-font: 'Bridge Suit Symbols', 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols',
+    'Arial Unicode MS', 'DejaVu Sans', sans-serif;
   --club-ink: #172b63;
   --club-on-dark: #a9c9ff;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
@@ -16,6 +27,8 @@
   font-family: var(--suit-font);
   font-variant-emoji: text;
   font-style: normal;
+  /* 只有单一字重，禁止浏览器伪粗体，保留草花/黑桃纤细的连接处 */
+  font-synthesis: none;
 }
 
 /* 草花使用蓝黑色，和黑桃区分；深色背景上改用浅蓝 */

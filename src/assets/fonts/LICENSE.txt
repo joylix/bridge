@@ -1,0 +1,26 @@
+Bridge Suit Symbols webfont
+===========================
+
+This webfont is a minimal derivative of the "Cards" TrueType font by
+Gyula Zsigri, remapped to the Unicode playing-card suit codepoints
+(U+2660 ♠, U+2663 ♣, U+2665 ♥, U+2666 ♦) so it can be used as a normal
+CSS font for suit symbols.
+
+Original font:
+- Name: Cards (cards21.ttf), version 2.1
+- Author: Gyula Zsigri
+- Source: https://www.pagat.com/com/cardsttf.html
+- Copyright (c) 1998-2001 Gyula Zsigri. All rights reserved.
+
+Original license:
+"You can freely use and distribute this font but you are not allowed to
+restrict the rights of others to freely use and distribute it."
+
+Glyph mapping used here:
+- U+2660 ♠ <- decorative spade ("S")
+- U+2663 ♣ <- decorative club ("C")
+- U+2665 ♥ <- filled heart ("1")
+- U+2666 ♦ <- filled diamond ("2")
+
+The derivative keeps the original glyph outlines unchanged and only
+provides the four Unicode mappings above for web display.

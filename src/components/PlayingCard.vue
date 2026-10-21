@@ -194,7 +194,8 @@ const ace = computed(() => {
 }
 .size-xxl {
   --pc-label-size: 21px;
-  --pc-corner-size: 13px;
+  /* 手牌角部的花色比点数略小即可；太小时草花/黑桃不易辨认 */
+  --pc-corner-size: 17px;
   --pc-pip-size: 21px;
   --pc-court-size: 52px;
   --pc-back-spade-size: 34px;
