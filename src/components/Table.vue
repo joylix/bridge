@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
-import { getSide, type CardPlay, type Position } from '../models/gameState';
+import { getSide, type Position } from '../models/gameState';
 import { getSuit } from '../models/card';
 import { isCardLegal } from '../core/playing';
 import Hand from './Hand.vue';
@@ -10,10 +10,13 @@ import ContractDisplay from './ContractDisplay.vue';
 import PlayingCard from './PlayingCard.vue';
 import SouthPlayed from './SouthPlayed.vue';
 import { useScoringCardsVisible } from '../composables/useScoringCardsVisible';
+import { useBoardTrick } from '../composables/useBoardTrick';
 
 const store = useGameStore();
 /** 一局结束后桌面上的牌只再显示 1 秒 */
 const cardsVisible = useScoringCardsVisible();
+/** 第四家出牌后，完整一墩只再显示 1 秒，然后清空等待下一轮 */
+const { boardTrick } = useBoardTrick();
 
 /** 手牌是否摊开（明）：人类自己的座位恒可见；首攻后明手与人类控制的牌可见 */
 function isFaceUp(pos: Position): boolean {
@@ -39,6 +42,12 @@ function isActive(pos: Position): boolean {
   if (store.phase === 'bidding') return store.currentBidder === pos;
   if (store.phase === 'play' || store.phase === 'play_waiting_lead') return store.nextPlayer === pos;
   return false;
+}
+
+/** 当前是否轮到该座位出牌（用于显示指向其手牌的闪烁箭头） */
+function showTurnArrow(pos: Position): boolean {
+  const playing = store.phase === 'play' || store.phase === 'play_waiting_lead';
+  return playing && store.nextPlayer === pos;
 }
 
 function isDummySeat(pos: Position): boolean {
@@ -104,36 +113,8 @@ const tricksBySide = computed(() => {
   return counts;
 });
 
-/** 上一墩（最近一次完成的墩） */
-const lastTrick = computed(() => (store.tricks.length ? store.tricks[store.tricks.length - 1] : null));
-
-/** 中央牌桌当前展示的墩：本轮优先；本轮为空时自动展示上一墩 */
-interface BoardTrick {
-  plays: CardPlay[];
-  winner: Position | null;
-}
-
-const boardTrick = computed<BoardTrick>(() => {
-  if (store.currentTrick.length > 0) {
-    return {
-      plays: store.currentTrick,
-      winner: null,
-    };
-  }
-  if (lastTrick.value) {
-    return {
-      plays: lastTrick.value.plays,
-      winner: lastTrick.value.winner,
-    };
-  }
-  return {
-    plays: [],
-    winner: null,
-  };
-});
-
-const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play_waiting_lead');
 /** 出牌阶段把叫牌过程停靠到北家手牌右侧，与左侧信息栏对称 */
+const isPlaying = computed(() => store.phase === 'play' || store.phase === 'play_waiting_lead');
 const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistory.length > 0);
 </script>
 
@@ -152,6 +133,7 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :is-dummy="isDummySeat('N')"
         :clickable="isClickable('N')"
         :active="isActive('N')"
+        :show-turn-arrow="showTurnArrow('N')"
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('N', c)"
         @card-confirm="(c) => onCardConfirm('N', c)"
@@ -201,6 +183,7 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :is-dummy="isDummySeat('W')"
         :clickable="isClickable('W')"
         :active="isActive('W')"
+        :show-turn-arrow="showTurnArrow('W')"
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('W', c)"
         @card-confirm="(c) => onCardConfirm('W', c)"
@@ -244,6 +227,7 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :is-dummy="isDummySeat('E')"
         :clickable="isClickable('E')"
         :active="isActive('E')"
+        :show-turn-arrow="showTurnArrow('E')"
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('E', c)"
         @card-confirm="(c) => onCardConfirm('E', c)"
@@ -260,6 +244,7 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :is-dummy="isDummySeat('S')"
         :clickable="isClickable('S')"
         :active="isActive('S')"
+        :show-turn-arrow="showTurnArrow('S')"
         :selected-card="selectedCard"
         @card-click="(c) => onCardClick('S', c)"
         @card-confirm="(c) => onCardConfirm('S', c)"
@@ -310,6 +295,10 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
 .center {
   position: relative;
   z-index: 1;
+}
+/* 轮到出牌的座位略高于中央出牌区，保证指向手牌的箭头不被牌面遮住 */
+.seat.active {
+  z-index: 2;
 }
 .north {
   grid-area: north;

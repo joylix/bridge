@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { useGameStore } from './store/game';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { PLAY_DISPLAY_MS, useGameStore } from './store/game';
 import Table from './components/Table.vue';
 import BiddingBox from './components/BiddingBox.vue';
 import DealResultDialog from './components/DealResultDialog.vue';
@@ -40,13 +40,31 @@ const showBiddingPopup = computed(
 
 onMounted(() => store.startNewGame());
 
+/** 最后一墩先在桌面停留 1 秒，清除牌后再弹出结算结果 */
+let resultTimer: ReturnType<typeof setTimeout> | null = null;
+function clearResultTimer(): void {
+  if (resultTimer !== null) {
+    clearTimeout(resultTimer);
+    resultTimer = null;
+  }
+}
+
 watch(
   () => store.phase,
   (phase) => {
-    if (phase === 'scoring') resultVisible.value = true;
+    clearResultTimer();
+    if (phase === 'scoring') {
+      resultVisible.value = false;
+      resultTimer = setTimeout(() => {
+        resultVisible.value = true;
+        resultTimer = null;
+      }, PLAY_DISPLAY_MS);
+    }
     if (phase === 'bidding') resultVisible.value = false;
   },
 );
+
+onUnmounted(clearResultTimer);
 
 function onNewGame(): void {
   resultVisible.value = false;

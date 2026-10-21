@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import ElementPlus, { ElDialog } from 'element-plus';
 import App from './App.vue';
 import DealResultDialog from './components/DealResultDialog.vue';
-import { useGameStore } from './store/game';
+import { useGameStore, PLAY_DISPLAY_MS } from './store/game';
 
 type AppWrapper = ReturnType<typeof mount>;
 
@@ -87,7 +87,7 @@ describe('App 冒烟测试', () => {
     expect(wrapper.get('.play-info-panel').text()).toContain('流局');
   });
 
-  it('结算后自动弹出本局结果，并可关闭', async () => {
+  it('结算后先停留 1 秒再自动弹出本局结果，并可关闭', async () => {
     const { store, wrapper } = setupApp();
     const result = wrapper.getComponent(DealResultDialog);
     expect(result.props('modelValue')).toBe(false);
@@ -95,6 +95,15 @@ describe('App 冒烟测试', () => {
 
     store.contract = { level: 4, suit: 'H', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
     store.phase = 'scoring';
+    await nextTick();
+    // 最后一墩仍在桌面停留，结果暂不弹出
+    expect(wrapper.getComponent(DealResultDialog).props('modelValue')).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
+    await nextTick();
+    expect(wrapper.getComponent(DealResultDialog).props('modelValue')).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
     await nextTick();
     expect(wrapper.getComponent(DealResultDialog).props('modelValue')).toBe(true);
 

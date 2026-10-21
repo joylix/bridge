@@ -273,7 +273,7 @@ describe('Table 中央出牌区', () => {
     expect(wrapper.find('.trick-center').exists()).toBe(false);
   });
 
-  it('本轮为空时自动展示上一墩与赢家，不显示切换按钮', async () => {
+  it('本轮为空时立即展示刚完成的上一墩与赢家，不显示切换按钮', async () => {
     const { store, wrapper } = newStoreAndTable();
     store.phase = 'play_waiting_lead';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
@@ -300,7 +300,7 @@ describe('Table 中央出牌区', () => {
     expect(wrapper.find('.last-trick-btn').exists()).toBe(false);
   });
 
-  it('轮到南家且只剩唯一合法牌时，上一墩保持显示并等待确认', async () => {
+  it('轮到南家且只剩唯一合法牌时，不自动出牌且上一墩 1 秒后清空', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     try {
@@ -327,14 +327,21 @@ describe('Table 中央出牌区', () => {
       expect(wrapper.findAll('.trick-play')).toHaveLength(4);
 
       const loop = store.runAILoop();
-      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS + 50);
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
       await nextTick();
 
-      // 没有自动打出南家的唯一合法牌，上一墩仍停留在中央
+      // 1 秒内完整一墩仍在中央，且没有自动打出南家的唯一合法牌
       expect(wrapper.findAll('.trick-play')).toHaveLength(4);
       expect(wrapper.get('.trick-stack').text()).toContain('♣4');
       expect(store.hands.S).toEqual(parseHand('C2'));
+
+      await vi.advanceTimersByTimeAsync(1);
+      await nextTick();
+
+      // 1 秒后清除所有已出的牌，等待下一轮出牌
+      expect(wrapper.findAll('.trick-play')).toHaveLength(0);
       expect(store.currentTrick).toHaveLength(0);
+      expect(store.hands.S).toEqual(parseHand('C2'));
       await loop;
     } finally {
       vi.clearAllTimers();
@@ -362,6 +369,46 @@ describe('Table 中央出牌区', () => {
     expect(currentPlays[0].classes()).toContain('slot-W');
     expect(wrapper.find('.last-trick-btn').exists()).toBe(false);
     expect(wrapper.find('.center-top').exists()).toBe(false);
+  });
+
+  it('第四家出牌完成后，完整一墩停留 1 秒再全部清除', async () => {
+    vi.useFakeTimers();
+    try {
+      const { store, wrapper } = newStoreAndTable();
+      store.phase = 'play';
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+      store.currentTrick = [
+        { position: 'N', card: parseHand('SA')[0] },
+        { position: 'E', card: parseHand('H2')[0] },
+        { position: 'S', card: parseHand('D3')[0] },
+      ];
+      store.nextPlayer = 'W';
+      store.trickLeader = 'N';
+      await nextTick();
+
+      // 第四家出牌，本墩结束
+      store.applyPlay('W', store.hands.W[0]);
+      await nextTick();
+      expect(store.tricks).toHaveLength(1);
+      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
+      await nextTick();
+      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+
+      // 停留 1 秒后清除所有已出的牌
+      await vi.advanceTimersByTimeAsync(1);
+      await nextTick();
+      expect(wrapper.findAll('.trick-play')).toHaveLength(0);
+
+      // 下一轮出牌时只显示新的一墩
+      store.currentTrick = [{ position: 'W', card: parseHand('C7')[0] }];
+      await nextTick();
+      expect(wrapper.findAll('.trick-play')).toHaveLength(1);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 
   it('一局出牌结束后，桌面上的牌只再显示 1 秒', async () => {
@@ -590,6 +637,43 @@ describe('Table 选牌与出牌', () => {
       vi.clearAllTimers();
       vi.useRealTimers();
     }
+  });
+});
+
+describe('Table 当前出牌座位箭头', () => {
+  it('只在轮到出牌的座位手牌旁显示一个指向手牌的闪烁箭头', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.phase = 'play';
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.nextPlayer = 'E';
+    await nextTick();
+
+    expect(wrapper.findAll('.turn-arrow')).toHaveLength(1);
+    expect(wrapper.find('.hand.pos-E .turn-arrow').exists()).toBe(true);
+    expect(wrapper.get('.turn-arrow').classes()).toContain('pos-E');
+
+    store.nextPlayer = 'S';
+    await nextTick();
+    expect(wrapper.findAll('.turn-arrow')).toHaveLength(1);
+    expect(wrapper.find('.hand.pos-S .turn-arrow').exists()).toBe(true);
+    expect(wrapper.find('.hand.pos-E .turn-arrow').exists()).toBe(false);
+  });
+
+  it('等待首攻时显示箭头，叫牌和结算阶段不显示', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.phase = 'play_waiting_lead';
+    store.nextPlayer = 'W';
+    await nextTick();
+    expect(wrapper.find('.hand.pos-W .turn-arrow').exists()).toBe(true);
+
+    store.phase = 'bidding';
+    await nextTick();
+    expect(wrapper.findAll('.turn-arrow')).toHaveLength(0);
+
+    store.phase = 'scoring';
+    await nextTick();
+    expect(wrapper.findAll('.turn-arrow')).toHaveLength(0);
   });
 });
 

@@ -4,6 +4,7 @@ import { getSuit, type SuitIndex } from '../models/card';
 import { sortHand } from '../models/hand';
 import type { Position } from '../models/gameState';
 import PlayingCard from './PlayingCard.vue';
+import TurnArrow from './TurnArrow.vue';
 
 const props = defineProps<{
   cards: number[];
@@ -18,6 +19,8 @@ const props = defineProps<{
   active?: boolean;
   /** 当前被左键选中的牌（再次点击取消选择） */
   selectedCard?: number | null;
+  /** 是否显示指向该手牌的“轮到你出牌”闪烁箭头 */
+  showTurnArrow?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +45,7 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 
 <template>
   <div class="hand" :class="[{ 'is-dummy': isDummy, active }, `pos-${position}`]">
+    <TurnArrow v-if="showTurnArrow" :position="position" />
     <div class="hand-inner">
       <div v-if="faceDown" class="cards backs">
         <PlayingCard v-for="i in cards.length" :key="i" back size="xxl" />
@@ -77,6 +81,7 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
 .hand {
   /* 四家使用完全相同的牌面尺寸与叠放间距 */
   --card-overlap: -66px;
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
