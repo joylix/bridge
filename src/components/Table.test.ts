@@ -300,48 +300,50 @@ describe('Table 中央出牌区', () => {
     expect(wrapper.find('.last-trick-btn').exists()).toBe(false);
   });
 
-  it('轮到南家且只剩唯一合法牌时，不自动出牌且上一墩 1 秒后清空', async () => {
+  it('轮到南家且只剩唯一合法牌时自动打出，完整一墩展示 1 秒后清空', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     try {
       const { store, wrapper } = newStoreAndTable();
-      store.phase = 'play_waiting_lead';
+      store.phase = 'play';
       store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
-      store.tricks = [
-        {
-          plays: [
-            { position: 'S', card: parseHand('SA')[0] },
-            { position: 'W', card: parseHand('H2')[0] },
-            { position: 'N', card: parseHand('D3')[0] },
-            { position: 'E', card: parseHand('C4')[0] },
-          ],
-          leader: 'S',
-          winner: 'S',
-        },
+      store.currentTrick = [
+        { position: 'W', card: parseHand('C5')[0] },
+        { position: 'N', card: parseHand('C4')[0] },
+        { position: 'E', card: parseHand('C3')[0] },
       ];
-      store.currentTrick = [];
+      store.trickLeader = 'W';
       store.nextPlayer = 'S';
-      store.hands.S = parseHand('C2');
+      // 领出草花，南家手中只有一张草花 CA，其余红桃均不合法
+      store.hands.S = parseHand('CA H3 H4');
       await nextTick();
 
-      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+      expect(wrapper.findAll('.trick-play')).toHaveLength(3);
 
       const loop = store.runAILoop();
       await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
       await nextTick();
 
-      // 1 秒内完整一墩仍在中央，且没有自动打出南家的唯一合法牌
-      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
-      expect(wrapper.get('.trick-stack').text()).toContain('♣4');
-      expect(store.hands.S).toEqual(parseHand('C2'));
+      // 1 秒内仍展示上一张牌，且没有自动打出南家的唯一合法牌
+      expect(wrapper.findAll('.trick-play')).toHaveLength(3);
+      expect(store.hands.S).toEqual(parseHand('CA H3 H4'));
 
       await vi.advanceTimersByTimeAsync(1);
       await nextTick();
 
-      // 1 秒后清除所有已出的牌，等待下一轮出牌
-      expect(wrapper.findAll('.trick-play')).toHaveLength(0);
+      // 唯一合法的 CA 自动打出并结算本墩，完整一墩继续展示 1 秒
+      expect(store.hands.S).toEqual(parseHand('H3 H4'));
       expect(store.currentTrick).toHaveLength(0);
-      expect(store.hands.S).toEqual(parseHand('C2'));
+      expect(store.tricks).toHaveLength(1);
+      expect(store.tricks[0].winner).toBe('S');
+      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+      expect(wrapper.get('.trick-stack').text()).toContain('♣A');
+
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS);
+      await nextTick();
+
+      // 展示满 1 秒后清除所有已出的牌
+      expect(wrapper.findAll('.trick-play')).toHaveLength(0);
       await loop;
     } finally {
       vi.clearAllTimers();

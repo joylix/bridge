@@ -437,7 +437,11 @@ export const useGameStore = defineStore('game', () => {
     );
   }
 
-  /** 当前座位所有合法出牌（首攻/领出时整手牌都合法） */
+  /**
+   * 当前座位所有合法出牌（首攻/领出时整手牌都合法）。
+   * 跟牌时 getLegalCards 只返回领出花色；若该花色只有一张，
+   * 返回长度即为 1，会在 runAILoop 中被当作唯一合法牌自动打出。
+   */
   function legalCardsFor(pos: Position): Hand {
     if (!state.contract) return [];
     const leadSuit = state.currentTrick.length === 0 ? null : getSuit(state.currentTrick[0].card);
@@ -488,13 +492,13 @@ export const useGameStore = defineStore('game', () => {
         const legal = legalCardsFor(pos);
         if (legal.length === 0) return;
         const forced = legal.length === 1 ? legal[0] : null;
-        // 人类控制的座位即使只剩唯一合法牌，也停下来等待确认；
-        // 否则自动出牌会立刻进入下一墩，把刚完成的上一墩顶掉。
-        const humanChooses = isHumanControlled(pos);
+        // 唯一合法牌没有选择余地：无论人类控制还是 AI，都自动打出。
+        // 只有人类控制的座位在有多张合法牌时才停下来等待输入。
+        const needsHumanChoice = forced === null && isHumanControlled(pos);
 
-        // 先让上一张牌展示满 1 秒，再进行下一个动作（包括人类回合）
+        // 先让上一张牌展示满 1 秒，再进行下一个动作（包括自动出牌）
         if (!(await holdLastPlay(token))) return;
-        if (humanChooses) return;
+        if (needsHumanChoice) return;
 
         // AI 决策本身是同步的；展示等待已兼顾“思考”时长，避免额外拖延下一张牌
         const card = forced !== null ? forced : decideAiPlay(pos);

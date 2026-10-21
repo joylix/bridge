@@ -119,40 +119,44 @@ describe('人类控制权模型（用例 14、15）', () => {
 });
 
 describe('唯一合法出牌自动进行', () => {
-  it('人类控制的座位只剩唯一合法牌时也等待确认，不自动出牌', async () => {
+  it('跟牌时只有一张领出花色，即使手中还有其他花色也自动打出', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     try {
       const store = newStore();
       store.startNewGame({ autoStart: false, seed: 22 });
       store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
-      store.phase = 'play_waiting_lead';
-      store.tricks = [
-        {
-          plays: [
-            { position: 'S', card: parseHand('SA')[0] },
-            { position: 'W', card: parseHand('H2')[0] },
-            { position: 'N', card: parseHand('D3')[0] },
-            { position: 'E', card: parseHand('C4')[0] },
-          ],
-          leader: 'S',
-          winner: 'S',
-        },
+      store.phase = 'play';
+      store.currentTrick = [
+        { position: 'W', card: parseHand('C5')[0] },
+        { position: 'N', card: parseHand('C4')[0] },
+        { position: 'E', card: parseHand('C3')[0] },
       ];
-      store.currentTrick = [];
+      store.trickLeader = 'W';
       store.nextPlayer = 'S';
-      store.hands.S = parseHand('C2');
+      // 手中还有红桃，但领出花色草花只有 CA 一张，因此 CA 是唯一合法牌
+      store.hands.S = parseHand('CA H3 H4');
 
       const loop = store.runAILoop();
-      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS + 50);
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
+      // 仍先展示上一张牌 1 秒，不立即出牌
+      expect(store.hands.S).toEqual(parseHand('CA H3 H4'));
+      expect(store.currentTrick).toHaveLength(3);
 
-      // 南家是唯一合法牌，但仍应停下来等待人类确认
-      expect(store.hands.S).toEqual(parseHand('C2'));
+      await vi.advanceTimersByTimeAsync(1);
+
+      // 唯一合法的 CA 已自动打出，并结算本墩
+      expect(store.hands.S).toEqual(parseHand('H3 H4'));
       expect(store.currentTrick).toHaveLength(0);
       expect(store.tricks).toHaveLength(1);
+      expect(store.tricks[0].winner).toBe('S');
+      expect(store.tricks[0].plays.find((p) => p.position === 'S')?.card).toBe(parseHand('CA')[0]);
+
+      // 南家赢得本墩后还有两张红桃可选，循环应停下等待人类输入
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS);
+      await loop;
       expect(store.nextPlayer).toBe('S');
       expect(store.isAiThinking).toBe(false);
-      await loop;
     } finally {
       vi.clearAllTimers();
       vi.useRealTimers();

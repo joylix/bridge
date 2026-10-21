@@ -515,10 +515,11 @@ const ace = computed(() => {
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
+/* 悬停只做轻微高亮，不位移、不提升层级：
+   否则取消选中后鼠标仍停在牌上，牌会停在悬停位置并挡住相邻牌。 */
 .playing-card.clickable:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.38);
-  z-index: 5;
+  filter: brightness(1.06);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
 }
 /* 左键选中的牌：上移弹出，再次点击或出牌后复原 */
 .playing-card.selected,
