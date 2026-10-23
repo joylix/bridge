@@ -2716,42 +2716,42 @@ rules:
   - id: overcall_1s_after_1c
     description: "对 1C 争叫 1S：点力随风格，5+ 黑桃"
     sequence: "R:1C"
-    when: { hcp: "${overcallMinHcp}-16", spades: "5+" }
+    when: { hcp: "${overcallMinHcp}-18", spades: "5+" }
     action: "1S"
     priority: 70
 
   - id: overcall_1h_after_1c
     description: "对 1C 争叫 1H：点力随风格，5+ 红桃"
     sequence: "R:1C"
-    when: { hcp: "${overcallMinHcp}-16", hearts: "5+" }
+    when: { hcp: "${overcallMinHcp}-18", hearts: "5+" }
     action: "1H"
     priority: 69
 
   - id: overcall_1d_after_1c
     description: "对 1C 争叫 1D：点力随风格，5+ 方块"
     sequence: "R:1C"
-    when: { hcp: "${overcallMinHcp}-16", diamonds: "5+" }
+    when: { hcp: "${overcallMinHcp}-18", diamonds: "5+" }
     action: "1D"
     priority: 68
 
   - id: overcall_1s_after_1d
     description: "对 1D 争叫 1S：点力随风格，5+ 黑桃"
     sequence: "R:1D"
-    when: { hcp: "${overcallMinHcp}-16", spades: "5+" }
+    when: { hcp: "${overcallMinHcp}-18", spades: "5+" }
     action: "1S"
     priority: 72
 
   - id: overcall_1h_after_1d
     description: "对 1D 争叫 1H：点力随风格，5+ 红桃"
     sequence: "R:1D"
-    when: { hcp: "${overcallMinHcp}-16", hearts: "5+" }
+    when: { hcp: "${overcallMinHcp}-18", hearts: "5+" }
     action: "1H"
     priority: 71
 
   - id: overcall_1s_after_1h
     description: "对 1H 争叫 1S：点力随风格，5+ 黑桃"
     sequence: "R:1H"
-    when: { hcp: "${overcallMinHcp}-16", spades: "5+" }
+    when: { hcp: "${overcallMinHcp}-18", spades: "5+" }
     action: "1S"
     priority: 72
 

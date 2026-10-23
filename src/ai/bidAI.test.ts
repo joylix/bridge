@@ -125,6 +125,31 @@ describe('叫牌 AI（bidAI）', () => {
     expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 
+  it('17 点 6 张红桃对 1D 争叫 1H，而不是 Pass（精确/自然）', () => {
+    // S- HAK9753 DAKQJ7 C63：17 HCP，0-6-5-2
+    const hand = parseHand('HAK9753 DAKQJ7 C63');
+    const h = history(['E', '1D']);
+    for (const rules of [precision, natural]) {
+      const call = bidAI(hand, h, 'S', { level: 1, suit: 'D' }, rules, {
+        style: 1,
+        randomness: 0,
+        rng: makeRng(1),
+      });
+      expect(call).toEqual({ type: 'bid', level: 1, suit: 'H' });
+    }
+  });
+
+  it('精确制：17 点均型对 1D 仍优先争叫 1NT', () => {
+    const hand = parseHand('SAKJ HAK3 DQ32 C8765'); // 17 HCP, 4-3-3-3
+    const h = history(['E', '1D']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'D' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
+  });
+
   it('无规则命中时兜底 Pass（第 9 用例：^$ 与兜底）', () => {
     const hand = parseHand('SJ32 H854 D763 C92'); // 1 HCP，无任何开叫条件
     const call = bidAI(hand, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
