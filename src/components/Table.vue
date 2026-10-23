@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
+import type { PlayRecommendation } from '../store/game';
 import { getSide, type Position } from '../models/gameState';
+import type { BidMeaningRow } from '../engine/bidMeaning';
 import { getSuit } from '../models/card';
 import { isCardLegal } from '../core/playing';
 import Hand from './Hand.vue';
 import BidHistory from './BidHistory.vue';
+import BidMeanings from './BidMeanings.vue';
 import ContractDisplay from './ContractDisplay.vue';
 import PlayingCard from './PlayingCard.vue';
 import SouthPlayed from './SouthPlayed.vue';
@@ -13,6 +16,20 @@ import { useScoringCardsVisible } from '../composables/useScoringCardsVisible';
 import { useBoardTrick } from '../composables/useBoardTrick';
 
 const store = useGameStore();
+/** 当前悬停的叫牌记录；为空时中央含义浮层不显示 */
+const hoveredBid = ref<BidMeaningRow | null>(null);
+
+function onBidHover(row: BidMeaningRow | null): void {
+  hoveredBid.value = row;
+}
+
+watch(
+  [() => store.phase, () => store.biddingHistory.length],
+  () => {
+    hoveredBid.value = null;
+  },
+);
+
 /** 一局结束后桌面上的牌只再显示 1 秒 */
 const cardsVisible = useScoringCardsVisible();
 /** 第四家出牌后，完整一墩只再显示 1 秒，然后清空等待下一轮 */
@@ -44,6 +61,18 @@ function isActive(pos: Position): boolean {
   return false;
 }
 
+/** 人类出牌推荐：基于同步启发式规则，关闭提示时不计算 */
+const recommendation = computed<PlayRecommendation | null>(() => {
+  if (!store.showHints) return null;
+  const pos = store.nextPlayer;
+  if (!pos || !isClickable(pos)) return null;
+  return store.recommendPlayDetails(pos);
+});
+/** 推荐箭头指向的牌；推荐本身不再让牌张自动弹起 */
+const recommendedCard = computed<number | null>(() => recommendation.value?.card ?? null);
+/** 悬停推荐箭头时展示的理由 */
+const recommendationReason = computed<string | null>(() => recommendation.value?.reason ?? null);
+
 /** 当前是否轮到该座位出牌（用于显示指向其手牌的闪烁箭头） */
 function showTurnArrow(pos: Position): boolean {
   const playing = store.phase === 'play' || store.phase === 'play_waiting_lead';
@@ -64,6 +93,13 @@ watch(
   },
 );
 
+watch(
+  () => store.showHints,
+  (show) => {
+    if (!show) hoveredBid.value = null;
+  },
+);
+
 /** 当前墩的领出花色；本轮为空时返回 null（首攻/领出） */
 function currentLeadSuit() {
   return store.currentTrick.length ? getSuit(store.currentTrick[0].card) : null;
@@ -78,17 +114,14 @@ function onCardClick(pos: Position, card: number): void {
   if (!isClickable(pos) || store.nextPlayer !== pos) return;
   // 不允许出的牌不弹出、不进入待选状态
   if (!isCardPlayable(pos, card)) return;
+  // 推荐只通过箭头提示，不自动弹起；左键仍然只负责选中/复原。
   selectedCard.value = selectedCard.value === card ? null : card;
 }
 
-/** 右键确认：仅当该牌已用左键选中时才真正出牌 */
+/** 右键直接出牌：无需先左键选中，推荐牌也只需一次右键 */
 function onCardConfirm(pos: Position, card: number): void {
   if (!isClickable(pos) || store.nextPlayer !== pos) return;
   if (!isCardPlayable(pos, card)) return;
-  if (selectedCard.value !== card) {
-    selectedCard.value = card;
-    return;
-  }
   selectedCard.value = null;
   void store.humanPlay(card);
 }
@@ -135,6 +168,8 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :active="isActive('N')"
         :show-turn-arrow="showTurnArrow('N')"
         :selected-card="selectedCard"
+        :recommended-card="recommendedCard"
+        :recommendation-reason="recommendationReason"
         @card-click="(c) => onCardClick('N', c)"
         @card-confirm="(c) => onCardConfirm('N', c)"
         @card-dblclick="(c) => onCardDoubleClick('N', c)"
@@ -185,6 +220,8 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :active="isActive('W')"
         :show-turn-arrow="showTurnArrow('W')"
         :selected-card="selectedCard"
+        :recommended-card="recommendedCard"
+        :recommendation-reason="recommendationReason"
         @card-click="(c) => onCardClick('W', c)"
         @card-confirm="(c) => onCardConfirm('W', c)"
         @card-dblclick="(c) => onCardDoubleClick('W', c)"
@@ -193,7 +230,13 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
 
     <!-- 中央：叫牌时显示叫牌过程，打牌时按出牌次序叠放本墩牌面 -->
     <div class="center">
-      <BidHistory v-if="store.phase === 'bidding'" class="center-bid-history" variant="table" />
+      <BidHistory
+        v-if="store.phase === 'bidding'"
+        class="center-bid-history"
+        variant="table"
+        :show-meanings="store.showHints"
+        @bid-hover="onBidHover"
+      />
 
       <div v-else-if="store.phase !== 'idle' && cardsVisible" class="trick-board">
         <div v-if="boardTrick.plays.length" class="trick-stack">
@@ -209,6 +252,12 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
           </div>
         </div>
       </div>
+
+      <!-- 唯一的叫牌含义浮层：悬停叫牌记录时出现在中央，移开记录格即隐藏 -->
+      <BidMeanings
+        v-if="store.phase === 'bidding' && store.showHints"
+        :row="hoveredBid"
+      />
     </div>
 
     <!-- 南家已出牌（右下角）+ 计分表 / 摊牌 / 定约卡 / 托管 -->
@@ -229,6 +278,8 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :active="isActive('E')"
         :show-turn-arrow="showTurnArrow('E')"
         :selected-card="selectedCard"
+        :recommended-card="recommendedCard"
+        :recommendation-reason="recommendationReason"
         @card-click="(c) => onCardClick('E', c)"
         @card-confirm="(c) => onCardConfirm('E', c)"
         @card-dblclick="(c) => onCardDoubleClick('E', c)"
@@ -246,6 +297,8 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
         :active="isActive('S')"
         :show-turn-arrow="showTurnArrow('S')"
         :selected-card="selectedCard"
+        :recommended-card="recommendedCard"
+        :recommendation-reason="recommendationReason"
         @card-click="(c) => onCardClick('S', c)"
         @card-confirm="(c) => onCardConfirm('S', c)"
         @card-dblclick="(c) => onCardDoubleClick('S', c)"
@@ -294,11 +347,12 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
 .seat,
 .center {
   position: relative;
-  z-index: 1;
 }
-/* 轮到出牌的座位略高于中央出牌区，保证指向手牌的箭头不被牌面遮住 */
-.seat.active {
-  z-index: 2;
+/* 座位保持独立层级；中央区域不创建 stacking context，
+   让叫牌含义浮层可以提升到东家手牌之上，而不是被手牌遮挡。
+   中央区域没有 z-index 时，座位本身已经在其之上，无需再为当前座位单独抬高。 */
+.seat {
+  z-index: 1;
 }
 .north {
   grid-area: north;
@@ -357,6 +411,7 @@ const showPlayBidHistory = computed(() => isPlaying.value && store.biddingHistor
   font-weight: 700;
   text-shadow: none;
 }
+
 .seat.active .seat-profile {
   color: #ffe19a;
   text-shadow:

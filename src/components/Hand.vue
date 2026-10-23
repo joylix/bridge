@@ -19,7 +19,11 @@ const props = defineProps<{
   active?: boolean;
   /** 当前被左键选中的牌（再次点击取消选择） */
   selectedCard?: number | null;
-  /** 是否显示指向该手牌的“轮到你出牌”闪烁箭头 */
+  /** 规则引擎推荐的出牌；人类回合箭头会指向该牌，关闭提示时由父组件传 null */
+  recommendedCard?: number | null;
+  /** 推荐理由：悬停推荐箭头时显示 */
+  recommendationReason?: string | null;
+  /** 是否显示指向该手牌/推荐牌的“轮到你出牌”闪烁箭头 */
   showTurnArrow?: boolean;
 }>();
 
@@ -41,11 +45,18 @@ const rows = computed(() =>
 
 /** 按 ♠ ♥ ♣ ♦ 分组，缺门不占位 */
 const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
+
+/** 推荐牌确实还在当前手牌里时，才把箭头移到具体牌张上 */
+const hasCardRecommendation = computed(() => {
+  const card = props.recommendedCard;
+  return card !== null && card !== undefined && props.cards.includes(card);
+});
 </script>
 
 <template>
   <div class="hand" :class="[{ 'is-dummy': isDummy, active }, `pos-${position}`]">
-    <TurnArrow v-if="showTurnArrow" :position="position" />
+    <!-- 非人类回合/无推荐时，箭头停在手牌固定位置，只表示轮到该座位 -->
+    <TurnArrow v-if="showTurnArrow && !hasCardRecommendation" :position="position" />
     <div class="hand-inner">
       <div v-if="faceDown" class="cards backs">
         <PlayingCard v-for="i in cards.length" :key="i" back size="xxl" />
@@ -58,18 +69,31 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
       >
         <div class="hand-row">
           <span v-for="group in groups" :key="group.suit" class="suit-group">
-            <PlayingCard
+            <span
               v-for="card in group.cards"
               :key="card"
-              :card="card"
-              size="xxl"
-              :clickable="clickable"
-              :active="active && clickable"
-              :selected="selectedCard === card"
-              @click="emit('card-click', card)"
-              @dblclick="emit('card-dblclick', card)"
-              @contextmenu.prevent="emit('card-confirm', card)"
-            />
+              class="card-slot"
+              :data-card="card"
+            >
+              <PlayingCard
+                :card="card"
+                size="xxl"
+                :clickable="clickable"
+                :active="active && clickable"
+                :selected="selectedCard === card"
+                @click="emit('card-click', card)"
+                @dblclick="emit('card-dblclick', card)"
+                @contextmenu.prevent="emit('card-confirm', card)"
+              />
+              <!-- 人类当前出牌时，同一个闪烁箭头移到推荐牌上；悬停显示推荐理由 -->
+              <TurnArrow
+                v-if="showTurnArrow && recommendedCard === card"
+                :position="position"
+                :card="card"
+                :reason="recommendationReason"
+                card-target
+              />
+            </span>
           </span>
         </div>
       </div>
@@ -111,9 +135,15 @@ const groups = computed(() => rows.value.filter((row) => row.cards.length > 0));
   align-items: flex-end;
   flex: none;
 }
+.card-slot {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+}
 /* 同花色与跨花色均使用完全相同的叠放距离 */
 .suit-group + .suit-group,
-.suit-group .playing-card + .playing-card {
+.suit-group .card-slot + .card-slot {
   margin-left: var(--card-overlap);
 }
 .suits.no-events {

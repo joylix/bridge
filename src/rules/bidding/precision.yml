@@ -153,90 +153,704 @@ rules:
   - id: resp_1c_1d_negative
     description: "1C 后示弱 1D：0-7"
     sequence: "P:1C R:Pass"
-    when: { hcp: "0-7" }
+    when: { hcp: "0-7", partnerOpened: true }
     action: "1D"
     priority: 90
 
   - id: resp_1c_1h_positive
     description: "1C 后自然正应 1H：8+，5+ 红桃"
     sequence: "P:1C R:Pass"
-    when: { hcp: "8+", hearts: "5+" }
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
     action: "1H"
     priority: 88
 
   - id: resp_1c_1s_positive
     description: "1C 后自然正应 1S：8+，5+ 黑桃"
     sequence: "P:1C R:Pass"
-    when: { hcp: "8+", spades: "5+" }
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
     action: "1S"
     priority: 87
 
   - id: resp_1c_2c_positive
     description: "1C 后正应 2C：8+，5+ 梅花"
     sequence: "P:1C R:Pass"
-    when: { hcp: "8+", clubs: "5+" }
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
     action: "2C"
     priority: 86
 
   - id: resp_1c_2d_positive
     description: "1C 后正应 2D：8+，5+ 方块"
     sequence: "P:1C R:Pass"
-    when: { hcp: "8+", diamonds: "5+" }
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
     action: "2D"
     priority: 85
 
   - id: resp_1c_2nt_bal
     description: "1C 后正应 2NT：11-13 均型"
     sequence: "P:1C R:Pass"
-    when: { hcp: "11-13", balanced: true }
+    when: { hcp: "11-13", balanced: true, partnerOpened: true }
     action: "2NT"
     priority: 84
+
+  - id: opener_1c_2nt_3nt
+    description: "1C-2NT 后，16-18 均型叫 3NT"
+    sequence: "M:1C L:Pass P:2NT R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_2nt_4nt
+    description: "1C-2NT 后，19-21 均型定量邀叫 4NT"
+    sequence: "M:1C L:Pass P:2NT R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "4NT"
+    priority: 94
+
+  - id: opener_1c_2nt_6nt
+    description: "1C-2NT 后，22+ 均型叫 6NT"
+    sequence: "M:1C L:Pass P:2NT R:Pass"
+    when: { hcp: "22+", balanced: true }
+    action: "6NT"
+    priority: 95
+
+  - id: opener_1c_2nt_3c
+    description: "1C-2NT 后，6+ 梅花再叫 3C"
+    sequence: "M:1C L:Pass P:2NT R:Pass"
+    when: { clubs: "6+" }
+    action: "3C"
+    priority: 90
+
+  - id: opener_1c_2nt_3nt_default
+    description: "1C-2NT 后，16+ 未命中自然再叫时叫 3NT"
+    sequence: "M:1C L:Pass P:2NT R:Pass"
+    when: { hcp: "16+" }
+    action: "3NT"
+    priority: 80
+
+  - id: resp_1c_2nt_3c_3nt
+    description: "1C-2NT-3C 后，11-13 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2NT L:Pass P:3C R:Pass"
+    when: { hcp: "11-13", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_1c_2nt_3c_5c
+    description: "1C-2NT-3C 后，11-13 且 3+ 梅花进局 5C"
+    sequence: "P:1C R:Pass M:2NT L:Pass P:3C R:Pass"
+    when: { hcp: "11-13", clubs: "3+", partnerOpened: true }
+    action: "5C"
+    priority: 91
+
+  - id: opener_1c_2nt_3c_3d_3nt
+    description: "1C-2NT-3C-3D 后，开叫人 16+ 叫 3NT"
+    sequence: "M:1C L:Pass P:2NT R:Pass M:3C L:Pass P:3D R:Pass"
+    when: { hcp: "16+" }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_2nt_3c_3d_5c
+    description: "1C-2NT-3C-3D 后，开叫人 19+ 且 7+ 梅花进局 5C"
+    sequence: "M:1C L:Pass P:2NT R:Pass M:3C L:Pass P:3D R:Pass"
+    when: { hcp: "19+", clubs: "7+" }
+    action: "5C"
+    priority: 93
 
   - id: resp_1c_1nt_bal
     description: "1C 后正应 1NT：8-10 均型"
     sequence: "P:1C R:Pass"
-    when: { hcp: "8-10", balanced: true }
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
     action: "1NT"
     priority: 83
 
   # 1C 遭干扰
   - id: resp_1c_overcall_weak_pass
-    description: "同伴 1C 遭干扰，弱牌 Pass"
+    description: "同伴 1C 遭 1D 干扰，弱牌 Pass"
     sequence: "P:1C R:1D"
-    when: { hcp: "0-4" }
+    when: { hcp: "0-7", partnerOpened: true }
     action: "Pass"
     priority: 30
+
+  - id: resp_1c_over_1d_1h
+    description: "1C-(1D) 后 1H：8+，5+ 红桃"
+    sequence: "P:1C R:1D"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "1H"
+    priority: 84
+
+  - id: resp_1c_over_1d_1s
+    description: "1C-(1D) 后 1S：8+，5+ 黑桃"
+    sequence: "P:1C R:1D"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "1S"
+    priority: 83
+
+  - id: resp_1c_over_1d_x
+    description: "1C-(1D) 后 X：8+，4+ 双高花"
+    sequence: "P:1C R:1D"
+    when: { hcp: "8+", hearts: "4+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_1d_2c
+    description: "1C-(1D) 后 2C：8+，5+ 梅花"
+    sequence: "P:1C R:1D"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 76
+
+  - id: resp_1c_over_1d_1nt
+    description: "1C-(1D) 后 1NT：8-10 均型，方块有挡张"
+    sequence: "P:1C R:1D"
+    when: { hcp: "8-10", balanced: true, stoppers: "D", partnerOpened: true }
+    action: "1NT"
+    priority: 78
+
+  - id: resp_1c_over_1d_2nt
+    description: "1C-(1D) 后 2NT：11-12 均型，方块有挡张"
+    sequence: "P:1C R:1D"
+    when: { hcp: "11-12", balanced: true, stoppers: "D", partnerOpened: true }
+    action: "2NT"
+    priority: 79
+
+  - id: resp_1c_over_1d_3nt
+    description: "1C-(1D) 后 3NT：13+ 均型，方块有挡张"
+    sequence: "P:1C R:1D"
+    when: { hcp: "13+", balanced: true, stoppers: "D", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  - id: resp_1c_over_1h_pass
+    description: "同伴 1C 遭 1H 干扰，弱牌 Pass"
+    sequence: "P:1C R:1H"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1c_over_1h_1s
+    description: "1C-(1H) 后 1S：8+，5+ 黑桃"
+    sequence: "P:1C R:1H"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "1S"
+    priority: 84
+
+  - id: resp_1c_over_1h_x
+    description: "1C-(1H) 后 X：8+，4+ 黑桃"
+    sequence: "P:1C R:1H"
+    when: { hcp: "8+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_1h_1nt
+    description: "1C-(1H) 后 1NT：8-10 均型，红桃有挡张"
+    sequence: "P:1C R:1H"
+    when: { hcp: "8-10", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "1NT"
+    priority: 78
+
+  - id: resp_1c_over_1h_2c
+    description: "1C-(1H) 后 2C：8+，5+ 梅花"
+    sequence: "P:1C R:1H"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 76
+
+  - id: resp_1c_over_1h_2d
+    description: "1C-(1H) 后 2D：8+，5+ 方块"
+    sequence: "P:1C R:1H"
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 75
+
+  - id: resp_1c_over_1h_2nt
+    description: "1C-(1H) 后 2NT：11-12 均型，红桃有挡张"
+    sequence: "P:1C R:1H"
+    when: { hcp: "11-12", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "2NT"
+    priority: 79
+
+  - id: resp_1c_over_1h_3nt
+    description: "1C-(1H) 后 3NT：13+ 均型，红桃有挡张"
+    sequence: "P:1C R:1H"
+    when: { hcp: "13+", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  - id: resp_1c_over_1s_pass
+    description: "同伴 1C 遭 1S 干扰，弱牌 Pass"
+    sequence: "P:1C R:1S"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1c_over_1s_2h
+    description: "1C-(1S) 后 2H：8+，5+ 红桃"
+    sequence: "P:1C R:1S"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 84
+
+  - id: resp_1c_over_1s_x
+    description: "1C-(1S) 后 X：8+，4+ 红桃"
+    sequence: "P:1C R:1S"
+    when: { hcp: "8+", hearts: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_1s_2c
+    description: "1C-(1S) 后 2C：8+，5+ 梅花"
+    sequence: "P:1C R:1S"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 76
+
+  - id: resp_1c_over_1s_2d
+    description: "1C-(1S) 后 2D：8+，5+ 方块"
+    sequence: "P:1C R:1S"
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 75
+
+  - id: resp_1c_over_1s_1nt
+    description: "1C-(1S) 后 1NT：8-10 均型，黑桃有挡张"
+    sequence: "P:1C R:1S"
+    when: { hcp: "8-10", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "1NT"
+    priority: 78
+
+  - id: resp_1c_over_1s_2nt
+    description: "1C-(1S) 后 2NT：11-12 均型，黑桃有挡张"
+    sequence: "P:1C R:1S"
+    when: { hcp: "11-12", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "2NT"
+    priority: 79
+
+  - id: resp_1c_over_1s_3nt
+    description: "1C-(1S) 后 3NT：13+ 均型，黑桃有挡张"
+    sequence: "P:1C R:1S"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  # 1C 遭二阶干扰
+  - id: resp_1c_over_2c_pass
+    description: "1C-(2C) 后弱牌 Pass"
+    sequence: "P:1C R:2C"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1c_over_2c_x
+    description: "1C-(2C) 后 X：8+，4+ 双高花"
+    sequence: "P:1C R:2C"
+    when: { hcp: "8+", hearts: "4+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_2c_2d
+    description: "1C-(2C) 后 2D：8+，5+ 方块"
+    sequence: "P:1C R:2C"
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 84
+
+  - id: resp_1c_over_2c_2h
+    description: "1C-(2C) 后 2H：8+，5+ 红桃"
+    sequence: "P:1C R:2C"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 83
+
+  - id: resp_1c_over_2c_2s
+    description: "1C-(2C) 后 2S：8+，5+ 黑桃"
+    sequence: "P:1C R:2C"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 83
+
+  - id: resp_1c_over_2c_2nt
+    description: "1C-(2C) 后 2NT：8-10 均型，梅花有挡张"
+    sequence: "P:1C R:2C"
+    when: { hcp: "8-10", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "2NT"
+    priority: 78
+
+  - id: resp_1c_over_2c_3nt
+    description: "1C-(2C) 后 3NT：13+ 均型，梅花有挡张"
+    sequence: "P:1C R:2C"
+    when: { hcp: "13+", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  - id: resp_1c_over_2d_pass
+    description: "1C-(2D) 后弱牌 Pass"
+    sequence: "P:1C R:2D"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1c_over_2d_x
+    description: "1C-(2D) 后 X：8+，4+ 双高花"
+    sequence: "P:1C R:2D"
+    when: { hcp: "8+", hearts: "4+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_2d_2h
+    description: "1C-(2D) 后 2H：8+，5+ 红桃"
+    sequence: "P:1C R:2D"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 84
+
+  - id: resp_1c_over_2d_2s
+    description: "1C-(2D) 后 2S：8+，5+ 黑桃"
+    sequence: "P:1C R:2D"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 83
+
+  - id: resp_1c_over_2d_3c
+    description: "1C-(2D) 后 3C：8+，5+ 梅花"
+    sequence: "P:1C R:2D"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 76
+
+  - id: resp_1c_over_2d_2nt
+    description: "1C-(2D) 后 2NT：8-10 均型，方块有挡张"
+    sequence: "P:1C R:2D"
+    when: { hcp: "8-10", balanced: true, stoppers: "D", partnerOpened: true }
+    action: "2NT"
+    priority: 78
+
+  - id: resp_1c_over_2d_3nt
+    description: "1C-(2D) 后 3NT：13+ 均型，方块有挡张"
+    sequence: "P:1C R:2D"
+    when: { hcp: "13+", balanced: true, stoppers: "D", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  - id: resp_1c_over_2h_pass
+    description: "1C-(2H) 后弱牌 Pass"
+    sequence: "P:1C R:2H"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1c_over_2h_x
+    description: "1C-(2H) 后 X：8+，4+ 黑桃"
+    sequence: "P:1C R:2H"
+    when: { hcp: "8+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_2h_2s
+    description: "1C-(2H) 后 2S：8+，5+ 黑桃"
+    sequence: "P:1C R:2H"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 84
+
+  - id: resp_1c_over_2h_3c
+    description: "1C-(2H) 后 3C：8+，5+ 梅花"
+    sequence: "P:1C R:2H"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 76
+
+  - id: resp_1c_over_2h_3d
+    description: "1C-(2H) 后 3D：8+，5+ 方块"
+    sequence: "P:1C R:2H"
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
+    action: "3D"
+    priority: 75
+
+  - id: resp_1c_over_2h_2nt
+    description: "1C-(2H) 后 2NT：8-10 均型，红桃有挡张"
+    sequence: "P:1C R:2H"
+    when: { hcp: "8-10", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "2NT"
+    priority: 78
+
+  - id: resp_1c_over_2h_3nt
+    description: "1C-(2H) 后 3NT：13+ 均型，红桃有挡张"
+    sequence: "P:1C R:2H"
+    when: { hcp: "13+", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  - id: resp_1c_over_2s_pass
+    description: "1C-(2S) 后弱牌 Pass"
+    sequence: "P:1C R:2S"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1c_over_2s_x
+    description: "1C-(2S) 后 X：8+，4+ 红桃"
+    sequence: "P:1C R:2S"
+    when: { hcp: "8+", hearts: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1c_over_2s_3h
+    description: "1C-(2S) 后 3H：8+，5+ 红桃"
+    sequence: "P:1C R:2S"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "3H"
+    priority: 84
+
+  - id: resp_1c_over_2s_3c
+    description: "1C-(2S) 后 3C：8+，5+ 梅花"
+    sequence: "P:1C R:2S"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 76
+
+  - id: resp_1c_over_2s_3d
+    description: "1C-(2S) 后 3D：8+，5+ 方块"
+    sequence: "P:1C R:2S"
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
+    action: "3D"
+    priority: 75
+
+  - id: resp_1c_over_2s_2nt
+    description: "1C-(2S) 后 2NT：8-10 均型，黑桃有挡张"
+    sequence: "P:1C R:2S"
+    when: { hcp: "8-10", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "2NT"
+    priority: 78
+
+  - id: resp_1c_over_2s_3nt
+    description: "1C-(2S) 后 3NT：13+ 均型，黑桃有挡张"
+    sequence: "P:1C R:2S"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 81
 
   # ------------------------------------------------------------------
   # 应叫同伴 1NT（13-15 均型）
   # ------------------------------------------------------------------
-  - id: resp_1nt_3nt
-    description: "1NT 后 10+ 直接 3NT"
+  - id: resp_1nt_4nt_quant
+    description: "1NT 后 4NT 定量邀叫：16-17 均型"
     sequence: "P:1NT R:Pass"
-    when: { hcp: "10+" }
+    when: { hcp: "16-17", balanced: true, partnerOpened: true }
+    action: "4NT"
+    priority: 94
+
+  - id: resp_1nt_6nt
+    description: "1NT 后 6NT：18-19 均型"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "18-19", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: resp_1nt_3nt
+    description: "1NT 后 3NT：10-15，无四张高花（有高花先走斯台曼/转移）"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "10-15", fourCardMajor: false, partnerOpened: true }
     action: "3NT"
     priority: 90
 
   - id: resp_1nt_2c_stayman
     description: "1NT 后 2C 斯台曼：8+，至少一门高花 4 张"
     sequence: "P:1NT R:Pass"
-    when: { hcp: "8+", spades: "4+" }
+    when: { hcp: "8+", fourCardMajor: true, partnerOpened: true }
     action: "2C"
     priority: 80
 
   - id: resp_1nt_2d_transfer_h
     description: "1NT 后 2D 转移红桃：8+，5+ 红桃"
     sequence: "P:1NT R:Pass"
-    when: { hcp: "8+", hearts: "5+" }
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
     action: "2D"
-    priority: 78
+    priority: 82
+
+  - id: resp_1nt_2h_transfer_s
+    description: "1NT 后 2H 转移黑桃：8+，5+ 黑桃"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 81
+
+  - id: resp_1nt_2nt_invite
+    description: "1NT 后 2NT 邀叫：8-9 均型，无四张高花"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "8-9", balanced: true, fourCardMajor: false, partnerOpened: true }
+    action: "2NT"
+    priority: 76
 
   - id: resp_1nt_pass_weak
     description: "1NT 后弱牌 Pass（0-7）"
     sequence: "P:1NT R:Pass"
-    when: { hcp: "0-7" }
+    when: { hcp: "0-7", partnerOpened: true }
     action: "Pass"
     priority: 70
+
+  # 1NT 开叫人对邀叫的接受
+  - id: opener_1nt_2nt_3nt
+    description: "1NT-2NT 邀叫后，14-15 接受 3NT"
+    sequence: "M:1NT L:Pass P:2NT R:Pass"
+    when: { hcp: "14-15" }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1nt_4nt_6nt
+    description: "1NT-4NT 定量邀叫后，15 点接受 6NT"
+    sequence: "M:1NT L:Pass P:4NT R:Pass"
+    when: { hcp: "15" }
+    action: "6NT"
+    priority: 94
+
+  - id: opener_stayman_2h_3h_4h
+    description: "1NT-2C-2H-3H 邀叫后，14-15 接受 4H"
+    sequence: "M:1NT L:Pass P:2C R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "14-15", hearts: "4+" }
+    action: "4H"
+    priority: 90
+
+  - id: opener_stayman_2s_3s_4s
+    description: "1NT-2C-2S-3S 邀叫后，14-15 接受 4S"
+    sequence: "M:1NT L:Pass P:2C R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "14-15", spades: "4+" }
+    action: "4S"
+    priority: 90
+
+  - id: opener_transfer_h_3h_4h
+    description: "1NT-2D-2H-3H 邀叫后，14-15 接受 4H"
+    sequence: "M:1NT L:Pass P:2D R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "14-15" }
+    action: "4H"
+    priority: 90
+
+  - id: opener_transfer_s_3s_4s
+    description: "1NT-2H-2S-3S 邀叫后，14-15 接受 4S"
+    sequence: "M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "14-15" }
+    action: "4S"
+    priority: 90
+
+  # —— 1NT 开叫人对斯台曼 / 转移的应答 ——
+  - id: opener_stayman_2s
+    description: "1NT-2C 斯台曼：4+ 黑桃先答 2S"
+    sequence: "M:1NT L:Pass P:2C R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 96
+
+  - id: opener_stayman_2h
+    description: "1NT-2C 斯台曼：4+ 红桃答 2H"
+    sequence: "M:1NT L:Pass P:2C R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 95
+
+  - id: opener_stayman_2d
+    description: "1NT-2C 斯台曼：无四张高花答 2D"
+    sequence: "M:1NT L:Pass P:2C R:Pass"
+    when: { spades: "0-3", hearts: "0-3" }
+    action: "2D"
+    priority: 94
+
+  - id: opener_accept_transfer_h
+    description: "1NT-2D 转移红桃：接受转移叫 2H"
+    sequence: "M:1NT L:Pass P:2D R:Pass"
+    when: {}
+    action: "2H"
+    priority: 96
+
+  - id: opener_accept_transfer_s
+    description: "1NT-2H 转移黑桃：接受转移叫 2S"
+    sequence: "M:1NT L:Pass P:2H R:Pass"
+    when: {}
+    action: "2S"
+    priority: 96
+
+  # —— 转移后的继续 ——
+  - id: resp_transfer_h_4h
+    description: "红桃转移完成后，12+ 且 6+ 红桃进局"
+    sequence: "P:1NT R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "12+", hearts: "6+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_transfer_h_3nt
+    description: "红桃转移完成后，10+ 无更长红桃则 3NT"
+    sequence: "P:1NT R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "10+", hearts: "0-5", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_transfer_h_3h
+    description: "红桃转移完成后，10-11 且 6+ 红桃邀叫 3H"
+    sequence: "P:1NT R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "10-11", hearts: "6+", partnerOpened: true }
+    action: "3H"
+    priority: 90
+
+  - id: resp_transfer_s_4s
+    description: "黑桃转移完成后，12+ 且 6+ 黑桃进局"
+    sequence: "P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "12+", spades: "6+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  - id: resp_transfer_s_3nt
+    description: "黑桃转移完成后，10+ 无更长黑桃则 3NT"
+    sequence: "P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "10+", spades: "0-5", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_transfer_s_3s
+    description: "黑桃转移完成后，10-11 且 6+ 黑桃邀叫 3S"
+    sequence: "P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "10-11", spades: "6+", partnerOpened: true }
+    action: "3S"
+    priority: 90
+
+  # —— 斯台曼答叫后的继续 ——
+  - id: resp_stayman_2h_game
+    description: "斯台曼找到红桃 4-4 配合，10+ 进局 4H"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "10+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 90
+
+  - id: resp_stayman_2h_invite
+    description: "斯台曼找到红桃配合，8-9 邀叫 3H"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "8-9", hearts: "4+", partnerOpened: true }
+    action: "3H"
+    priority: 89
+
+  - id: resp_stayman_2s_game
+    description: "斯台曼找到黑桃 4-4 配合，10+ 进局 4S"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "10+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 90
+
+  - id: resp_stayman_2s_invite
+    description: "斯台曼找到黑桃配合，8-9 邀叫 3S"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "8-9", spades: "4+", partnerOpened: true }
+    action: "3S"
+    priority: 89
+
+  - id: resp_stayman_2d_3nt
+    description: "斯台曼无高花配合，10+ 叫 3NT"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2D R:Pass"
+    when: { hcp: "10+", partnerOpened: true }
+    action: "3NT"
+    priority: 88
+
+  - id: resp_stayman_2d_2nt
+    description: "斯台曼无高花配合，8-9 邀叫 2NT"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2D R:Pass"
+    when: { hcp: "8-9", partnerOpened: true }
+    action: "2NT"
+    priority: 87
 
   # ------------------------------------------------------------------
   # 应叫同伴 1H / 1S（5 张高花 11-15）
@@ -244,100 +858,605 @@ rules:
   - id: resp_1h_raise_weak
     description: "1H 弱加叫 2H：3+ 支持，6-9"
     sequence: "P:1H R:Pass"
-    when: { hcp: "6-9", hearts: "3+" }
+    when: { hcp: "6-9", hearts: "3+", partnerOpened: true }
     action: "2H"
     priority: 75
 
   - id: resp_1h_raise_game
     description: "1H 进局加叫 4H：3+ 支持，14+"
     sequence: "P:1H R:Pass"
-    when: { hcp: "14+", hearts: "3+" }
+    when: { hcp: "14+", hearts: "3+", partnerOpened: true }
     action: "4H"
     priority: 80
 
   - id: resp_1h_raise_limit
     description: "1H 邀叫加叫 3H：3+ 支持，10-13"
     sequence: "P:1H R:Pass"
-    when: { hcp: "10-13", hearts: "3+" }
+    when: { hcp: "10-13", hearts: "3+", partnerOpened: true }
     action: "3H"
     priority: 78
 
   - id: resp_1h_2nt_invite
     description: "1H 后 2NT 邀叫：13-15 均型"
     sequence: "P:1H R:Pass"
-    when: { hcp: "13-15", balanced: true }
+    when: { hcp: "13-15", balanced: true, partnerOpened: true }
     action: "2NT"
     priority: 76
 
   - id: resp_1h_2c_natural
     description: "1H 后自然 2C：11+，5+ 梅花"
     sequence: "P:1H R:Pass"
-    when: { hcp: "11+", clubs: "5+" }
+    when: { hcp: "11+", clubs: "5+", partnerOpened: true }
     action: "2C"
     priority: 74
 
   - id: resp_1h_1s_natural
     description: "1H 后自然 1S：6+，4+ 黑桃"
     sequence: "P:1H R:Pass"
-    when: { hcp: "6+", spades: "4+" }
+    when: { hcp: "6+", spades: "4+", partnerOpened: true }
     action: "1S"
     priority: 70
 
   - id: resp_1h_1nt
     description: "1H 后 1NT：6-10，无更好叫品"
     sequence: "P:1H R:Pass"
-    when: { hcp: "6-10" }
+    when: { hcp: "6-10", partnerOpened: true }
     action: "1NT"
     priority: 60
+
+  - id: resp_1h_1nt_invite
+    description: "1H 后 1NT：11-12 均型，先保持叫牌空间"
+    sequence: "P:1H R:Pass"
+    when: { hcp: "11-12", balanced: true, partnerOpened: true }
+    action: "1NT"
+    priority: 68
+
+  - id: resp_1h_1nt_2nt_3nt
+    description: "1H-1NT-2NT 邀叫后，11-12 接受 3NT"
+    sequence: "P:1H R:Pass M:1NT L:Pass P:2NT R:Pass"
+    when: { hcp: "11-12", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 88
 
   - id: resp_1s_raise_weak
     description: "1S 弱加叫 2S：3+ 支持，6-9"
     sequence: "P:1S R:Pass"
-    when: { hcp: "6-9", spades: "3+" }
+    when: { hcp: "6-9", spades: "3+", partnerOpened: true }
     action: "2S"
     priority: 75
 
   - id: resp_1s_raise_game
     description: "1S 进局加叫 4S：3+ 支持，14+"
     sequence: "P:1S R:Pass"
-    when: { hcp: "14+", spades: "3+" }
+    when: { hcp: "14+", spades: "3+", partnerOpened: true }
     action: "4S"
     priority: 80
 
   - id: resp_1s_raise_limit
     description: "1S 邀叫加叫 3S：3+ 支持，10-13"
     sequence: "P:1S R:Pass"
-    when: { hcp: "10-13", spades: "3+" }
+    when: { hcp: "10-13", spades: "3+", partnerOpened: true }
     action: "3S"
     priority: 78
 
   - id: resp_1s_2nt_invite
     description: "1S 后 2NT 邀叫：13-15 均型"
     sequence: "P:1S R:Pass"
-    when: { hcp: "13-15", balanced: true }
+    when: { hcp: "13-15", balanced: true, partnerOpened: true }
     action: "2NT"
     priority: 76
 
   - id: resp_1s_2c_natural
     description: "1S 后自然 2C：11+，5+ 梅花"
     sequence: "P:1S R:Pass"
-    when: { hcp: "11+", clubs: "5+" }
+    when: { hcp: "11+", clubs: "5+", partnerOpened: true }
     action: "2C"
     priority: 74
 
   - id: resp_1s_2h_natural
     description: "1S 后新花 2H：10+，5+ 红桃"
     sequence: "P:1S R:Pass"
-    when: { hcp: "10+", hearts: "5+" }
+    when: { hcp: "10+", hearts: "5+", partnerOpened: true }
     action: "2H"
     priority: 70
 
   - id: resp_1s_1nt
     description: "1S 后 1NT：6-10"
     sequence: "P:1S R:Pass"
-    when: { hcp: "6-10" }
+    when: { hcp: "6-10", partnerOpened: true }
     action: "1NT"
     priority: 60
+
+  - id: resp_1s_1nt_invite
+    description: "1S 后 1NT：11-12 均型，先保持叫牌空间"
+    sequence: "P:1S R:Pass"
+    when: { hcp: "11-12", balanced: true, partnerOpened: true }
+    action: "1NT"
+    priority: 68
+
+  - id: resp_1s_1nt_2nt_3nt
+    description: "1S-1NT-2NT 邀叫后，11-12 接受 3NT"
+    sequence: "P:1S R:Pass M:1NT L:Pass P:2NT R:Pass"
+    when: { hcp: "11-12", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 88
+
+  - id: resp_1h_2d_natural
+    description: "1H 后新花 2D：10+，5+ 方块"
+    sequence: "P:1H R:Pass"
+    when: { hcp: "10+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 73
+
+  - id: resp_1h_3nt
+    description: "1H 后 3NT：16+ 均型，无更好配合"
+    sequence: "P:1H R:Pass"
+    when: { hcp: "16+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 79
+
+  - id: resp_1s_2d_natural
+    description: "1S 后新花 2D：10+，5+ 方块"
+    sequence: "P:1S R:Pass"
+    when: { hcp: "10+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 73
+
+  - id: resp_1s_3nt
+    description: "1S 后 3NT：16+ 均型，无更好配合"
+    sequence: "P:1S R:Pass"
+    when: { hcp: "16+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 79
+
+  # ------------------------------------------------------------------
+  # 1H/1S 开叫、简单加叫后的开叫人再叫
+  # ------------------------------------------------------------------
+  - id: opener_1h_2h_4h
+    description: "1H-2H 后，14-15 且 6+ 红桃进局"
+    sequence: "M:1H L:Pass P:2H R:Pass"
+    when: { hcp: "14-15", hearts: "6+" }
+    action: "4H"
+    priority: 85
+
+  - id: opener_1h_2h_3h
+    description: "1H-2H 后，13-15 且 6+ 红桃邀叫 3H"
+    sequence: "M:1H L:Pass P:2H R:Pass"
+    when: { hcp: "13-15", hearts: "6+" }
+    action: "3H"
+    priority: 82
+
+  - id: opener_1h_2h_3h_5
+    description: "1H-2H 后，14-15 且 5 张红桃邀叫 3H"
+    sequence: "M:1H L:Pass P:2H R:Pass"
+    when: { hcp: "14-15", hearts: "5+" }
+    action: "3H"
+    priority: 81
+
+  - id: opener_1h_3h_4h
+    description: "1H-3H 后，13-15 进局 4H"
+    sequence: "M:1H L:Pass P:3H R:Pass"
+    when: { hcp: "13-15", hearts: "5+" }
+    action: "4H"
+    priority: 86
+
+  - id: opener_1s_2s_4s
+    description: "1S-2S 后，14-15 且 6+ 黑桃进局"
+    sequence: "M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "14-15", spades: "6+" }
+    action: "4S"
+    priority: 85
+
+  - id: opener_1s_2s_3s
+    description: "1S-2S 后，13-15 且 6+ 黑桃邀叫 3S"
+    sequence: "M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "13-15", spades: "6+" }
+    action: "3S"
+    priority: 82
+
+  - id: opener_1s_2s_3s_5
+    description: "1S-2S 后，14-15 且 5 张黑桃邀叫 3S"
+    sequence: "M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "14-15", spades: "5+" }
+    action: "3S"
+    priority: 81
+
+  - id: opener_1s_3s_4s
+    description: "1S-3S 后，13-15 进局 4S"
+    sequence: "M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "13-15", spades: "5+" }
+    action: "4S"
+    priority: 86
+
+  - id: opener_1s_3s_4s_short
+    description: "1S-3S 后，12 点、5+ 黑桃且有单缺时进局 4S"
+    sequence: "M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "12", spades: "5+", singletons: "1+" }
+    action: "4S"
+    priority: 86
+
+  - id: resp_1h_2h_3h_4h
+    description: "1H-2H-3H 邀叫后，8-9 接受进局 4H"
+    sequence: "P:1H R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "8-9", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 84
+
+  - id: resp_1s_2s_3s_4s
+    description: "1S-2S-3S 邀叫后，8-9 接受进局 4S"
+    sequence: "P:1S R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8-9", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 84
+
+  # ------------------------------------------------------------------
+  # 1H/1S 开叫、二盖一应叫后的开叫人再叫
+  # ------------------------------------------------------------------
+  - id: opener_1h_2c_2s
+    description: "1H-2C 后，4+ 黑桃再叫 2S"
+    sequence: "M:1H L:Pass P:2C R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 87
+
+  - id: opener_1h_2c_2d
+    description: "1H-2C 后，5+ 方块再叫 2D"
+    sequence: "M:1H L:Pass P:2C R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 86
+
+  - id: opener_1h_2c_3c
+    description: "1H-2C 后，4+ 梅花加叫 3C"
+    sequence: "M:1H L:Pass P:2C R:Pass"
+    when: { clubs: "4+" }
+    action: "3C"
+    priority: 85
+
+  - id: opener_1h_2c_2h
+    description: "1H-2C 后，6+ 红桃再叫 2H"
+    sequence: "M:1H L:Pass P:2C R:Pass"
+    when: { hearts: "6+" }
+    action: "2H"
+    priority: 84
+
+  - id: opener_1h_2c_3nt
+    description: "1H-2C 后，14-15 均型叫 3NT"
+    sequence: "M:1H L:Pass P:2C R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 83
+
+  - id: opener_1h_2c_2nt
+    description: "1H-2C 后，均型无更好再叫叫 2NT"
+    sequence: "M:1H L:Pass P:2C R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 80
+
+  - id: opener_1h_2d_2s
+    description: "1H-2D 后，4+ 黑桃再叫 2S"
+    sequence: "M:1H L:Pass P:2D R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 87
+
+  - id: opener_1h_2d_3c
+    description: "1H-2D 后，5+ 梅花再叫 3C"
+    sequence: "M:1H L:Pass P:2D R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 86
+
+  - id: opener_1h_2d_3d
+    description: "1H-2D 后，4+ 方块加叫 3D"
+    sequence: "M:1H L:Pass P:2D R:Pass"
+    when: { diamonds: "4+" }
+    action: "3D"
+    priority: 85
+
+  - id: opener_1h_2d_2h
+    description: "1H-2D 后，6+ 红桃再叫 2H"
+    sequence: "M:1H L:Pass P:2D R:Pass"
+    when: { hearts: "6+" }
+    action: "2H"
+    priority: 84
+
+  - id: opener_1h_2d_3nt
+    description: "1H-2D 后，14-15 均型叫 3NT"
+    sequence: "M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 83
+
+  - id: opener_1h_2d_2nt
+    description: "1H-2D 后，均型无更好再叫叫 2NT"
+    sequence: "M:1H L:Pass P:2D R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 80
+
+  # 1H-2D-2S 后应叫人的继续
+  - id: resp_1h_2d_2s_4h
+    description: "1H-2D-2S 后，13+ 且 3+ 红桃进局 4H"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "13+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_1h_2d_2s_3nt
+    description: "1H-2D-2S 后，13+ 均型且有梅花挡张叫 3NT"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1h_2d_2s_5d
+    description: "1H-2D-2S 后，15+ 且 6+ 方块进局 5D"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "15+", diamonds: "6+", partnerOpened: true }
+    action: "5D"
+    priority: 91
+
+  - id: resp_1h_2d_2s_2nt
+    description: "1H-2D-2S 后，11-12 均型且有梅花挡张叫 2NT"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "11-12", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "2NT"
+    priority: 90
+
+  - id: resp_1h_2d_2s_3h
+    description: "1H-2D-2S 后，11+ 且 3+ 红桃加叫 3H"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "11+", hearts: "3+", partnerOpened: true }
+    action: "3H"
+    priority: 90
+
+  - id: resp_1h_2d_2s_3d
+    description: "1H-2D-2S 后，11+ 且 6+ 方块再叫 3D"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "11+", diamonds: "6+", partnerOpened: true }
+    action: "3D"
+    priority: 89
+
+  - id: opener_1h_2d_2s_3d_3nt
+    description: "1H-2D-2S-3D 后，开叫人 14-15 均型且有梅花挡张叫 3NT"
+    sequence: "M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "14-15", balanced: true, stoppers: "C" }
+    action: "3NT"
+    priority: 92
+
+  - id: opener_1h_2d_2s_3d_4h
+    description: "1H-2D-2S-3D 后，开叫人 6+ 红桃进局 4H"
+    sequence: "M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hearts: "6+" }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1h_2d_2s_3d_3h
+    description: "1H-2D-2S-3D 后，开叫人 5+ 红桃再叫 3H"
+    sequence: "M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 90
+
+  - id: resp_1h_2d_2s_3d_3h_3nt
+    description: "1H-2D-2S-3D-3H 后，应叫人 13+ 均型且有梅花挡张叫 3NT"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1h_2d_2s_3d_3h_4h
+    description: "1H-2D-2S-3D-3H 后，应叫人 11+ 且 3+ 红桃进局 4H"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "11+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1h_2d_2s_3d_3h_5d
+    description: "1H-2D-2S-3D-3H 后，应叫人 13+ 且 6+ 方块进局 5D"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "13+", diamonds: "6+", partnerOpened: true }
+    action: "5D"
+    priority: 92
+
+  - id: opener_1h_2nt_4h
+    description: "1H-2NT 后，14-15 且 6+ 红桃进局"
+    sequence: "M:1H L:Pass P:2NT R:Pass"
+    when: { hcp: "14-15", hearts: "6+" }
+    action: "4H"
+    priority: 92
+
+  - id: opener_1h_2nt_3nt
+    description: "1H-2NT 后，14-15 均型接受 3NT"
+    sequence: "M:1H L:Pass P:2NT R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1h_2nt_3h
+    description: "1H-2NT 后，11-13 且 6+ 红桃再叫 3H"
+    sequence: "M:1H L:Pass P:2NT R:Pass"
+    when: { hcp: "11-13", hearts: "6+" }
+    action: "3H"
+    priority: 85
+
+  - id: opener_1s_2c_2d
+    description: "1S-2C 后，5+ 方块再叫 2D"
+    sequence: "M:1S L:Pass P:2C R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 87
+
+  - id: opener_1s_2c_2h
+    description: "1S-2C 后，5+ 红桃再叫 2H"
+    sequence: "M:1S L:Pass P:2C R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 86
+
+  - id: opener_1s_2c_3c
+    description: "1S-2C 后，4+ 梅花加叫 3C"
+    sequence: "M:1S L:Pass P:2C R:Pass"
+    when: { clubs: "4+" }
+    action: "3C"
+    priority: 85
+
+  - id: opener_1s_2c_2s
+    description: "1S-2C 后，6+ 黑桃再叫 2S"
+    sequence: "M:1S L:Pass P:2C R:Pass"
+    when: { spades: "6+" }
+    action: "2S"
+    priority: 84
+
+  - id: opener_1s_2c_3nt
+    description: "1S-2C 后，14-15 均型叫 3NT"
+    sequence: "M:1S L:Pass P:2C R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 83
+
+  - id: opener_1s_2c_2nt
+    description: "1S-2C 后，均型无更好再叫叫 2NT"
+    sequence: "M:1S L:Pass P:2C R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 80
+
+  - id: opener_1s_2d_2h
+    description: "1S-2D 后，5+ 红桃再叫 2H"
+    sequence: "M:1S L:Pass P:2D R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 87
+
+  - id: opener_1s_2d_3c
+    description: "1S-2D 后，5+ 梅花再叫 3C"
+    sequence: "M:1S L:Pass P:2D R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 86
+
+  - id: opener_1s_2d_3d
+    description: "1S-2D 后，4+ 方块加叫 3D"
+    sequence: "M:1S L:Pass P:2D R:Pass"
+    when: { diamonds: "4+" }
+    action: "3D"
+    priority: 85
+
+  - id: opener_1s_2d_2s
+    description: "1S-2D 后，6+ 黑桃再叫 2S"
+    sequence: "M:1S L:Pass P:2D R:Pass"
+    when: { spades: "6+" }
+    action: "2S"
+    priority: 84
+
+  - id: opener_1s_2d_3nt
+    description: "1S-2D 后，14-15 均型叫 3NT"
+    sequence: "M:1S L:Pass P:2D R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 83
+
+  - id: opener_1s_2d_2nt
+    description: "1S-2D 后，均型无更好再叫叫 2NT"
+    sequence: "M:1S L:Pass P:2D R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 80
+
+  - id: opener_1s_2h_3c
+    description: "1S-2H 后，5+ 梅花再叫 3C"
+    sequence: "M:1S L:Pass P:2H R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 86
+
+  - id: opener_1s_2h_3d
+    description: "1S-2H 后，5+ 方块再叫 3D"
+    sequence: "M:1S L:Pass P:2H R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 85
+
+  - id: opener_1s_2h_3h
+    description: "1S-2H 后，4+ 红桃加叫 3H"
+    sequence: "M:1S L:Pass P:2H R:Pass"
+    when: { hearts: "4+" }
+    action: "3H"
+    priority: 85
+
+  - id: opener_1s_2h_2s
+    description: "1S-2H 后，6+ 黑桃再叫 2S"
+    sequence: "M:1S L:Pass P:2H R:Pass"
+    when: { spades: "6+" }
+    action: "2S"
+    priority: 84
+
+  - id: opener_1s_2h_3nt
+    description: "1S-2H 后，14-15 均型叫 3NT"
+    sequence: "M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 83
+
+  - id: opener_1s_2h_2nt
+    description: "1S-2H 后，均型无更好再叫叫 2NT"
+    sequence: "M:1S L:Pass P:2H R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 80
+
+  - id: opener_1s_2nt_4s
+    description: "1S-2NT 后，14-15 且 6+ 黑桃进局"
+    sequence: "M:1S L:Pass P:2NT R:Pass"
+    when: { hcp: "14-15", spades: "6+" }
+    action: "4S"
+    priority: 92
+
+  - id: opener_1s_2nt_3nt
+    description: "1S-2NT 后，14-15 均型接受 3NT"
+    sequence: "M:1S L:Pass P:2NT R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1s_2nt_3s
+    description: "1S-2NT 后，11-13 且 6+ 黑桃再叫 3S"
+    sequence: "M:1S L:Pass P:2NT R:Pass"
+    when: { hcp: "11-13", spades: "6+" }
+    action: "3S"
+    priority: 85
+
+  # 1D-1H/1S-2M 开叫人加叫后的应叫人进局
+  - id: resp_1d_1h_2h_4h
+    description: "1D-1H-2H 后，10+ 且 4+ 红桃进局"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2H R:Pass"
+    when: { hcp: "10+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 82
+
+  - id: resp_1d_1h_2h_3h
+    description: "1D-1H-2H 后，8-9 邀叫 3H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2H R:Pass"
+    when: { hcp: "8-9", hearts: "4+", partnerOpened: true }
+    action: "3H"
+    priority: 80
+
+  - id: resp_1d_1s_2s_4s
+    description: "1D-1S-2S 后，10+ 且 4+ 黑桃进局"
+    sequence: "P:1D R:Pass M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "10+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 82
+
+  - id: resp_1d_1s_2s_3s
+    description: "1D-1S-2S 后，8-9 邀叫 3S"
+    sequence: "P:1D R:Pass M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "8-9", spades: "4+", partnerOpened: true }
+    action: "3S"
+    priority: 80
 
   # ------------------------------------------------------------------
   # 应叫同伴 1D（11-15 预备叫）
@@ -345,30 +1464,115 @@ rules:
   - id: resp_1d_1h
     description: "1D 后自然 1H：6+，4+ 红桃"
     sequence: "P:1D R:Pass"
-    when: { hcp: "6+", hearts: "4+" }
+    when: { hcp: "6+", hearts: "4+", partnerOpened: true }
     action: "1H"
     priority: 72
 
   - id: resp_1d_1s
     description: "1D 后自然 1S：6+，4+ 黑桃"
     sequence: "P:1D R:Pass"
-    when: { hcp: "6+", spades: "4+" }
+    when: { hcp: "6+", spades: "4+", partnerOpened: true }
     action: "1S"
     priority: 71
 
   - id: resp_1d_raise
     description: "1D 加叫 2D：6-9，4+ 方块"
     sequence: "P:1D R:Pass"
-    when: { hcp: "6-9", diamonds: "4+" }
+    when: { hcp: "6-9", diamonds: "4+", partnerOpened: true }
     action: "2D"
     priority: 65
 
   - id: resp_1d_1nt
     description: "1D 后 1NT：6-10"
     sequence: "P:1D R:Pass"
-    when: { hcp: "6-10" }
+    when: { hcp: "6-10", partnerOpened: true }
     action: "1NT"
     priority: 55
+
+  - id: resp_1d_2c_natural
+    description: "1D 后新花 2C：11+，5+ 梅花"
+    sequence: "P:1D R:Pass"
+    when: { hcp: "11+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 70
+
+  - id: resp_1d_3d_invite
+    description: "1D 后 3D 邀叫：10-12，4+ 方块"
+    sequence: "P:1D R:Pass"
+    when: { hcp: "10-12", diamonds: "4+", partnerOpened: true }
+    action: "3D"
+    priority: 68
+
+  - id: resp_1d_2nt_invite
+    description: "1D 后 2NT 邀叫：13-15 均型"
+    sequence: "P:1D R:Pass"
+    when: { hcp: "13-15", balanced: true, partnerOpened: true }
+    action: "2NT"
+    priority: 69
+
+  - id: resp_1d_3nt
+    description: "1D 后 3NT：16+ 均型"
+    sequence: "P:1D R:Pass"
+    when: { hcp: "16+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 74
+
+  # 1D-2C / 2NT 后的开叫人再叫
+  - id: opener_1d_2c_2s
+    description: "1D-2C 后，4+ 黑桃再叫 2S"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 86
+
+  - id: opener_1d_2c_2h
+    description: "1D-2C 后，4+ 红桃再叫 2H"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 85
+
+  - id: opener_1d_2c_2d
+    description: "1D-2C 后，5+ 方块再叫 2D"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 84
+
+  - id: opener_1d_2c_3c
+    description: "1D-2C 后，4+ 梅花加叫 3C"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { clubs: "4+" }
+    action: "3C"
+    priority: 83
+
+  - id: opener_1d_2c_3nt
+    description: "1D-2C 后，14-15 均型叫 3NT"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 82
+
+  - id: opener_1d_2c_2nt
+    description: "1D-2C 后，均型无更好再叫叫 2NT"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 80
+
+  - id: opener_1d_2nt_3nt
+    description: "1D-2NT 后，14-15 均型接受 3NT"
+    sequence: "M:1D L:Pass P:2NT R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1d_2nt_3d
+    description: "1D-2NT 后，11-13 且 6+ 方块再叫 3D"
+    sequence: "M:1D L:Pass P:2NT R:Pass"
+    when: { hcp: "11-13", diamonds: "6+" }
+    action: "3D"
+    priority: 85
 
   # ------------------------------------------------------------------
   # 应叫同伴精确 2D（人工叫：11-15，4-4-1-4）与开叫人续叫
@@ -376,28 +1580,28 @@ rules:
   - id: resp_2d_2s_natural
     description: "同伴精确 2D 后应 2S：5+ 黑桃"
     sequence: "P:2D R:Pass"
-    when: { spades: "5+" }
+    when: { spades: "5+", partnerOpened: true }
     action: "2S"
     priority: 72
 
   - id: resp_2d_2h_natural
     description: "同伴精确 2D 后应 2H：5+ 红桃"
     sequence: "P:2D R:Pass"
-    when: { hearts: "5+" }
+    when: { hearts: "5+", partnerOpened: true }
     action: "2H"
     priority: 71
 
   - id: resp_2d_2nt_ask
     description: "同伴精确 2D 后 2NT 询问成局：10+"
     sequence: "P:2D R:Pass"
-    when: { hcp: "10+" }
+    when: { hcp: "10+", partnerOpened: true }
     action: "2NT"
     priority: 68
 
   - id: resp_2d_pass_weak
     description: "同伴精确 2D 后弱牌 Pass：0-9"
     sequence: "P:2D R:Pass"
-    when: { hcp: "0-9" }
+    when: { hcp: "0-9", partnerOpened: true }
     action: "Pass"
     priority: 60
 
@@ -415,6 +1619,1068 @@ rules:
     when: { hearts: "4" }
     action: "3H"
     priority: 41
+
+  # ------------------------------------------------------------------
+  # 应叫精确 2C（11-15，6+ 梅花或 5 梅花 + 4 张高花）
+  # ------------------------------------------------------------------
+  - id: resp_2c_2d_natural
+    description: "同伴 2C 后自然 2D：8+，5+ 方块"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "8+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 80
+
+  - id: resp_2c_2h_natural
+    description: "同伴 2C 后自然 2H：8+，5+ 红桃"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 79
+
+  - id: resp_2c_2s_natural
+    description: "同伴 2C 后自然 2S：8+，5+ 黑桃"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 78
+
+  - id: resp_2c_2nt_invite
+    description: "同伴 2C 后 2NT 邀叫：11-12 均型"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "11-12", balanced: true, partnerOpened: true }
+    action: "2NT"
+    priority: 77
+
+  - id: resp_2c_3c_raise
+    description: "同伴 2C 后 3C 加叫：6-9，3+ 梅花"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "6-9", clubs: "3+", partnerOpened: true }
+    action: "3C"
+    priority: 76
+
+  - id: resp_2c_3nt
+    description: "同伴 2C 后 3NT：13+ 均型且有挡张"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "SHD", partnerOpened: true }
+    action: "3NT"
+    priority: 75
+
+  - id: resp_2c_pass_weak
+    description: "同伴 2C 后弱牌 Pass：0-7"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 70
+
+  # —— 2C 开叫人再叫 ——
+  - id: opener_2c_rebid_3c
+    description: "2C-2D/2H/2S 后，6+ 梅花再叫 3C"
+    sequence: "M:2C L:Pass P:2D R:Pass"
+    when: { clubs: "6+" }
+    action: "3C"
+    priority: 42
+
+  - id: opener_2c_2d_2h
+    description: "2C-2D 后，4+ 红桃自然再叫 2H"
+    sequence: "M:2C L:Pass P:2D R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 45
+
+  - id: opener_2c_2d_2s
+    description: "2C-2D 后，4+ 黑桃自然再叫 2S"
+    sequence: "M:2C L:Pass P:2D R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 45
+
+  - id: opener_2c_2d_2nt
+    description: "2C-2D 后，均型无高花再叫 2NT"
+    sequence: "M:2C L:Pass P:2D R:Pass"
+    when: { balanced: true }
+    action: "2NT"
+    priority: 44
+
+  - id: opener_2c_raise_hearts
+    description: "2C-2H 后，4 张红桃支持加叫 3H"
+    sequence: "M:2C L:Pass P:2H R:Pass"
+    when: { hearts: "4+" }
+    action: "3H"
+    priority: 43
+
+  - id: opener_2c_raise_spades
+    description: "2C-2S 后，4 张黑桃支持加叫 3S"
+    sequence: "M:2C L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 43
+
+  # —— 2C 开叫人再叫后的应叫人继续 ——
+  - id: resp_2c_2d_2h_4h
+    description: "2C-2D-2H 后，13+ 且 3+ 红桃进局 4H"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "13+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 90
+
+  - id: resp_2c_2d_2h_3nt
+    description: "2C-2D-2H 后，13+ 均型叫 3NT"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "13+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 88
+
+  - id: resp_2c_2d_2h_3nt_11
+    description: "2C-2D-2H 后，11+ 且有黑桃挡张叫 3NT"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "11+", stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 87
+
+  - id: resp_2c_2d_2h_3d
+    description: "2C-2D-2H 后，11-12 且 6+ 方块再叫 3D"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "11-12", diamonds: "6+", partnerOpened: true }
+    action: "3D"
+    priority: 86
+
+  - id: opener_2c_2d_2h_3d_3nt
+    description: "2C-2D-2H-3D 后，14-15 均型叫 3NT"
+    sequence: "M:2C L:Pass P:2D R:Pass M:2H L:Pass P:3D R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_2c_2d_2s_4s
+    description: "2C-2D-2S 后，13+ 且 3+ 黑桃进局 4S"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "13+", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 90
+
+  - id: resp_2c_2d_2s_3nt
+    description: "2C-2D-2S 后，13+ 均型叫 3NT"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "13+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 88
+
+  - id: resp_2c_2d_2s_3nt_11
+    description: "2C-2D-2S 后，11+ 且有红桃挡张叫 3NT"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "11+", stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 87
+
+  - id: resp_2c_2d_2s_3d
+    description: "2C-2D-2S 后，11-12 且 6+ 方块再叫 3D"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "11-12", diamonds: "6+", partnerOpened: true }
+    action: "3D"
+    priority: 86
+
+  - id: opener_2c_2d_2s_3d_3nt
+    description: "2C-2D-2S-3D 后，14-15 均型叫 3NT"
+    sequence: "M:2C L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_2c_2d_2nt_3nt
+    description: "2C-2D-2NT 后，13+ 叫 3NT"
+    sequence: "P:2C R:Pass M:2D L:Pass P:2NT R:Pass"
+    when: { hcp: "13+", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_2c_2d_3c_3nt
+    description: "2C-2D-3C 后，13+ 且有高花挡张叫 3NT"
+    sequence: "P:2C R:Pass M:2D L:Pass P:3C R:Pass"
+    when: { hcp: "13+", stoppers: "SH", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_2c_2h_3h_4h
+    description: "2C-2H-3H 后，13+ 进局 4H"
+    sequence: "P:2C R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "13+", hearts: "5+", partnerOpened: true }
+    action: "4H"
+    priority: 90
+
+  - id: resp_2c_2s_3s_4s
+    description: "2C-2S-3S 后，13+ 进局 4S"
+    sequence: "P:2C R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "13+", spades: "5+", partnerOpened: true }
+    action: "4S"
+    priority: 90
+
+  # ------------------------------------------------------------------
+  # 弱二应叫
+  # ------------------------------------------------------------------
+  - id: resp_weak2_h_game
+    description: "同伴弱二 2H 后，15+ 且 3+ 红桃进局"
+    sequence: "P:2H R:Pass"
+    when: { hcp: "15+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 83
+
+  - id: resp_weak2_h_raise
+    description: "同伴弱二 2H 后，10-14 且 3+ 红桃加叫 3H"
+    sequence: "P:2H R:Pass"
+    when: { hcp: "10-14", hearts: "3+", partnerOpened: true }
+    action: "3H"
+    priority: 82
+
+  - id: resp_weak2_s_game
+    description: "同伴弱二 2S 后，15+ 且 3+ 黑桃进局"
+    sequence: "P:2S R:Pass"
+    when: { hcp: "15+", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 83
+
+  - id: resp_weak2_s_raise
+    description: "同伴弱二 2S 后，10-14 且 3+ 黑桃加叫 3S"
+    sequence: "P:2S R:Pass"
+    when: { hcp: "10-14", spades: "3+", partnerOpened: true }
+    action: "3S"
+    priority: 82
+
+  - id: resp_weak2_h_2nt
+    description: "同伴弱二 2H 后，13-16 均型无配合邀叫 2NT"
+    sequence: "P:2H R:Pass"
+    when: { hcp: "13-16", balanced: true, hearts: "0-2", partnerOpened: true }
+    action: "2NT"
+    priority: 81
+
+  - id: opener_weak2_h_2nt_3nt
+    description: "2H-2NT 后，9-10 点接受进局 3NT"
+    sequence: "M:2H L:Pass P:2NT R:Pass"
+    when: { hcp: "9-10" }
+    action: "3NT"
+    priority: 80
+
+  - id: resp_weak2_s_2nt
+    description: "同伴弱二 2S 后，13-16 均型无配合邀叫 2NT"
+    sequence: "P:2S R:Pass"
+    when: { hcp: "13-16", balanced: true, spades: "0-2", partnerOpened: true }
+    action: "2NT"
+    priority: 81
+
+  - id: opener_weak2_s_2nt_3nt
+    description: "2S-2NT 后，9-10 点接受进局 3NT"
+    sequence: "M:2S L:Pass P:2NT R:Pass"
+    when: { hcp: "9-10" }
+    action: "3NT"
+    priority: 80
+
+  - id: resp_weak2_h_3nt
+    description: "同伴弱二 2H 后，17+ 均型无配合叫 3NT"
+    sequence: "P:2H R:Pass"
+    when: { hcp: "17+", balanced: true, hearts: "0-2", partnerOpened: true }
+    action: "3NT"
+    priority: 82
+
+  - id: resp_weak2_h_3nt_14
+    description: "同伴弱二 2H 后，14+ 且其余三花有挡张叫 3NT"
+    sequence: "P:2H R:Pass"
+    when: { hcp: "14+", hearts: "0-2", stoppers: "SDC", partnerOpened: true }
+    action: "3NT"
+    priority: 80
+
+  - id: resp_weak2_s_3nt
+    description: "同伴弱二 2S 后，17+ 均型无配合叫 3NT"
+    sequence: "P:2S R:Pass"
+    when: { hcp: "17+", balanced: true, spades: "0-2", partnerOpened: true }
+    action: "3NT"
+    priority: 82
+
+  - id: resp_weak2_s_3nt_14
+    description: "同伴弱二 2S 后，14+ 且其余三花有挡张叫 3NT"
+    sequence: "P:2S R:Pass"
+    when: { hcp: "14+", spades: "0-2", stoppers: "HDC", partnerOpened: true }
+    action: "3NT"
+    priority: 80
+
+  - id: resp_3d_3nt
+    description: "同伴 3D 阻击后，16+ 且方块不足 3 张、其余三花有挡张叫 3NT"
+    sequence: "P:3D R:Pass"
+    when: { hcp: "16+", diamonds: "0-2", stoppers: "HSC", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_3d_5d
+    description: "同伴 3D 阻击后，16+ 且 5+ 方块进局 5D"
+    sequence: "P:3D R:Pass"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "5D"
+    priority: 92
+
+  - id: resp_3d_4d
+    description: "同伴 3D 阻击后，13-15 且 2+ 方块邀叫 4D"
+    sequence: "P:3D R:Pass"
+    when: { hcp: "13-15", diamonds: "2+", partnerOpened: true }
+    action: "4D"
+    priority: 88
+
+  # ------------------------------------------------------------------
+  # 1C 开叫人再叫（强开叫后的描述）
+  # ------------------------------------------------------------------
+  - id: opener_1c_1d_3nt
+    description: "1C-1D 负应后，22+ 均型直接 3NT"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { hcp: "22+", balanced: true }
+    action: "3NT"
+    priority: 96
+
+  - id: opener_1c_1d_2nt
+    description: "1C-1D 负应后，19-21 均型再叫 2NT"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "2NT"
+    priority: 95
+
+  - id: opener_1c_1d_1nt
+    description: "1C-1D 负应后，16-18 均型再叫 1NT"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "1NT"
+    priority: 94
+
+  - id: opener_1c_1d_1h
+    description: "1C-1D 负应后，5+ 红桃自然再叫 1H"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { hearts: "5+" }
+    action: "1H"
+    priority: 93
+
+  - id: opener_1c_1d_1s
+    description: "1C-1D 负应后，5+ 黑桃自然再叫 1S"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { spades: "5+" }
+    action: "1S"
+    priority: 92
+
+  - id: opener_1c_1d_2c
+    description: "1C-1D 负应后，6+ 梅花再叫 2C"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { clubs: "6+" }
+    action: "2C"
+    priority: 91
+
+  - id: opener_1c_1d_1h_4
+    description: "1C-1D 负应后，4+ 红桃再叫 1H"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { hearts: "4+" }
+    action: "1H"
+    priority: 80
+
+  - id: opener_1c_1d_1h_1s_1nt
+    description: "1C-1D-1H-1S 后，开叫人 16-18 均型叫 1NT"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "1NT"
+    priority: 90
+
+  - id: opener_1c_1d_1h_1s_2nt
+    description: "1C-1D-1H-1S 后，开叫人 19-21 均型叫 2NT"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "2NT"
+    priority: 92
+
+  - id: opener_1c_1d_1h_1s_3nt
+    description: "1C-1D-1H-1S 后，开叫人 22+ 均型叫 3NT"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { hcp: "22+", balanced: true }
+    action: "3NT"
+    priority: 93
+
+  - id: opener_1c_1d_1h_1s_2h
+    description: "1C-1D-1H-1S 后，开叫人 6+ 红桃再叫 2H"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { hearts: "6+" }
+    action: "2H"
+    priority: 89
+
+  - id: opener_1c_1d_1h_1s_2h_5
+    description: "1C-1D-1H-1S 后，开叫人 5+ 红桃再叫 2H"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 85
+
+  - id: opener_1c_1d_1h_1s_2h_2nt_3nt
+    description: "1C-1D-1H-1S-2H-2NT 后，开叫人 16+ 叫 3NT"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass M:2H L:Pass P:2NT R:Pass"
+    when: { hcp: "16+" }
+    action: "3NT"
+    priority: 92
+
+  - id: opener_1c_1d_1h_1s_2h_2nt_4h
+    description: "1C-1D-1H-1S-2H-2NT 后，开叫人 6+ 红桃进局 4H"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass M:2H L:Pass P:2NT R:Pass"
+    when: { hearts: "6+" }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1c_1d_1h_1s_2s
+    description: "1C-1D-1H-1S 后，开叫人 4+ 黑桃加叫 2S"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 88
+
+  - id: opener_1c_1d_1h_1s_2c
+    description: "1C-1D-1H-1S 后，开叫人 6+ 梅花再叫 2C"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { clubs: "6+" }
+    action: "2C"
+    priority: 87
+
+  - id: opener_1c_1d_1h_1s_2c_4
+    description: "1C-1D-1H-1S 后，开叫人 4+ 梅花再叫 2C"
+    sequence: "M:1C L:Pass P:1D R:Pass M:1H L:Pass P:1S R:Pass"
+    when: { clubs: "4+" }
+    action: "2C"
+    priority: 83
+
+  - id: opener_1c_1d_1s_4
+    description: "1C-1D 负应后，4+ 黑桃再叫 1S"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { spades: "4+" }
+    action: "1S"
+    priority: 79
+
+  - id: opener_1c_1d_2d
+    description: "1C-1D 负应后，5+ 方块再叫 2D"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 78
+
+  - id: resp_1c_1d_2d_3d
+    description: "1C-1D-2D 后，负应人 5-7 且 3+ 方块加叫 3D"
+    sequence: "P:1C R:Pass M:1D L:Pass P:2D R:Pass"
+    when: { hcp: "5-7", diamonds: "3+", partnerOpened: true }
+    action: "3D"
+    priority: 80
+
+  - id: opener_1c_1d_2d_3d_3nt
+    description: "1C-1D-2D-3D 后，开叫人 19-21 均型叫 3NT"
+    sequence: "M:1C L:Pass P:1D R:Pass M:2D L:Pass P:3D R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1c_1d_2d_3d_5d
+    description: "1C-1D-2D-3D 后，开叫人 19-21 且 6+ 方块进局 5D"
+    sequence: "M:1C L:Pass P:1D R:Pass M:2D L:Pass P:3D R:Pass"
+    when: { hcp: "19-21", diamonds: "6+" }
+    action: "5D"
+    priority: 89
+
+  - id: opener_1c_1d_2c_default
+    description: "1C-1D 负应后，4+ 梅花兜底再叫 2C（避免 Pass 逼叫）"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { clubs: "4+" }
+    action: "2C"
+    priority: 60
+
+  # —— 1C 开叫人再叫（同伴 1NT 正应，避免误用 1NT 开叫约定） ——
+  - id: opener_1c_1nt_3nt
+    description: "1C-1NT 后，16-18 均型且无四张高花，直接 3NT 封局"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { hcp: "16-18", balanced: true, fourCardMajor: false }
+    action: "3NT"
+    priority: 96
+
+  - id: opener_1c_1nt_2nt
+    description: "1C-1NT 后，16-21 均型再叫 2NT（邀叫/进局）"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { hcp: "16-21", balanced: true }
+    action: "2NT"
+    priority: 95
+
+  - id: opener_1c_1nt_2nt_default
+    description: "1C-1NT 后，16-18 未命中自然再叫时叫 2NT"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { hcp: "16-18" }
+    action: "2NT"
+    priority: 81
+
+  - id: opener_1c_1nt_2nt_19plus
+    description: "1C-1NT 后，19+ 未命中自然再叫时叫 2NT（满贯试探兜底）"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { hcp: "19+" }
+    action: "2NT"
+    priority: 82
+
+  - id: opener_1c_1nt_2h
+    description: "1C-1NT 后，5+ 红桃自然再叫 2H（16+）"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 94
+
+  - id: opener_1c_1nt_2s
+    description: "1C-1NT 后，19+ 且 5+ 黑桃再叫 2S"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { hcp: "19+", spades: "5+" }
+    action: "2S"
+    priority: 93
+
+  - id: opener_1c_1nt_2c
+    description: "1C-1NT 后，6+ 梅花再叫 2C"
+    sequence: "M:1C L:Pass P:1NT R:Pass"
+    when: { clubs: "6+" }
+    action: "2C"
+    priority: 92
+
+  # —— 1C 开叫人再叫（同伴 2C / 2D 正应） ——
+  - id: opener_1c_2c_3nt
+    description: "1C-2C 后，22+ 均型且梅花不超过 3 张，直接 3NT"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { hcp: "22+", balanced: true, clubs: "0-3" }
+    action: "3NT"
+    priority: 96
+
+  - id: opener_1c_2c_2nt
+    description: "1C-2C 后，19-21 均型再叫 2NT"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "2NT"
+    priority: 95
+
+  - id: opener_1c_2c_3c
+    description: "1C-2C 后，4+ 梅花支持加叫 3C"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { clubs: "4+" }
+    action: "3C"
+    priority: 94
+
+  - id: opener_1c_2d_3nt
+    description: "1C-2D 后，22+ 均型且方块不超过 3 张，直接 3NT"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { hcp: "22+", balanced: true, diamonds: "0-3" }
+    action: "3NT"
+    priority: 96
+
+  - id: opener_1c_2d_2nt
+    description: "1C-2D 后，19-21 均型再叫 2NT"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "2NT"
+    priority: 95
+
+  - id: opener_1c_2d_3d
+    description: "1C-2D 后，4+ 方块支持加叫 3D"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { diamonds: "4+" }
+    action: "3D"
+    priority: 94
+
+  # —— 1C 开叫人支持正应叫 ——
+  - id: opener_1c_raise_hearts
+    description: "1C-1H 正应后，4+ 红桃支持加叫 3H"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { hearts: "4+" }
+    action: "3H"
+    priority: 90
+
+  - id: opener_1c_raise_spades
+    description: "1C-1S 正应后，4+ 黑桃支持加叫 3S"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 90
+
+  - id: opener_1c_1h_2nt
+    description: "1C-1H 后，19-21 均型再叫 2NT"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "2NT"
+    priority: 89
+
+  - id: opener_1c_1s_2nt
+    description: "1C-1S 后，19-21 均型再叫 2NT"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { hcp: "19-21", balanced: true }
+    action: "2NT"
+    priority: 89
+
+  # ------------------------------------------------------------------
+  # 一阶高花开叫人的再叫
+  # ------------------------------------------------------------------
+  - id: opener_1h_1s_raise
+    description: "1H-1S 后，4+ 黑桃支持加叫 2S"
+    sequence: "M:1H L:Pass P:1S R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 78
+
+  - id: opener_1h_1s_2h
+    description: "1H-1S 后，6+ 红桃再叫 2H"
+    sequence: "M:1H L:Pass P:1S R:Pass"
+    when: { hearts: "6+" }
+    action: "2H"
+    priority: 77
+
+  - id: opener_1h_1s_1nt
+    description: "1H-1S 后，均型低限再叫 1NT"
+    sequence: "M:1H L:Pass P:1S R:Pass"
+    when: { balanced: true, spades: "0-3" }
+    action: "1NT"
+    priority: 76
+
+  - id: opener_1h_1nt_2h
+    description: "1H-1NT 后，6+ 红桃再叫 2H"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { hearts: "6+" }
+    action: "2H"
+    priority: 78
+
+  - id: opener_1s_1nt_2s
+    description: "1S-1NT 后，6+ 黑桃再叫 2S"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { spades: "6+" }
+    action: "2S"
+    priority: 78
+
+  - id: opener_1h_1nt_4h
+    description: "1H-1NT 后，14-15 且 6+ 红桃进局"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "14-15", hearts: "6+" }
+    action: "4H"
+    priority: 92
+
+  - id: opener_1h_1nt_3nt
+    description: "1H-1NT 后，15 点均型叫 3NT"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1h_1nt_2nt
+    description: "1H-1NT 后，14 点均型邀叫 2NT"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "14", balanced: true }
+    action: "2NT"
+    priority: 84
+
+  - id: opener_1h_1nt_3h
+    description: "1H-1NT 后，13-15 且 6+ 红桃邀叫 3H"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "13-15", hearts: "6+" }
+    action: "3H"
+    priority: 82
+
+  - id: opener_1h_1nt_2c
+    description: "1H-1NT 后，5+ 梅花再叫 2C"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 80
+
+  - id: opener_1h_1nt_2d
+    description: "1H-1NT 后，5+ 方块再叫 2D"
+    sequence: "M:1H L:Pass P:1NT R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 79
+
+  - id: opener_1s_1nt_4s
+    description: "1S-1NT 后，14-15 且 6+ 黑桃进局"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "14-15", spades: "6+" }
+    action: "4S"
+    priority: 92
+
+  - id: opener_1s_1nt_3nt
+    description: "1S-1NT 后，15 点均型叫 3NT"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "15", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1s_1nt_2nt
+    description: "1S-1NT 后，14 点均型邀叫 2NT"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "14", balanced: true }
+    action: "2NT"
+    priority: 84
+
+  - id: opener_1s_1nt_3s
+    description: "1S-1NT 后，13-15 且 6+ 黑桃邀叫 3S"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "13-15", spades: "6+" }
+    action: "3S"
+    priority: 82
+
+  - id: opener_1s_1nt_3h
+    description: "1S-1NT 后，5+ 红桃再叫 3H"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 80
+
+  - id: opener_1s_1nt_3c
+    description: "1S-1NT 后，5+ 梅花再叫 3C"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 79
+
+  - id: opener_1s_1nt_3d
+    description: "1S-1NT 后，5+ 方块再叫 3D"
+    sequence: "M:1S L:Pass P:1NT R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 79
+
+  - id: opener_1d_1h_3h
+    description: "1D-1H 后，3 张支持、13-15 点邀叫 3H"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { hcp: "13-15", hearts: "3+" }
+    action: "3H"
+    priority: 84
+
+  - id: opener_1d_1h_raise
+    description: "1D-1H 后，4+ 红桃支持加叫 2H"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 83
+
+  - id: opener_1d_1h_1s
+    description: "1D-1H 后，4+ 黑桃再叫 1S"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { spades: "4+" }
+    action: "1S"
+    priority: 80
+
+  - id: opener_1d_1h_2d
+    description: "1D-1H 后，5+ 方块再叫 2D"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 78
+
+  - id: opener_1d_1h_2c
+    description: "1D-1H 后，4+ 梅花再叫 2C"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { clubs: "4+" }
+    action: "2C"
+    priority: 76
+
+  - id: opener_1d_1h_1nt
+    description: "1D-1H 后，均型低限再叫 1NT"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { balanced: true }
+    action: "1NT"
+    priority: 74
+
+  - id: opener_1d_1h_3nt
+    description: "1D-1H 后，15 点均型叫 3NT"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { hcp: "15", balanced: true }
+    action: "3NT"
+    priority: 86
+
+  - id: opener_1d_1h_2nt
+    description: "1D-1H 后，14 点均型邀叫 2NT"
+    sequence: "M:1D L:Pass P:1H R:Pass"
+    when: { hcp: "14", balanced: true }
+    action: "2NT"
+    priority: 82
+
+  # 1D-1H-2D 后应叫人的继续
+  - id: resp_1d_1h_2d_2s
+    description: "1D-1H-2D 后，11+ 且 4+ 黑桃叫 2S"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "11+", spades: "4+", partnerOpened: true }
+    action: "2S"
+    priority: 85
+
+  - id: resp_1d_1h_2d_2nt
+    description: "1D-1H-2D 后，11-12 均型且有梅花挡张叫 2NT"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "11-12", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "2NT"
+    priority: 84
+
+  - id: resp_1d_1h_2d_3d
+    description: "1D-1H-2D 后，10-12 且 3+ 方块邀叫 3D"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "10-12", diamonds: "3+", partnerOpened: true }
+    action: "3D"
+    priority: 83
+
+  - id: resp_1d_1h_2d_3h
+    description: "1D-1H-2D 后，11+ 且 6+ 红桃再叫 3H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "11+", hearts: "6+", partnerOpened: true }
+    action: "3H"
+    priority: 85
+
+  - id: resp_1d_1h_2d_3c
+    description: "1D-1H-2D 后，11+ 且 5+ 梅花叫 3C"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "11+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 84
+
+  - id: resp_1d_1h_2d_3nt
+    description: "1D-1H-2D 后，13+ 均型且有黑桃/梅花挡张叫 3NT"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "CS", partnerOpened: true }
+    action: "3NT"
+    priority: 86
+
+  - id: resp_1d_1h_2d_4h
+    description: "1D-1H-2D 后，13+ 且 6+ 红桃进局 4H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "13+", hearts: "6+", partnerOpened: true }
+    action: "4H"
+    priority: 88
+
+  - id: resp_1d_1h_2d_5d
+    description: "1D-1H-2D 后，15+ 且 4+ 方块进局 5D"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass"
+    when: { hcp: "15+", diamonds: "4+", partnerOpened: true }
+    action: "5D"
+    priority: 86
+
+  # 1D-1H-2D-2S 后开叫人再叫
+  - id: opener_1d_1h_2d_2s_2nt
+    description: "1D-1H-2D-2S 后，11-13 均型且有梅花挡张叫 2NT"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "11-13", balanced: true, stoppers: "C" }
+    action: "2NT"
+    priority: 90
+
+  - id: opener_1d_1h_2d_2s_3d
+    description: "1D-1H-2D-2S 后，6+ 方块再叫 3D"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { diamonds: "6+" }
+    action: "3D"
+    priority: 89
+
+  - id: opener_1d_1h_2d_2s_3d_5
+    description: "1D-1H-2D-2S 后，5+ 方块再叫 3D"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 88
+
+  - id: resp_1d_1h_2d_2s_3d_3nt
+    description: "1D-1H-2D-2S-3D 后，应叫人 13+ 均型且有梅花挡张叫 3NT"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "3NT"
+    priority: 93
+
+  - id: resp_1d_1h_2d_2s_3d_4h
+    description: "1D-1H-2D-2S-3D 后，应叫人 13+ 且 5+ 红桃进局 4H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "13+", hearts: "5+", partnerOpened: true }
+    action: "4H"
+    priority: 94
+
+  - id: resp_1d_1h_2d_2s_3d_3h
+    description: "1D-1H-2D-2S-3D 后，应叫人 11+ 且 5+ 红桃再叫 3H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "11+", hearts: "5+", partnerOpened: true }
+    action: "3H"
+    priority: 92
+
+  - id: resp_1d_1h_2d_2s_3d_3h_4
+    description: "1D-1H-2D-2S-3D 后，应叫人 11+ 且 4+ 红桃再叫 3H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "11+", hearts: "4+", partnerOpened: true }
+    action: "3H"
+    priority: 91
+
+  - id: resp_1d_1h_2d_2s_3d_3nt_13
+    description: "1D-1H-2D-2S-3D 后，应叫人 13+ 均型叫 3NT"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "13+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 93
+
+  - id: opener_1d_1h_2d_2s_3d_3h_3nt
+    description: "1D-1H-2D-2S-3D-3H 后，开叫人 13-15 均型且有梅花挡张叫 3NT"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "13-15", balanced: true, stoppers: "C" }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1d_1h_2d_2s_3d_3h_3nt_11
+    description: "1D-1H-2D-2S-3D-3H 后，开叫人 11-15 均型且有梅花挡张叫 3NT"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "11-15", balanced: true, stoppers: "C" }
+    action: "3NT"
+    priority: 93
+
+  - id: opener_1d_1h_2d_2s_3d_3h_3nt_h
+    description: "1D-1H-2D-2S-3D-3H 后，开叫人 11-15 且有红桃挡张叫 3NT"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "11-15", stoppers: "H" }
+    action: "3NT"
+    priority: 92
+
+  - id: opener_1d_1h_2d_2s_3d_3h_3s
+    description: "1D-1H-2D-2S-3D-3H 后，开叫人 4+ 黑桃加叫 3S"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 93
+
+  - id: opener_1d_1h_2d_2s_3d_3h_4h
+    description: "1D-1H-2D-2S-3D-3H 后，开叫人 3+ 红桃进局 4H"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hearts: "3+" }
+    action: "4H"
+    priority: 92
+
+  - id: opener_1d_1h_2d_2s_3s
+    description: "1D-1H-2D-2S 后，4+ 黑桃加叫 3S"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 91
+
+  - id: opener_1d_1h_2d_2s_3nt
+    description: "1D-1H-2D-2S 后，14-15 均型且有梅花挡张叫 3NT"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "14-15", balanced: true, stoppers: "C" }
+    action: "3NT"
+    priority: 92
+
+  - id: opener_1d_1h_2d_2s_4s
+    description: "1D-1H-2D-2S 后，14-15 且 4+ 黑桃进局 4S"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "14-15", spades: "4+" }
+    action: "4S"
+    priority: 93
+
+  - id: resp_1d_1h_2d_2s_2nt_3nt
+    description: "1D-1H-2D-2S-2NT 后，13+ 叫 3NT"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:2NT R:Pass"
+    when: { hcp: "13+", partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_1d_1h_2d_2s_2nt_3h
+    description: "1D-1H-2D-2S-2NT 后，13+ 且 6+ 红桃再叫 3H"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2D R:Pass M:2S L:Pass P:2NT R:Pass"
+    when: { hcp: "13+", hearts: "6+", partnerOpened: true }
+    action: "3H"
+    priority: 91
+
+  - id: opener_1d_1s_3s
+    description: "1D-1S 后，3 张支持、13-15 点邀叫 3S"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { hcp: "13-15", spades: "3+" }
+    action: "3S"
+    priority: 84
+
+  - id: resp_1d_1s_3s_4nt
+    description: "1D-1S-3S 后，14+ 均型定量邀叫 4NT"
+    sequence: "P:1D R:Pass M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "14+", balanced: true, partnerOpened: true }
+    action: "4NT"
+    priority: 93
+
+  - id: resp_1d_1s_3s_6nt
+    description: "1D-1S-3S 后，15+ 均型直接 6NT"
+    sequence: "P:1D R:Pass M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "15+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 94
+
+  - id: resp_1d_1s_3s_6d
+    description: "1D-1S-3S 后，14+ 且 3+ 方块进局 6D"
+    sequence: "P:1D R:Pass M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "14+", diamonds: "3+", partnerOpened: true }
+    action: "6D"
+    priority: 93
+
+  - id: resp_1d_1s_3s_4s
+    description: "1D-1S-3S 后，12+ 且 4+ 黑桃进局 4S"
+    sequence: "P:1D R:Pass M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "12+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 90
+
+  - id: opener_1d_1s_3s_4nt_6d
+    description: "1D-1S-3S-4NT 后，开叫人 14-15 且 6+ 方块叫 6D"
+    sequence: "M:1D L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { hcp: "14-15", diamonds: "6+" }
+    action: "6D"
+    priority: 94
+
+  - id: opener_1d_1s_3s_4nt_6nt
+    description: "1D-1S-3S-4NT 后，开叫人 14-15 均型叫 6NT"
+    sequence: "M:1D L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { hcp: "14-15", balanced: true }
+    action: "6NT"
+    priority: 94
+
+  - id: opener_1d_1s_3s_4nt_pass
+    description: "1D-1S-3S-4NT 后，开叫人 13 点止叫"
+    sequence: "M:1D L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { hcp: "13" }
+    action: "Pass"
+    priority: 80
+
+  - id: opener_1d_1s_raise
+    description: "1D-1S 后，4+ 黑桃支持加叫 2S"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 83
+
+  - id: opener_1d_1s_2h
+    description: "1D-1S 后，4+ 红桃再叫 2H"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 80
+
+  - id: opener_1d_1s_2d
+    description: "1D-1S 后，5+ 方块再叫 2D"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 78
+
+  - id: opener_1d_1s_2c
+    description: "1D-1S 后，4+ 梅花再叫 2C"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { clubs: "4+" }
+    action: "2C"
+    priority: 76
+
+  - id: opener_1d_1s_1nt
+    description: "1D-1S 后，均型低限再叫 1NT"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { balanced: true }
+    action: "1NT"
+    priority: 74
+
+  - id: opener_1d_1s_3nt
+    description: "1D-1S 后，15 点均型叫 3NT"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { hcp: "15", balanced: true }
+    action: "3NT"
+    priority: 86
+
+  - id: opener_1d_1s_2nt
+    description: "1D-1S 后，14 点均型邀叫 2NT"
+    sequence: "M:1D L:Pass P:1S R:Pass"
+    when: { hcp: "14", balanced: true }
+    action: "2NT"
+    priority: 82
 
   # ------------------------------------------------------------------
   # 争叫（RHO 刚开叫，即第二家位置）
@@ -541,53 +2807,3581 @@ rules:
     action: "X"
     priority: 66
 
+  - id: takeout_double_1h
+    description: "对 1H 的技术性加倍：12-16，4+ 黑桃且两门低花有支持"
+    sequence: "R:1H"
+    when: { hcp: "12-16", spades: "4+", diamonds: "3+", clubs: "3+" }
+    action: "X"
+    priority: 67
+
+  - id: takeout_double_1s
+    description: "对 1S 的技术性加倍：12-16，4+ 红桃且两门低花有支持"
+    sequence: "R:1S"
+    when: { hcp: "12-16", hearts: "4+", diamonds: "3+", clubs: "3+" }
+    action: "X"
+    priority: 67
+
   # ------------------------------------------------------------------
   # 应叫同伴的技术性加倍 / 争叫后的简单推进
   # ------------------------------------------------------------------
   - id: adv_double_1s
     description: "同伴技术性加倍后，黑桃最长则叫 1S"
     sequence: "P:X R:Pass"
-    when: { hcp: "0-8", spades: "4+" }
+    when: { hcp: "0-8", spades: "4+", partnerOpened: false }
     action: "1S"
     priority: 60
 
   - id: adv_double_1h
     description: "同伴技术性加倍后，红桃最长则叫 1H"
     sequence: "P:X R:Pass"
-    when: { hcp: "0-8", hearts: "4+" }
+    when: { hcp: "0-8", hearts: "4+", partnerOpened: false }
     action: "1H"
     priority: 59
 
   - id: adv_double_2c
     description: "同伴技术性加倍后，叫 2C 兜底"
     sequence: "P:X R:Pass"
-    when: { hcp: "0-8", clubs: "3+" }
+    when: { hcp: "0-8", clubs: "3+", partnerOpened: false }
     action: "2C"
     priority: 50
 
   - id: raise_partner_overcall
     description: "同伴争叫后简单加叫（3+ 支持，6-10）"
     sequence: "P:1H R:Pass"
-    when: { hcp: "6-10", hearts: "3+" }
+    when: { hcp: "6-10", hearts: "3+", partnerOpened: false }
     action: "2H"
     priority: 74
 
+  - id: raise_partner_overcall_1s
+    description: "同伴争叫 1S 后简单加叫（3+ 支持，6-10）"
+    sequence: "P:1S R:Pass"
+    when: { hcp: "6-10", spades: "3+", partnerOpened: false }
+    action: "2S"
+    priority: 74
+
+  - id: raise_partner_overcall_2c
+    description: "同伴争叫 2C 后加叫 3C（3+ 支持，6-10）"
+    sequence: "P:2C R:Pass"
+    when: { hcp: "6-10", clubs: "3+", partnerOpened: false }
+    action: "3C"
+    priority: 60
+
+  - id: raise_partner_overcall_2d
+    description: "同伴争叫 2D 后加叫 3D（3+ 支持，6-10）"
+    sequence: "P:2D R:Pass"
+    when: { hcp: "6-10", diamonds: "3+", partnerOpened: false }
+    action: "3D"
+    priority: 60
+
+  - id: adv_double_over_1h
+    description: "同伴加倍 1H 后，弱牌选 1S"
+    sequence: "P:X R:Pass"
+    when: { hcp: "0-8", spades: "4+", partnerOpened: false }
+    action: "1S"
+    priority: 61
+
+  - id: adv_double_over_1s
+    description: "同伴加倍 1S 后，弱牌选 2H"
+    sequence: "P:X R:Pass"
+    when: { hcp: "0-8", hearts: "4+", partnerOpened: false }
+    action: "2H"
+    priority: 61
+
+  - id: penalty_double_over_1s
+    description: "同伴开叫 1H、RHO 争叫 1S 后，4+ 黑桃惩罚加倍"
+    sequence: "P:1H R:1S"
+    when: { hcp: "10+", spades: "4+" }
+    action: "X"
+    priority: 80
+
+  - id: penalty_double_over_2h
+    description: "同伴开叫 1S、RHO 争叫 2H 后，4+ 红桃惩罚加倍"
+    sequence: "P:1S R:2H"
+    when: { hcp: "10+", hearts: "4+" }
+    action: "X"
+    priority: 80
+
   # ------------------------------------------------------------------
-  # 开叫人再叫（简单体系）
+  # 1D / 1S 的低优先级兜底应叫
   # ------------------------------------------------------------------
-  - id: opener_rebid_1nt
-    description: "1 阶低花开叫、同伴 1 阶应叫后，再叫 1NT：均型"
+  - id: resp_1d_1nt_strong
+    description: "同伴 1D（开叫或争叫）后，12-15 均型兜底叫 1NT"
     sequence: "P:1D R:Pass"
     when: { hcp: "12-15", balanced: true }
     action: "1NT"
     priority: 50
 
-  - id: opener_rebid_raise_major
-    description: "同伴应叫高花后，开叫人有 3+ 支持加叫（11-13）"
+  - id: resp_partner_1s_raise_constructive
+    description: "同伴 1S（开叫或争叫）后，11-13 且 3+ 支持加叫 2S"
     sequence: "P:1S R:Pass"
     when: { hcp: "11-13", spades: "3+" }
     action: "2S"
     priority: 52
+
+  # ------------------------------------------------------------------
+  # 精确 1C 开叫被争叫后的开叫人再叫
+  # ------------------------------------------------------------------
+  - id: opener_1c_over_1h_1s
+    description: "1C-(1H)-P-P 后，4+ 黑桃再叫 1S"
+    sequence: "M:1C L:1H P:Pass R:Pass"
+    when: { spades: "4+" }
+    action: "1S"
+    priority: 89
+
+  - id: opener_1c_over_1h_2c
+    description: "1C-(1H)-P-P 后，5+ 梅花再叫 2C"
+    sequence: "M:1C L:1H P:Pass R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 87
+
+  - id: opener_1c_over_1h_2d
+    description: "1C-(1H)-P-P 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:1H P:Pass R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 86
+
+  - id: opener_1c_over_1h_1nt
+    description: "1C-(1H)-P-P 后，16-18 均型且有红桃挡张叫 1NT"
+    sequence: "M:1C L:1H P:Pass R:Pass"
+    when: { hcp: "16-18", balanced: true, stoppers: "H" }
+    action: "1NT"
+    priority: 85
+
+  - id: opener_1c_over_1h_default_x
+    description: "1C-(1H)-P-P 后，16+ 未命中自然再叫时加倍"
+    sequence: "M:1C L:1H P:Pass R:Pass"
+    when: { hcp: "16+" }
+    action: "X"
+    priority: 60
+
+  - id: opener_1c_over_1s_2h
+    description: "1C-(1S)-P-P 后，5+ 红桃再叫 2H"
+    sequence: "M:1C L:1S P:Pass R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 89
+
+  - id: opener_1c_over_1s_2c
+    description: "1C-(1S)-P-P 后，5+ 梅花再叫 2C"
+    sequence: "M:1C L:1S P:Pass R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 87
+
+  - id: opener_1c_over_1s_2d
+    description: "1C-(1S)-P-P 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:1S P:Pass R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 86
+
+  - id: opener_1c_over_1s_1nt
+    description: "1C-(1S)-P-P 后，16-18 均型且有黑桃挡张叫 1NT"
+    sequence: "M:1C L:1S P:Pass R:Pass"
+    when: { hcp: "16-18", balanced: true, stoppers: "S" }
+    action: "1NT"
+    priority: 85
+
+  - id: opener_1c_over_1s_default_x
+    description: "1C-(1S)-P-P 后，16+ 未命中自然再叫时加倍"
+    sequence: "M:1C L:1S P:Pass R:Pass"
+    when: { hcp: "16+" }
+    action: "X"
+    priority: 60
+
+  - id: opener_1c_over_1d_1h
+    description: "1C-(1D)-P-P 后，4+ 红桃再叫 1H"
+    sequence: "M:1C L:1D P:Pass R:Pass"
+    when: { hearts: "4+" }
+    action: "1H"
+    priority: 89
+
+  - id: opener_1c_over_1d_1s
+    description: "1C-(1D)-P-P 后，5+ 黑桃再叫 1S"
+    sequence: "M:1C L:1D P:Pass R:Pass"
+    when: { spades: "5+" }
+    action: "1S"
+    priority: 88
+
+  - id: opener_1c_over_1d_2c
+    description: "1C-(1D)-P-P 后，5+ 梅花再叫 2C"
+    sequence: "M:1C L:1D P:Pass R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 87
+
+  - id: opener_1c_over_1d_1nt
+    description: "1C-(1D)-P-P 后，16-18 均型且有方块挡张叫 1NT"
+    sequence: "M:1C L:1D P:Pass R:Pass"
+    when: { hcp: "16-18", balanced: true, stoppers: "D" }
+    action: "1NT"
+    priority: 85
+
+  - id: opener_1c_over_1d_1nt_3nt
+    description: "1C-(1D)-1NT 后，16+ 均型且有方块挡张叫 3NT"
+    sequence: "M:1C L:1D P:1NT R:Pass"
+    when: { hcp: "16+", balanced: true, stoppers: "D" }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1c_over_1d_1nt_2c
+    description: "1C-(1D)-1NT 后，6+ 梅花再叫 2C"
+    sequence: "M:1C L:1D P:1NT R:Pass"
+    when: { clubs: "6+" }
+    action: "2C"
+    priority: 88
+
+  - id: opener_1c_over_1d_1nt_2h
+    description: "1C-(1D)-1NT 后，5+ 红桃再叫 2H"
+    sequence: "M:1C L:1D P:1NT R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 87
+
+  - id: opener_1c_over_1d_1nt_2s
+    description: "1C-(1D)-1NT 后，5+ 黑桃再叫 2S"
+    sequence: "M:1C L:1D P:1NT R:Pass"
+    when: { spades: "5+" }
+    action: "2S"
+    priority: 86
+
+  - id: opener_1c_over_1d_1nt_2h_2s_2nt
+    description: "1C-(1D)-1NT-2H-2S 后，开叫人 16-18 均型且有方块挡张叫 2NT"
+    sequence: "M:1C L:1D P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "16-18", balanced: true, stoppers: "D" }
+    action: "2NT"
+    priority: 90
+
+  - id: opener_1c_over_1d_1nt_2h_2s_3nt
+    description: "1C-(1D)-1NT-2H-2S 后，开叫人 19+ 均型且有方块挡张叫 3NT"
+    sequence: "M:1C L:1D P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "D" }
+    action: "3NT"
+    priority: 91
+
+  - id: opener_1c_over_1d_1nt_2h_2s_3h
+    description: "1C-(1D)-1NT-2H-2S 后，开叫人 6+ 红桃再叫 3H"
+    sequence: "M:1C L:1D P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hearts: "6+" }
+    action: "3H"
+    priority: 89
+
+  - id: opener_1c_over_1d_1nt_2h_2s_3s
+    description: "1C-(1D)-1NT-2H-2S 后，开叫人 4+ 黑桃加叫 3S"
+    sequence: "M:1C L:1D P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 91
+
+  - id: opener_1c_over_1d_1nt_2h_2s_4s
+    description: "1C-(1D)-1NT-2H-2S 后，开叫人 19+ 且 4+ 黑桃进局 4S"
+    sequence: "M:1C L:1D P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "19+", spades: "4+" }
+    action: "4S"
+    priority: 92
+
+  - id: resp_1c_over_1d_1nt_2h_2s_3h_3nt
+    description: "1C-(1D)-1NT-2H-2S-3H 后，应叫人 8-10 均型叫 3NT"
+    sequence: "P:1C R:1D M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_over_1d_1nt_2h_2s_3h_4h
+    description: "1C-(1D)-1NT-2H-2S-3H 后，应叫人 8-10 且 2+ 红桃进局 4H"
+    sequence: "P:1C R:1D M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8-10", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1c_over_1d_default_x
+    description: "1C-(1D)-P-P 后，16+ 未命中自然再叫时加倍"
+    sequence: "M:1C L:1D P:Pass R:Pass"
+    when: { hcp: "16+" }
+    action: "X"
+    priority: 60
+
+  - id: opener_1c_over_2c_2d
+    description: "1C-(2C)-P-P 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:2C P:Pass R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 86
+
+  - id: opener_1c_over_2c_2h
+    description: "1C-(2C)-P-P 后，5+ 红桃再叫 2H"
+    sequence: "M:1C L:2C P:Pass R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 85
+
+  - id: opener_1c_over_2c_2s
+    description: "1C-(2C)-P-P 后，5+ 黑桃再叫 2S"
+    sequence: "M:1C L:2C P:Pass R:Pass"
+    when: { spades: "5+" }
+    action: "2S"
+    priority: 84
+
+  - id: opener_1c_over_2c_2nt
+    description: "1C-(2C)-P-P 后，16-18 均型且有梅花挡张叫 2NT"
+    sequence: "M:1C L:2C P:Pass R:Pass"
+    when: { hcp: "16-18", balanced: true, stoppers: "C" }
+    action: "2NT"
+    priority: 82
+
+  - id: opener_1c_over_2c_default_x
+    description: "1C-(2C)-P-P 后，16+ 未命中自然再叫时加倍"
+    sequence: "M:1C L:2C P:Pass R:Pass"
+    when: { hcp: "16+" }
+    action: "X"
+    priority: 58
+
+  - id: opener_1c_over_2d_2h
+    description: "1C-(2D)-P-P 后，5+ 红桃再叫 2H"
+    sequence: "M:1C L:2D P:Pass R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 86
+
+  - id: opener_1c_over_2d_2s
+    description: "1C-(2D)-P-P 后，5+ 黑桃再叫 2S"
+    sequence: "M:1C L:2D P:Pass R:Pass"
+    when: { spades: "5+" }
+    action: "2S"
+    priority: 85
+
+  - id: opener_1c_over_2d_3c
+    description: "1C-(2D)-P-P 后，6+ 梅花再叫 3C"
+    sequence: "M:1C L:2D P:Pass R:Pass"
+    when: { clubs: "6+" }
+    action: "3C"
+    priority: 84
+
+  - id: opener_1c_over_2d_2nt
+    description: "1C-(2D)-P-P 后，16-18 均型且有方块挡张叫 2NT"
+    sequence: "M:1C L:2D P:Pass R:Pass"
+    when: { hcp: "16-18", balanced: true, stoppers: "D" }
+    action: "2NT"
+    priority: 82
+
+  - id: opener_1c_over_2d_default_x
+    description: "1C-(2D)-P-P 后，16+ 未命中自然再叫时加倍"
+    sequence: "M:1C L:2D P:Pass R:Pass"
+    when: { hcp: "16+" }
+    action: "X"
+    priority: 58
+
+  # ------------------------------------------------------------------
+  # 1C 被争叫、应叫人已应叫后的开叫人再叫
+  # ------------------------------------------------------------------
+  - id: opener_1c_over_1h_1s_2s
+    description: "1C-(1H)-1S 后，3+ 黑桃加叫 2S"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { spades: "3+" }
+    action: "2S"
+    priority: 91
+
+  - id: opener_1c_over_1h_1s_3s
+    description: "1C-(1H)-1S 后，19+ 且 4+ 黑桃加叫 3S"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { hcp: "19+", spades: "4+" }
+    action: "3S"
+    priority: 93
+
+  - id: opener_1c_over_1h_1s_4s
+    description: "1C-(1H)-1S 后，22+ 且 4+ 黑桃进局 4S"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { hcp: "22+", spades: "4+" }
+    action: "4S"
+    priority: 95
+
+  - id: opener_1c_over_1h_1s_3nt
+    description: "1C-(1H)-1S 后，19+ 均型且有红桃挡张叫 3NT"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "H" }
+    action: "3NT"
+    priority: 89
+
+  - id: opener_1c_over_1h_1s_1nt
+    description: "1C-(1H)-1S 后，均型且有红桃挡张叫 1NT"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { balanced: true, stoppers: "H" }
+    action: "1NT"
+    priority: 87
+
+  - id: opener_1c_over_1h_1s_2c
+    description: "1C-(1H)-1S 后，5+ 梅花再叫 2C"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 85
+
+  - id: opener_1c_over_1h_1s_2d
+    description: "1C-(1H)-1S 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:1H P:1S R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 84
+
+  - id: opener_1c_over_1h_x_1s
+    description: "1C-(1H)-X 后，4+ 黑桃叫 1S"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { spades: "4+" }
+    action: "1S"
+    priority: 91
+
+  - id: opener_1c_over_1h_x_2s
+    description: "1C-(1H)-X 后，19+ 且 4+ 黑桃叫 2S"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { hcp: "19+", spades: "4+" }
+    action: "2S"
+    priority: 93
+
+  - id: opener_1c_over_1h_x_3s
+    description: "1C-(1H)-X 后，22+ 且 4+ 黑桃叫 3S"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { hcp: "22+", spades: "4+" }
+    action: "3S"
+    priority: 95
+
+  - id: opener_1c_over_1h_x_1nt
+    description: "1C-(1H)-X 后，均型且有红桃挡张叫 1NT"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { balanced: true, stoppers: "H" }
+    action: "1NT"
+    priority: 88
+
+  - id: opener_1c_over_1h_x_3nt
+    description: "1C-(1H)-X 后，19+ 均型且有红桃挡张叫 3NT"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "H" }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1c_over_1h_x_2c
+    description: "1C-(1H)-X 后，5+ 梅花再叫 2C"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 86
+
+  - id: opener_1c_over_1h_x_2d
+    description: "1C-(1H)-X 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:1H P:X R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 85
+
+  - id: resp_1c_over_1h_x_2c_2s
+    description: "1C-(1H)-X-2C 后，4+ 黑桃叫 2S"
+    sequence: "P:1C R:1H M:X L:Pass P:2C R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "2S"
+    priority: 90
+
+  - id: resp_1c_over_1h_x_2c_2nt
+    description: "1C-(1H)-X-2C 后，均型且有红桃挡张叫 2NT"
+    sequence: "P:1C R:1H M:X L:Pass P:2C R:Pass"
+    when: { balanced: true, stoppers: "H", partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: resp_1c_over_1h_x_2c_3nt
+    description: "1C-(1H)-X-2C 后，13+ 均型且有红桃挡张叫 3NT"
+    sequence: "P:1C R:1H M:X L:Pass P:2C R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 89
+
+  - id: resp_1c_over_1h_x_2d_2s
+    description: "1C-(1H)-X-2D 后，4+ 黑桃叫 2S"
+    sequence: "P:1C R:1H M:X L:Pass P:2D R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "2S"
+    priority: 90
+
+  - id: resp_1c_over_1h_x_2d_2nt
+    description: "1C-(1H)-X-2D 后，均型且有红桃挡张叫 2NT"
+    sequence: "P:1C R:1H M:X L:Pass P:2D R:Pass"
+    when: { balanced: true, stoppers: "H", partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: resp_1c_over_1h_x_2d_3nt
+    description: "1C-(1H)-X-2D 后，13+ 均型且有红桃挡张叫 3NT"
+    sequence: "P:1C R:1H M:X L:Pass P:2D R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 89
+
+  - id: resp_1c_over_1h_x_2s_3s
+    description: "1C-(1H)-X-2S 后，8-14 且 4+ 黑桃叫 3S"
+    sequence: "P:1C R:1H M:X L:Pass P:2S R:Pass"
+    when: { hcp: "8-14", spades: "4+", partnerOpened: true }
+    action: "3S"
+    priority: 90
+
+  - id: resp_1c_over_1h_x_2s_4s
+    description: "1C-(1H)-X-2S 后，15+ 且 4+ 黑桃进局 4S"
+    sequence: "P:1C R:1H M:X L:Pass P:2S R:Pass"
+    when: { hcp: "15+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  - id: opener_1c_over_1h_x_2c_2s_2nt
+    description: "1C-(1H)-X-2C-2S 后，开叫人均型且有红桃挡张叫 2NT"
+    sequence: "M:1C L:1H P:X R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { balanced: true, stoppers: "H" }
+    action: "2NT"
+    priority: 93
+
+  - id: opener_1c_over_1h_x_2c_2s_3nt
+    description: "1C-(1H)-X-2C-2S 后，开叫人 19+ 均型且有红桃挡张叫 3NT"
+    sequence: "M:1C L:1H P:X R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "H" }
+    action: "3NT"
+    priority: 95
+
+  - id: opener_1c_over_1h_x_2c_2s_3s
+    description: "1C-(1H)-X-2C-2S 后，开叫人 3+ 黑桃加叫 3S"
+    sequence: "M:1C L:1H P:X R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { spades: "3+" }
+    action: "3S"
+    priority: 92
+
+  - id: resp_1c_over_1h_x_2c_2s_3s_4s
+    description: "1C-(1H)-X-2C-2S-3S 后，应叫人 8+ 且 4+ 黑桃进局 4S"
+    sequence: "P:1C R:1H M:X L:Pass P:2C R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 95
+
+  - id: resp_1c_over_1h_x_2c_2s_3s_3nt
+    description: "1C-(1H)-X-2C-2S-3S 后，应叫人 8+ 均型且有红桃挡张叫 3NT"
+    sequence: "P:1C R:1H M:X L:Pass P:2C R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8+", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_over_1h_x_2c_2s_4s
+    description: "1C-(1H)-X-2C-2S 后，开叫人 4+ 黑桃进局 4S"
+    sequence: "M:1C L:1H P:X R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "4S"
+    priority: 94
+
+  - id: opener_1c_over_1h_x_2c_2s_3c
+    description: "1C-(1H)-X-2C-2S 后，开叫人 6+ 梅花再叫 3C"
+    sequence: "M:1C L:1H P:X R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { clubs: "6+" }
+    action: "3C"
+    priority: 90
+
+  - id: resp_1c_over_1h_x_3s_4s
+    description: "1C-(1H)-X-3S 后，4+ 黑桃进局 4S"
+    sequence: "P:1C R:1H M:X L:Pass P:3S R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  - id: resp_1c_over_1h_1s_2s_3s
+    description: "1C-(1H)-1S-2S 后，10-12 邀叫 3S"
+    sequence: "P:1C R:1H M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "10-12", spades: "3+", partnerOpened: true }
+    action: "3S"
+    priority: 90
+
+  - id: resp_1c_over_1h_1s_2s_4s
+    description: "1C-(1H)-1S-2S 后，13+ 进局 4S"
+    sequence: "P:1C R:1H M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "13+", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  - id: opener_1c_over_1h_1nt_2nt
+    description: "1C-(1H)-1NT 后，17-18 均型邀叫 2NT"
+    sequence: "M:1C L:1H P:1NT R:Pass"
+    when: { hcp: "17-18", balanced: true }
+    action: "2NT"
+    priority: 88
+
+  - id: opener_1c_over_1h_1nt_3nt
+    description: "1C-(1H)-1NT 后，19+ 均型叫 3NT"
+    sequence: "M:1C L:1H P:1NT R:Pass"
+    when: { hcp: "19+", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1c_over_1h_1nt_2c
+    description: "1C-(1H)-1NT 后，5+ 梅花再叫 2C"
+    sequence: "M:1C L:1H P:1NT R:Pass"
+    when: { clubs: "5+" }
+    action: "2C"
+    priority: 86
+
+  - id: opener_1c_over_1h_1nt_2d
+    description: "1C-(1H)-1NT 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:1H P:1NT R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 85
+
+  - id: opener_1c_over_1s_2h_3h
+    description: "1C-(1S)-2H 后，3+ 红桃加叫 3H"
+    sequence: "M:1C L:1S P:2H R:Pass"
+    when: { hearts: "3+" }
+    action: "3H"
+    priority: 91
+
+  - id: opener_1c_over_1s_2h_4h
+    description: "1C-(1S)-2H 后，19+ 且 4+ 红桃进局 4H"
+    sequence: "M:1C L:1S P:2H R:Pass"
+    when: { hcp: "19+", hearts: "4+" }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1c_over_1s_2h_2nt
+    description: "1C-(1S)-2H 后，均型且有黑桃挡张叫 2NT"
+    sequence: "M:1C L:1S P:2H R:Pass"
+    when: { balanced: true, stoppers: "S" }
+    action: "2NT"
+    priority: 87
+
+  - id: opener_1c_over_1s_2h_3nt
+    description: "1C-(1S)-2H 后，19+ 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1C L:1S P:2H R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 89
+
+  - id: opener_1c_over_1s_2h_3c
+    description: "1C-(1S)-2H 后，5+ 梅花再叫 3C"
+    sequence: "M:1C L:1S P:2H R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 85
+
+  - id: opener_1c_over_1s_2h_3d
+    description: "1C-(1S)-2H 后，5+ 方块再叫 3D"
+    sequence: "M:1C L:1S P:2H R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 84
+
+  - id: opener_1c_over_1s_x_2h
+    description: "1C-(1S)-X 后，4+ 红桃叫 2H"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 91
+
+  - id: opener_1c_over_1s_x_3h
+    description: "1C-(1S)-X 后，19+ 且 4+ 红桃叫 3H"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { hcp: "19+", hearts: "4+" }
+    action: "3H"
+    priority: 93
+
+  - id: opener_1c_over_1s_x_4h
+    description: "1C-(1S)-X 后，22+ 且 4+ 红桃进局 4H"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { hcp: "22+", hearts: "4+" }
+    action: "4H"
+    priority: 95
+
+  - id: opener_1c_over_1s_x_2nt
+    description: "1C-(1S)-X 后，均型且有黑桃挡张叫 2NT"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { balanced: true, stoppers: "S" }
+    action: "2NT"
+    priority: 88
+
+  - id: opener_1c_over_1s_x_3nt
+    description: "1C-(1S)-X 后，19+ 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1c_over_1s_x_3c
+    description: "1C-(1S)-X 后，5+ 梅花再叫 3C"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 86
+
+  - id: opener_1c_over_1s_x_3d
+    description: "1C-(1S)-X 后，5+ 方块再叫 3D"
+    sequence: "M:1C L:1S P:X R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 85
+
+  - id: resp_1c_over_1s_x_3c_3h
+    description: "1C-(1S)-X-3C 后，4+ 红桃叫 3H"
+    sequence: "P:1C R:1S M:X L:Pass P:3C R:Pass"
+    when: { hearts: "4+", partnerOpened: true }
+    action: "3H"
+    priority: 90
+
+  - id: resp_1c_over_1s_x_3c_3nt
+    description: "1C-(1S)-X-3C 后，13+ 均型且有黑桃挡张叫 3NT"
+    sequence: "P:1C R:1S M:X L:Pass P:3C R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 89
+
+  - id: resp_1c_over_1s_x_3d_3h
+    description: "1C-(1S)-X-3D 后，4+ 红桃叫 3H"
+    sequence: "P:1C R:1S M:X L:Pass P:3D R:Pass"
+    when: { hearts: "4+", partnerOpened: true }
+    action: "3H"
+    priority: 90
+
+  - id: resp_1c_over_1s_x_3d_3nt
+    description: "1C-(1S)-X-3D 后，13+ 均型且有黑桃挡张叫 3NT"
+    sequence: "P:1C R:1S M:X L:Pass P:3D R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 89
+
+  - id: resp_1c_over_1s_x_2h_3h
+    description: "1C-(1S)-X-2H 后，8-12 且 4+ 红桃叫 3H"
+    sequence: "P:1C R:1S M:X L:Pass P:2H R:Pass"
+    when: { hcp: "8-12", hearts: "4+", partnerOpened: true }
+    action: "3H"
+    priority: 89
+
+  - id: resp_1c_over_1s_x_2h_4h
+    description: "1C-(1S)-X-2H 后，13+ 且 4+ 红桃进局 4H"
+    sequence: "P:1C R:1S M:X L:Pass P:2H R:Pass"
+    when: { hcp: "13+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 91
+
+  - id: opener_1c_over_1s_x_2h_3h_4h
+    description: "1C-(1S)-X-2H-3H 后，开叫人 16+ 且 5+ 红桃进局 4H"
+    sequence: "M:1C L:1S P:X R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "4H"
+    priority: 94
+
+  - id: opener_1c_over_1s_x_2h_3h_3nt
+    description: "1C-(1S)-X-2H-3H 后，开叫人 19+ 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1C L:1S P:X R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 95
+
+  - id: resp_1c_over_1s_x_3h_4h
+    description: "1C-(1S)-X-3H 后，4+ 红桃进局 4H"
+    sequence: "P:1C R:1S M:X L:Pass P:3H R:Pass"
+    when: { hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_1c_over_1s_2h_3h_4h
+    description: "1C-(1S)-2H-3H 后，13+ 进局 4H"
+    sequence: "P:1C R:1S M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "13+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: opener_1c_over_1s_1nt_2nt
+    description: "1C-(1S)-1NT 后，17-18 均型邀叫 2NT"
+    sequence: "M:1C L:1S P:1NT R:Pass"
+    when: { hcp: "17-18", balanced: true }
+    action: "2NT"
+    priority: 88
+
+  - id: opener_1c_over_1s_1nt_3nt
+    description: "1C-(1S)-1NT 后，19+ 均型叫 3NT"
+    sequence: "M:1C L:1S P:1NT R:Pass"
+    when: { hcp: "19+", balanced: true }
+    action: "3NT"
+    priority: 90
+
+  - id: opener_1c_over_1s_1nt_3c
+    description: "1C-(1S)-1NT 后，5+ 梅花再叫 3C"
+    sequence: "M:1C L:1S P:1NT R:Pass"
+    when: { clubs: "5+" }
+    action: "3C"
+    priority: 86
+
+  - id: opener_1c_over_1s_1nt_3d
+    description: "1C-(1S)-1NT 后，5+ 方块再叫 3D"
+    sequence: "M:1C L:1S P:1NT R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 85
+
+  # ------------------------------------------------------------------
+  # 满贯问叫：4C Gerber / 4NT Blackwood
+  # ------------------------------------------------------------------
+  - id: gerber_1nt
+    description: "1NT 后 4C Gerber：15+ 满贯兴趣"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "15+", partnerOpened: true }
+    action: "4C"
+    priority: 89
+
+  - id: gerber_2nt
+    description: "2NT 后 4C Gerber：15+ 满贯兴趣"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "15+", partnerOpened: true }
+    action: "4C"
+    priority: 89
+
+  - id: gerber_1nt_0_4
+    description: "1NT-4C 后，0 或 4 A 答 4D"
+    sequence: "M:1NT L:Pass P:4C R:Pass"
+    when: { aces: "0" }
+    action: "4D"
+    priority: 96
+
+  - id: gerber_1nt_4
+    description: "1NT-4C 后，4 A 答 4D"
+    sequence: "M:1NT L:Pass P:4C R:Pass"
+    when: { aces: "4" }
+    action: "4D"
+    priority: 95
+
+  - id: gerber_1nt_1
+    description: "1NT-4C 后，1 A 答 4H"
+    sequence: "M:1NT L:Pass P:4C R:Pass"
+    when: { aces: "1" }
+    action: "4H"
+    priority: 96
+
+  - id: gerber_1nt_2
+    description: "1NT-4C 后，2 A 答 4S"
+    sequence: "M:1NT L:Pass P:4C R:Pass"
+    when: { aces: "2" }
+    action: "4S"
+    priority: 96
+
+  - id: gerber_1nt_3
+    description: "1NT-4C 后，3 A 答 4NT"
+    sequence: "M:1NT L:Pass P:4C R:Pass"
+    when: { aces: "3" }
+    action: "4NT"
+    priority: 96
+
+  - id: gerber_2nt_0_4
+    description: "2NT-4C 后，0 或 4 A 答 4D"
+    sequence: "M:2NT L:Pass P:4C R:Pass"
+    when: { aces: "0" }
+    action: "4D"
+    priority: 96
+
+  - id: gerber_2nt_4
+    description: "2NT-4C 后，4 A 答 4D"
+    sequence: "M:2NT L:Pass P:4C R:Pass"
+    when: { aces: "4" }
+    action: "4D"
+    priority: 95
+
+  - id: gerber_2nt_1
+    description: "2NT-4C 后，1 A 答 4H"
+    sequence: "M:2NT L:Pass P:4C R:Pass"
+    when: { aces: "1" }
+    action: "4H"
+    priority: 96
+
+  - id: gerber_2nt_2
+    description: "2NT-4C 后，2 A 答 4S"
+    sequence: "M:2NT L:Pass P:4C R:Pass"
+    when: { aces: "2" }
+    action: "4S"
+    priority: 96
+
+  - id: gerber_2nt_3
+    description: "2NT-4C 后，3 A 答 4NT"
+    sequence: "M:2NT L:Pass P:4C R:Pass"
+    when: { aces: "3" }
+    action: "4NT"
+    priority: 96
+
+  # Gerber 答叫后的应叫人继续：避免停在 4D/4H/4S
+  - id: gerber_1nt_4d_6nt
+    description: "1NT-4C-4D 后，17+ 叫 6NT"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4D R:Pass"
+    when: { hcp: "17+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: gerber_1nt_4d_4nt
+    description: "1NT-4C-4D 后，15-16 叫 4NT 止叫"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4D R:Pass"
+    when: { hcp: "15-16", partnerOpened: true }
+    action: "4NT"
+    priority: 91
+
+  - id: gerber_1nt_4h_6nt
+    description: "1NT-4C-4H 后，17+ 叫 6NT"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4H R:Pass"
+    when: { hcp: "17+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: gerber_1nt_4h_4nt
+    description: "1NT-4C-4H 后，15-16 叫 4NT 止叫"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4H R:Pass"
+    when: { hcp: "15-16", partnerOpened: true }
+    action: "4NT"
+    priority: 91
+
+  - id: gerber_1nt_4s_6nt
+    description: "1NT-4C-4S 后，16+ 叫 6NT"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4S R:Pass"
+    when: { hcp: "16+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: gerber_1nt_4s_4nt
+    description: "1NT-4C-4S 后，15 叫 4NT 止叫"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4S R:Pass"
+    when: { hcp: "15", partnerOpened: true }
+    action: "4NT"
+    priority: 91
+
+  - id: gerber_1nt_4nt_6nt
+    description: "1NT-4C-4NT 后，15+ 叫 6NT"
+    sequence: "P:1NT R:Pass M:4C L:Pass P:4NT R:Pass"
+    when: { hcp: "15+", partnerOpened: true }
+    action: "6NT"
+    priority: 92
+
+  - id: gerber_2nt_4d_6nt
+    description: "2NT-4C-4D 后，15+ 叫 6NT"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4D R:Pass"
+    when: { hcp: "15+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: gerber_2nt_4d_4nt
+    description: "2NT-4C-4D 后，13-14 叫 4NT 止叫"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4D R:Pass"
+    when: { hcp: "13-14", partnerOpened: true }
+    action: "4NT"
+    priority: 91
+
+  - id: gerber_2nt_4h_6nt
+    description: "2NT-4C-4H 后，15+ 叫 6NT"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4H R:Pass"
+    when: { hcp: "15+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: gerber_2nt_4h_4nt
+    description: "2NT-4C-4H 后，13-14 叫 4NT 止叫"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4H R:Pass"
+    when: { hcp: "13-14", partnerOpened: true }
+    action: "4NT"
+    priority: 91
+
+  - id: gerber_2nt_4s_6nt
+    description: "2NT-4C-4S 后，15+ 叫 6NT"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4S R:Pass"
+    when: { hcp: "15+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 93
+
+  - id: gerber_2nt_4s_4nt
+    description: "2NT-4C-4S 后，13-14 叫 4NT 止叫"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4S R:Pass"
+    when: { hcp: "13-14", partnerOpened: true }
+    action: "4NT"
+    priority: 91
+
+  - id: gerber_2nt_4nt_6nt
+    description: "2NT-4C-4NT 后，13+ 叫 6NT"
+    sequence: "P:2NT R:Pass M:4C L:Pass P:4NT R:Pass"
+    when: { hcp: "13+", partnerOpened: true }
+    action: "6NT"
+    priority: 92
+
+  # 开叫人 Blackwood（1H-3H / 1S-3S 后）
+  - id: blackwood_1h_3h
+    description: "1H-3H 后，15 且 6+ 红桃 4NT 问 A"
+    sequence: "M:1H L:Pass P:3H R:Pass"
+    when: { hcp: "15", hearts: "6+" }
+    action: "4NT"
+    priority: 88
+
+  - id: blackwood_1s_3s
+    description: "1S-3S 后，15 且 6+ 黑桃 4NT 问 A"
+    sequence: "M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "15", spades: "6+" }
+    action: "4NT"
+    priority: 88
+
+  - id: blackwood_1h_3h_0_4
+    description: "1H-3H-4NT 后，0 或 4 A 答 5C"
+    sequence: "P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "0", partnerOpened: true }
+    action: "5C"
+    priority: 96
+
+  - id: blackwood_1h_3h_4
+    description: "1H-3H-4NT 后，4 A 答 5C"
+    sequence: "P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "4", partnerOpened: true }
+    action: "5C"
+    priority: 95
+
+  - id: blackwood_1h_3h_1
+    description: "1H-3H-4NT 后，1 A 答 5D"
+    sequence: "P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "1", partnerOpened: true }
+    action: "5D"
+    priority: 96
+
+  - id: blackwood_1h_3h_2
+    description: "1H-3H-4NT 后，2 A 答 5H"
+    sequence: "P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "2", partnerOpened: true }
+    action: "5H"
+    priority: 96
+
+  - id: blackwood_1h_3h_3
+    description: "1H-3H-4NT 后，3 A 答 5S"
+    sequence: "P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "3", partnerOpened: true }
+    action: "5S"
+    priority: 96
+
+  - id: blackwood_1s_3s_0_4
+    description: "1S-3S-4NT 后，0 或 4 A 答 5C"
+    sequence: "P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "0", partnerOpened: true }
+    action: "5C"
+    priority: 96
+
+  - id: blackwood_1s_3s_4
+    description: "1S-3S-4NT 后，4 A 答 5C"
+    sequence: "P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "4", partnerOpened: true }
+    action: "5C"
+    priority: 95
+
+  - id: blackwood_1s_3s_1
+    description: "1S-3S-4NT 后，1 A 答 5D"
+    sequence: "P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "1", partnerOpened: true }
+    action: "5D"
+    priority: 96
+
+  - id: blackwood_1s_3s_2
+    description: "1S-3S-4NT 后，2 A 答 5H"
+    sequence: "P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "2", partnerOpened: true }
+    action: "5H"
+    priority: 96
+
+  - id: blackwood_1s_3s_3
+    description: "1S-3S-4NT 后，3 A 答 5S"
+    sequence: "P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "3", partnerOpened: true }
+    action: "5S"
+    priority: 96
+
+  - id: blackwood_1h_3h_5c_5h
+    description: "1H-3H-4NT-5C 后，开叫人止叫 5H"
+    sequence: "M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { hearts: "6+" }
+    action: "5H"
+    priority: 89
+
+  - id: blackwood_1h_3h_5d_5h
+    description: "1H-3H-4NT-5D 后，开叫人止叫 5H"
+    sequence: "M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { hearts: "6+" }
+    action: "5H"
+    priority: 89
+
+  - id: blackwood_1h_3h_5s_6h
+    description: "1H-3H-4NT-5S 后，开叫人 6H"
+    sequence: "M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5S R:Pass"
+    when: { hearts: "6+" }
+    action: "6H"
+    priority: 90
+
+  - id: blackwood_1s_3s_5c_5s
+    description: "1S-3S-4NT-5C 后，开叫人止叫 5S"
+    sequence: "M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { spades: "6+" }
+    action: "5S"
+    priority: 89
+
+  - id: blackwood_1s_3s_5d_5s
+    description: "1S-3S-4NT-5D 后，开叫人止叫 5S"
+    sequence: "M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { spades: "6+" }
+    action: "5S"
+    priority: 89
+
+  - id: blackwood_1s_3s_5s_6s
+    description: "1S-3S-4NT-5S 后，开叫人 6S"
+    sequence: "M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5S R:Pass"
+    when: { spades: "6+" }
+    action: "6S"
+    priority: 90
+
+  - id: blackwood_1h_3h_5h_6h
+    description: "1H-3H-4NT-5H 后，开叫人 6H"
+    sequence: "M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5H R:Pass"
+    when: { hearts: "6+" }
+    action: "6H"
+    priority: 90
+
+  - id: blackwood_1s_3s_5h_6s
+    description: "1S-3S-4NT-5H 后，开叫人 6S"
+    sequence: "M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5H R:Pass"
+    when: { spades: "6+" }
+    action: "6S"
+    priority: 90
+
+  # ------------------------------------------------------------------
+  # 2NT 开叫（20-21 均型）后的应叫与再叫
+  # ------------------------------------------------------------------
+  - id: resp_2nt_6nt
+    description: "2NT 后 6NT：13+ 均型"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "13+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 97
+
+  - id: resp_2nt_4nt_quant
+    description: "2NT 后 4NT 定量邀叫：11-12 均型"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "11-12", balanced: true, partnerOpened: true }
+    action: "4NT"
+    priority: 95
+
+  - id: resp_2nt_3d_transfer_h
+    description: "2NT 后 3D 转移红桃：4+，5+ 红桃"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "4+", hearts: "5+", partnerOpened: true }
+    action: "3D"
+    priority: 88
+
+  - id: resp_2nt_3h_transfer_s
+    description: "2NT 后 3H 转移黑桃：4+，5+ 黑桃"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "4+", spades: "5+", partnerOpened: true }
+    action: "3H"
+    priority: 87
+
+  - id: resp_2nt_3c_stayman
+    description: "2NT 后 3C 斯台曼：4+，至少一门四张高花"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "4+", fourCardMajor: true, partnerOpened: true }
+    action: "3C"
+    priority: 84
+
+  - id: resp_2nt_3nt
+    description: "2NT 后 3NT：4-10，无四张高花"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "4-10", fourCardMajor: false, partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_2nt_pass_weak
+    description: "2NT 后弱牌 Pass：0-3"
+    sequence: "P:2NT R:Pass"
+    when: { hcp: "0-3", partnerOpened: true }
+    action: "Pass"
+    priority: 70
+
+  - id: opener_2nt_4nt_6nt
+    description: "2NT-4NT 定量邀叫后，21 点接受 6NT"
+    sequence: "M:2NT L:Pass P:4NT R:Pass"
+    when: { hcp: "21" }
+    action: "6NT"
+    priority: 94
+
+  # 2NT 开叫人对斯台曼 / 转移的应答
+  - id: opener_2nt_stayman_3s
+    description: "2NT-3C 斯台曼：4+ 黑桃答 3S"
+    sequence: "M:2NT L:Pass P:3C R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 98
+
+  - id: opener_2nt_stayman_3h
+    description: "2NT-3C 斯台曼：4+ 红桃答 3H"
+    sequence: "M:2NT L:Pass P:3C R:Pass"
+    when: { hearts: "4+" }
+    action: "3H"
+    priority: 97
+
+  - id: opener_2nt_stayman_3d
+    description: "2NT-3C 斯台曼：无四张高花答 3D"
+    sequence: "M:2NT L:Pass P:3C R:Pass"
+    when: { spades: "0-3", hearts: "0-3" }
+    action: "3D"
+    priority: 96
+
+  - id: opener_2nt_accept_transfer_h
+    description: "2NT-3D 转移红桃：接受 3H"
+    sequence: "M:2NT L:Pass P:3D R:Pass"
+    when: {}
+    action: "3H"
+    priority: 96
+
+  - id: opener_2nt_accept_transfer_s
+    description: "2NT-3H 转移黑桃：接受 3S"
+    sequence: "M:2NT L:Pass P:3H R:Pass"
+    when: {}
+    action: "3S"
+    priority: 96
+
+  # 2NT 斯台曼答叫后的继续
+  - id: resp_2nt_stayman_h_6h
+    description: "2NT-3C-3H 后，13+ 且 4+ 红桃小满贯"
+    sequence: "P:2NT R:Pass M:3C L:Pass P:3H R:Pass"
+    when: { hcp: "13+", hearts: "4+", partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: resp_2nt_stayman_h_4h
+    description: "2NT-3C-3H 后，4+ 且 4+ 红桃进局"
+    sequence: "P:2NT R:Pass M:3C L:Pass P:3H R:Pass"
+    when: { hcp: "4+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_2nt_stayman_s_6s
+    description: "2NT-3C-3S 后，13+ 且 4+ 黑桃小满贯"
+    sequence: "P:2NT R:Pass M:3C L:Pass P:3S R:Pass"
+    when: { hcp: "13+", spades: "4+", partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: resp_2nt_stayman_s_4s
+    description: "2NT-3C-3S 后，4+ 且 4+ 黑桃进局"
+    sequence: "P:2NT R:Pass M:3C L:Pass P:3S R:Pass"
+    when: { hcp: "4+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 93
+
+  - id: resp_2nt_stayman_nomajor_3nt
+    description: "2NT-3C-3D 后，4-12 无高花配合叫 3NT"
+    sequence: "P:2NT R:Pass M:3C L:Pass P:3D R:Pass"
+    when: { hcp: "4-12", partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_2nt_stayman_nomajor_6nt
+    description: "2NT-3C-3D 后，13+ 均型小满贯"
+    sequence: "P:2NT R:Pass M:3C L:Pass P:3D R:Pass"
+    when: { hcp: "13+", balanced: true, partnerOpened: true }
+    action: "6NT"
+    priority: 94
+
+  # 2NT 转移后的继续
+  - id: resp_2nt_transfer_h_6h
+    description: "2NT-3D-3H 后，13+ 且 6+ 红桃小满贯"
+    sequence: "P:2NT R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "13+", hearts: "6+", partnerOpened: true }
+    action: "6H"
+    priority: 95
+
+  - id: resp_2nt_transfer_h_4h
+    description: "2NT-3D-3H 后，4+ 且 6+ 红桃进局"
+    sequence: "P:2NT R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "4+", hearts: "6+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_2nt_transfer_h_3nt
+    description: "2NT-3D-3H 后，4-10 五张红桃选择 3NT"
+    sequence: "P:2NT R:Pass M:3D L:Pass P:3H R:Pass"
+    when: { hcp: "4-10", hearts: "5", partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_2nt_transfer_s_6s
+    description: "2NT-3H-3S 后，13+ 且 6+ 黑桃小满贯"
+    sequence: "P:2NT R:Pass M:3H L:Pass P:3S R:Pass"
+    when: { hcp: "13+", spades: "6+", partnerOpened: true }
+    action: "6S"
+    priority: 95
+
+  - id: resp_2nt_transfer_s_4s
+    description: "2NT-3H-3S 后，4+ 且 6+ 黑桃进局"
+    sequence: "P:2NT R:Pass M:3H L:Pass P:3S R:Pass"
+    when: { hcp: "4+", spades: "6+", partnerOpened: true }
+    action: "4S"
+    priority: 93
+
+  - id: resp_2nt_transfer_s_3nt
+    description: "2NT-3H-3S 后，4-10 五张黑桃选择 3NT"
+    sequence: "P:2NT R:Pass M:3H L:Pass P:3S R:Pass"
+    when: { hcp: "4-10", spades: "5", partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  # ------------------------------------------------------------------
+  # 精确 1C 正应后的开叫人续叫（补足 16-18 的成局/再叫）
+  # ------------------------------------------------------------------
+  - id: opener_1c_1h_3nt
+    description: "1C-1H 后，22+ 均型且红桃不超过 3 张，直接 3NT"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { hcp: "22+", balanced: true, hearts: "0-3" }
+    action: "3NT"
+    priority: 96
+
+  - id: opener_1c_1h_1s
+    description: "1C-1H 后，5+ 黑桃自然再叫 1S"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { spades: "5+" }
+    action: "1S"
+    priority: 88
+
+  - id: opener_1c_1h_2c
+    description: "1C-1H 后，6+ 梅花再叫 2C"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { clubs: "6+" }
+    action: "2C"
+    priority: 87
+
+  - id: opener_1c_1h_2d
+    description: "1C-1H 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 86
+
+  - id: opener_1c_1h_1nt
+    description: "1C-1H 后，16-18 均型再叫 1NT"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "1NT"
+    priority: 85
+
+  - id: opener_1c_1h_default_1nt
+    description: "1C-1H 后，16-18 未命中自然再叫时叫 1NT"
+    sequence: "M:1C L:Pass P:1H R:Pass"
+    when: { hcp: "16-18" }
+    action: "1NT"
+    priority: 80
+
+  - id: opener_1c_1s_3nt
+    description: "1C-1S 后，22+ 均型且黑桃不超过 3 张，直接 3NT"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { hcp: "22+", balanced: true, spades: "0-3" }
+    action: "3NT"
+    priority: 96
+
+  - id: opener_1c_1s_2h
+    description: "1C-1S 后，5+ 红桃自然再叫 2H"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 88
+
+  - id: resp_1c_1s_2h_4h
+    description: "1C-1S-2H 后，11+ 且 3+ 红桃进局 4H"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "11+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_1c_1s_2h_3nt
+    description: "1C-1S-2H 后，11+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "11+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1c_1s_2h_2s
+    description: "1C-1S-2H 后，8+ 且 5+ 黑桃再叫 2S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 90
+
+  - id: resp_1c_1s_2h_3s
+    description: "1C-1S-2H 后，11+ 且 5+ 黑桃跳叫 3S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "11+", spades: "5+", partnerOpened: true }
+    action: "3S"
+    priority: 90
+
+  - id: resp_1c_1s_2h_3h
+    description: "1C-1S-2H 后，8-10 且 3+ 红桃加叫 3H"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "8-10", hearts: "3+", partnerOpened: true }
+    action: "3H"
+    priority: 89
+
+  - id: resp_1c_1s_2h_2nt
+    description: "1C-1S-2H 后，8-10 均型叫 2NT"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass"
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: opener_1c_1s_2h_2s_3nt
+    description: "1C-1S-2H-2S 后，19+ 均型叫 3NT"
+    sequence: "M:1C L:Pass P:1S R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "19+", balanced: true }
+    action: "3NT"
+    priority: 95
+
+  - id: opener_1c_1s_2h_2s_4h
+    description: "1C-1S-2H-2S 后，6+ 红桃叫 4H"
+    sequence: "M:1C L:Pass P:1S R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hearts: "6+" }
+    action: "4H"
+    priority: 95
+
+  - id: opener_1c_1s_2h_2s_3h
+    description: "1C-1S-2H-2S 后，5+ 红桃再叫 3H"
+    sequence: "M:1C L:Pass P:1S R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 93
+
+  - id: opener_1c_1s_2h_2s_3s
+    description: "1C-1S-2H-2S 后，3+ 黑桃加叫 3S"
+    sequence: "M:1C L:Pass P:1S R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { spades: "3+" }
+    action: "3S"
+    priority: 94
+
+  - id: opener_1c_1s_2h_2s_4s
+    description: "1C-1S-2H-2S 后，4+ 黑桃进局 4S"
+    sequence: "M:1C L:Pass P:1S R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "4S"
+    priority: 96
+
+  - id: resp_1c_1s_2h_2s_3h_3nt
+    description: "1C-1S-2H-2S-3H 后，应叫人 8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 95
+
+  - id: resp_1c_1s_2h_2s_3h_4h
+    description: "1C-1S-2H-2S-3H 后，应叫人 8+ 且 3+ 红桃进局 4H"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 94
+
+  - id: resp_1c_1s_2h_2s_3h_3nt_any
+    description: "1C-1S-2H-2S-3H 后，应叫人 10+ 且有方块/梅花挡张叫 3NT"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "10+", stoppers: "DC", partnerOpened: true }
+    action: "3NT"
+    priority: 95
+
+  - id: resp_1c_1s_2h_2s_3h_4h_2
+    description: "1C-1S-2H-2S-3H 后，应叫人 8+ 且 2+ 红桃进局 4H"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8+", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1c_1s_2c
+    description: "1C-1S 后，6+ 梅花再叫 2C"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { clubs: "6+" }
+    action: "2C"
+    priority: 87
+
+  - id: opener_1c_1s_2d
+    description: "1C-1S 后，5+ 方块再叫 2D"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { diamonds: "5+" }
+    action: "2D"
+    priority: 86
+
+  - id: opener_1c_1s_1nt
+    description: "1C-1S 后，16-18 均型再叫 1NT"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "1NT"
+    priority: 85
+
+  - id: opener_1c_1s_default_1nt
+    description: "1C-1S 后，16-18 未命中自然再叫时叫 1NT"
+    sequence: "M:1C L:Pass P:1S R:Pass"
+    when: { hcp: "16-18" }
+    action: "1NT"
+    priority: 80
+
+  - id: opener_1c_2c_2h
+    description: "1C-2C 后，5+ 红桃再叫 2H"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 92
+
+  - id: opener_1c_2c_2s
+    description: "1C-2C 后，5+ 黑桃再叫 2S"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { spades: "5+" }
+    action: "2S"
+    priority: 91
+
+  - id: opener_1c_2c_2d
+    description: "1C-2C 后，4+ 方块再叫 2D"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { diamonds: "4+" }
+    action: "2D"
+    priority: 88
+
+  - id: opener_1c_2c_default_2nt
+    description: "1C-2C 后，16-18 未命中自然再叫时叫 2NT"
+    sequence: "M:1C L:Pass P:2C R:Pass"
+    when: { hcp: "16-18" }
+    action: "2NT"
+    priority: 80
+
+  - id: opener_1c_2d_2h
+    description: "1C-2D 后，5+ 红桃再叫 2H"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { hearts: "5+" }
+    action: "2H"
+    priority: 92
+
+  - id: opener_1c_2d_2s
+    description: "1C-2D 后，5+ 黑桃再叫 2S"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { spades: "5+" }
+    action: "2S"
+    priority: 91
+
+  - id: opener_1c_2d_3c
+    description: "1C-2D 后，6+ 梅花再叫 3C"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { clubs: "6+" }
+    action: "3C"
+    priority: 90
+
+  - id: opener_1c_2d_default_2nt
+    description: "1C-2D 后，16-18 未命中自然再叫时叫 2NT"
+    sequence: "M:1C L:Pass P:2D R:Pass"
+    when: { hcp: "16-18" }
+    action: "2NT"
+    priority: 80
+
+  # ------------------------------------------------------------------
+  # 1C 正应后的应叫人继续（避免在 1NT/2NT/加叫后停住）
+  # ------------------------------------------------------------------
+  - id: resp_1c_1h_1nt_4h
+    description: "1C-1H-1NT 后，8+ 且 6+ 红桃进局"
+    sequence: "P:1C R:Pass M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "8+", hearts: "6+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_1c_1h_1nt_3nt
+    description: "1C-1H-1NT 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1c_1h_1nt_2h
+    description: "1C-1H-1NT 后，8-10 且 5+ 红桃再叫 2H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "8-10", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 90
+
+  - id: opener_1c_1h_1nt_2h_2s
+    description: "1C-1H-1NT-2H 后，开叫人 4+ 黑桃再叫 2S"
+    sequence: "M:1C L:Pass P:1H R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 93
+
+  - id: opener_1c_1h_1nt_2h_2s_3h_3nt
+    description: "1C-1H-1NT-2H-2S-3H 后，开叫人 16-18 均型叫 3NT"
+    sequence: "M:1C L:Pass P:1H R:Pass M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_1h_1nt_2h_2s_3h_4h
+    description: "1C-1H-1NT-2H-2S-3H 后，开叫人 16-18 且 2+ 红桃进局 4H"
+    sequence: "M:1C L:Pass P:1H R:Pass M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "16-18", hearts: "2+" }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1c_1h_1nt_2h_2nt
+    description: "1C-1H-1NT-2H 后，开叫人 16-18 均型再叫 2NT"
+    sequence: "M:1C L:Pass P:1H R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { hcp: "16-18", balanced: true }
+    action: "2NT"
+    priority: 92
+
+  - id: opener_1c_1h_1nt_2h_3nt
+    description: "1C-1H-1NT-2H 后，开叫人 19+ 均型叫 3NT"
+    sequence: "M:1C L:Pass P:1H R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { hcp: "19+", balanced: true }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_1h_1nt_2h_3h
+    description: "1C-1H-1NT-2H 后，开叫人 3+ 红桃加叫 3H"
+    sequence: "M:1C L:Pass P:1H R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { hearts: "3+" }
+    action: "3H"
+    priority: 93
+
+  - id: resp_1c_1h_1nt_2h_2s_3h
+    description: "1C-1H-1NT-2H-2S 后，应叫人 8-10 且 5+ 红桃再叫 3H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "8-10", hearts: "5+", partnerOpened: true }
+    action: "3H"
+    priority: 92
+
+  - id: resp_1c_1h_1nt_2h_2s_3nt
+    description: "1C-1H-1NT-2H-2S 后，应叫人 8-10 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1H L:Pass P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 93
+
+  - id: resp_1c_1s_1nt_4s
+    description: "1C-1S-1NT 后，8+ 且 6+ 黑桃进局"
+    sequence: "P:1C R:Pass M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "8+", spades: "6+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  - id: resp_1c_1s_1nt_3nt
+    description: "1C-1S-1NT 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1c_1s_1nt_2s
+    description: "1C-1S-1NT 后，8-10 且 5+ 黑桃再叫 2S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:1NT R:Pass"
+    when: { hcp: "8-10", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 90
+
+  - id: resp_1c_1h_2nt_3nt
+    description: "1C-1H-2NT 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1H L:Pass P:2NT R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_1c_1h_2nt_4h
+    description: "1C-1H-2NT 后，8+ 且 6+ 红桃进局"
+    sequence: "P:1C R:Pass M:1H L:Pass P:2NT R:Pass"
+    when: { hcp: "8+", hearts: "6+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1c_1h_3h_4h
+    description: "1C-1H-3H 后，8+ 加叫进局"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass"
+    when: { hcp: "8+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_1c_1s_3s_4s
+    description: "1C-1S-3S 后，8+ 加叫进局"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "8+", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  # ------------------------------------------------------------------
+  # 1C 强开叫、高花配合后的 Blackwood 4NT（简化 A 问叫）
+  # 答叫：5C=0、5D=1、5H=2、5S=3、5NT=4
+  # ------------------------------------------------------------------
+  - id: blackwood_1c_1h_3h_ask
+    description: "1C-1H-3H 后，8+ 用 4NT 问 A"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass"
+    when: { hcp: "8+", hearts: "3+", partnerOpened: true }
+    action: "4NT"
+    priority: 95
+
+  - id: blackwood_1c_1h_3h_0
+    description: "1C-1H-3H-4NT 后，0 A 答 5C"
+    sequence: "M:1C L:Pass P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "0" }
+    action: "5C"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_1
+    description: "1C-1H-3H-4NT 后，1 A 答 5D"
+    sequence: "M:1C L:Pass P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "1" }
+    action: "5D"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_2
+    description: "1C-1H-3H-4NT 后，2 A 答 5H"
+    sequence: "M:1C L:Pass P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "2" }
+    action: "5H"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_3
+    description: "1C-1H-3H-4NT 后，3 A 答 5S"
+    sequence: "M:1C L:Pass P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "3" }
+    action: "5S"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_4
+    description: "1C-1H-3H-4NT 后，4 A 答 5NT"
+    sequence: "M:1C L:Pass P:1H R:Pass M:3H L:Pass P:4NT R:Pass"
+    when: { aces: "4" }
+    action: "5NT"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_5c_6h
+    description: "1C-1H-3H-4NT-5C 后，3+ A 叫 6H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { aces: "3+", partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_5c_5h
+    description: "1C-1H-3H-4NT-5C 后，0-2 A 停在 5H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { aces: "0-2", partnerOpened: true }
+    action: "5H"
+    priority: 90
+
+  - id: blackwood_1c_1h_3h_5d_6h
+    description: "1C-1H-3H-4NT-5D 后，2+ A 叫 6H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { aces: "2+", partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_5d_5h
+    description: "1C-1H-3H-4NT-5D 后，0-1 A 停在 5H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { aces: "0-1", partnerOpened: true }
+    action: "5H"
+    priority: 90
+
+  - id: blackwood_1c_1h_3h_5h_6h
+    description: "1C-1H-3H-4NT-5H 后，1+ A 叫 6H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5H R:Pass"
+    when: { aces: "1+", partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_5s_6h
+    description: "1C-1H-3H-4NT-5S 后，3 A 叫 6H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5S R:Pass"
+    when: { partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_5nt_6h
+    description: "1C-1H-3H-4NT-5NT 后，4 A 叫 6H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5NT R:Pass"
+    when: { partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: blackwood_1c_1h_3h_5nt_7h
+    description: "1C-1H-3H-4NT-5NT 后，10+ 且 5+ 红桃叫 7H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:3H R:Pass M:4NT L:Pass P:5NT R:Pass"
+    when: { hcp: "10+", hearts: "5+", partnerOpened: true }
+    action: "7H"
+    priority: 97
+
+  - id: blackwood_1c_1s_3s_ask
+    description: "1C-1S-3S 后，8+ 用 4NT 问 A"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass"
+    when: { hcp: "8+", spades: "3+", partnerOpened: true }
+    action: "4NT"
+    priority: 95
+
+  - id: blackwood_1c_1s_3s_0
+    description: "1C-1S-3S-4NT 后，0 A 答 5C"
+    sequence: "M:1C L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "0" }
+    action: "5C"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_1
+    description: "1C-1S-3S-4NT 后，1 A 答 5D"
+    sequence: "M:1C L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "1" }
+    action: "5D"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_2
+    description: "1C-1S-3S-4NT 后，2 A 答 5H"
+    sequence: "M:1C L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "2" }
+    action: "5H"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_3
+    description: "1C-1S-3S-4NT 后，3 A 答 5S"
+    sequence: "M:1C L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "3" }
+    action: "5S"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_4
+    description: "1C-1S-3S-4NT 后，4 A 答 5NT"
+    sequence: "M:1C L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { aces: "4" }
+    action: "5NT"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_5c_6s
+    description: "1C-1S-3S-4NT-5C 后，3+ A 叫 6S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { aces: "3+", partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_5c_5s
+    description: "1C-1S-3S-4NT-5C 后，0-2 A 停在 5S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { aces: "0-2", partnerOpened: true }
+    action: "5S"
+    priority: 90
+
+  - id: blackwood_1c_1s_3s_5d_6s
+    description: "1C-1S-3S-4NT-5D 后，2+ A 叫 6S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { aces: "2+", partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_5d_5s
+    description: "1C-1S-3S-4NT-5D 后，0-1 A 停在 5S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { aces: "0-1", partnerOpened: true }
+    action: "5S"
+    priority: 90
+
+  - id: blackwood_1c_1s_3s_5h_6s
+    description: "1C-1S-3S-4NT-5H 后，1+ A 叫 6S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5H R:Pass"
+    when: { aces: "1+", partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_5s_6s
+    description: "1C-1S-3S-4NT-5S 后，3 A 叫 6S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5S R:Pass"
+    when: { partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_5nt_6s
+    description: "1C-1S-3S-4NT-5NT 后，4 A 叫 6S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5NT R:Pass"
+    when: { partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: blackwood_1c_1s_3s_5nt_7s
+    description: "1C-1S-3S-4NT-5NT 后，10+ 且 5+ 黑桃叫 7S"
+    sequence: "P:1C R:Pass M:1S L:Pass P:3S R:Pass M:4NT L:Pass P:5NT R:Pass"
+    when: { hcp: "10+", spades: "5+", partnerOpened: true }
+    action: "7S"
+    priority: 97
+
+  # 1C-2C 开叫人再叫花色后的应叫人继续
+  - id: resp_1c_2c_2s_4s
+    description: "1C-2C-2S 后，8+ 且 3+ 黑桃进局"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "8+", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 93
+
+  - id: resp_1c_2c_2s_3s
+    description: "1C-2C-2S 后，6-10 且 3+ 黑桃邀叫 3S"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "6-10", spades: "3+", partnerOpened: true }
+    action: "3S"
+    priority: 91
+
+  - id: resp_1c_2c_2s_3nt
+    description: "1C-2C-2S 后，8+ 均型无黑桃配合叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "8+", balanced: true, spades: "0-2", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1c_2c_2s_3c
+    description: "1C-2C-2S 后，6+ 梅花再叫 3C"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { clubs: "6+", partnerOpened: true }
+    action: "3C"
+    priority: 88
+
+  - id: resp_1c_2c_2h_4h
+    description: "1C-2C-2H 后，8+ 且 3+ 红桃进局"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "8+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1c_2c_2h_3h
+    description: "1C-2C-2H 后，6-10 且 3+ 红桃邀叫 3H"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "6-10", hearts: "3+", partnerOpened: true }
+    action: "3H"
+    priority: 91
+
+  - id: resp_1c_2c_2h_3nt
+    description: "1C-2C-2H 后，8+ 均型无红桃配合叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "8+", balanced: true, hearts: "0-2", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1c_2c_2h_3c
+    description: "1C-2C-2H 后，6+ 梅花再叫 3C"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { clubs: "6+", partnerOpened: true }
+    action: "3C"
+    priority: 88
+
+  - id: resp_1c_2c_2h_3c_5
+    description: "1C-2C-2H 后，8+ 且 5+ 梅花再叫 3C"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 87
+
+  - id: resp_1c_2c_2h_2nt
+    description: "1C-2C-2H 后，8-10 均型叫 2NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
+    action: "2NT"
+    priority: 89
+
+  - id: opener_1c_2c_2h_3c_3nt
+    description: "1C-2C-2H-3C 后，开叫人 16+ 均型且有方块/黑桃挡张叫 3NT"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2H L:Pass P:3C R:Pass"
+    when: { hcp: "16+", balanced: true, stoppers: "SD" }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_2c_2h_3c_4h
+    description: "1C-2C-2H-3C 后，开叫人 6+ 红桃叫 4H"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2H L:Pass P:3C R:Pass"
+    when: { hearts: "6+" }
+    action: "4H"
+    priority: 95
+
+  - id: opener_1c_2c_2h_3c_5c
+    description: "1C-2C-2H-3C 后，开叫人 3+ 梅花进局 5C"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2H L:Pass P:3C R:Pass"
+    when: { hcp: "19+", clubs: "3+" }
+    action: "5C"
+    priority: 93
+
+  - id: opener_1c_2c_2h_3c_3h
+    description: "1C-2C-2H-3C 后，开叫人 5+ 红桃再叫 3H"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2H L:Pass P:3C R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 92
+
+  - id: resp_1c_2c_2h_3c_3h_3nt
+    description: "1C-2C-2H-3C-3H 后，应叫人 8+ 且有方块/黑桃挡张叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass M:3C L:Pass P:3H R:Pass"
+    when: { hcp: "8+", stoppers: "SD", partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_2c_2h_3c_3h_4h
+    description: "1C-2C-2H-3C-3H 后，应叫人 8+ 且 2+ 红桃进局 4H"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass M:3C L:Pass P:3H R:Pass"
+    when: { hcp: "8+", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1c_2c_2h_3c_3h_5c
+    description: "1C-2C-2H-3C-3H 后，应叫人 8+ 且 6+ 梅花进局 5C"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2H R:Pass M:3C L:Pass P:3H R:Pass"
+    when: { hcp: "8+", clubs: "6+", partnerOpened: true }
+    action: "5C"
+    priority: 92
+
+  - id: resp_1c_2c_2d_3nt
+    description: "1C-2C-2D 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2D R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1c_2c_2d_5c
+    description: "1C-2C-2D 后，8+ 且 6+ 梅花进局 5C"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2D R:Pass"
+    when: { hcp: "8+", clubs: "6+", partnerOpened: true }
+    action: "5C"
+    priority: 89
+
+  - id: opener_1c_2c_2d_2s_2nt
+    description: "1C-2C-2D-2S 后，开叫人均型且有红桃挡张叫 2NT"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { balanced: true, stoppers: "H" }
+    action: "2NT"
+    priority: 92
+
+  - id: opener_1c_2c_2d_2s_3nt
+    description: "1C-2C-2D-2S 后，开叫人 19+ 均型且有红桃挡张叫 3NT"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "19+", balanced: true, stoppers: "H" }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_2c_2d_2s_3d
+    description: "1C-2C-2D-2S 后，开叫人 6+ 方块再叫 3D"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { diamonds: "6+" }
+    action: "3D"
+    priority: 91
+
+  - id: opener_1c_2c_2d_2s_3s
+    description: "1C-2C-2D-2S 后，开叫人 3+ 黑桃加叫 3S"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { spades: "3+" }
+    action: "3S"
+    priority: 93
+
+  - id: opener_1c_2c_2d_2s_4s
+    description: "1C-2C-2D-2S 后，开叫人 4+ 黑桃进局 4S"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "4S"
+    priority: 95
+
+  - id: resp_1c_2c_2d_2s_3s_4s
+    description: "1C-2C-2D-2S-3S 后，应叫人 8+ 且 4+ 黑桃进局 4S"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2D R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 95
+
+  - id: resp_1c_2c_2d_2s_3s_3nt
+    description: "1C-2C-2D-2S-3S 后，应叫人 8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2D R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_2c_2nt_3nt
+    description: "1C-2C-2NT 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2NT R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_1c_2c_3c_3nt
+    description: "1C-2C-3C 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:3C R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  # 1C-2D 开叫人再叫后的应叫人继续
+  - id: resp_1c_2d_2h_4h
+    description: "1C-2D-2H 后，8+ 且 3+ 红桃进局"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "8+", hearts: "3+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1c_2d_2h_3d
+    description: "1C-2D-2H 后，8+ 且 6+ 方块再叫 3D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "8+", diamonds: "6+", partnerOpened: true }
+    action: "3D"
+    priority: 91
+
+  - id: opener_1c_2d_2h_3d_3nt
+    description: "1C-2D-2H-3D 后，16+ 均型叫 3NT"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2H L:Pass P:3D R:Pass"
+    when: { hcp: "16+", balanced: true }
+    action: "3NT"
+    priority: 95
+
+  - id: opener_1c_2d_2h_3d_4d
+    description: "1C-2D-2H-3D 后，3+ 方块加叫 4D"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2H L:Pass P:3D R:Pass"
+    when: { diamonds: "3+" }
+    action: "4D"
+    priority: 94
+
+  - id: opener_1c_2d_2h_3d_3h
+    description: "1C-2D-2H-3D 后，6+ 红桃再叫 3H"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2H L:Pass P:3D R:Pass"
+    when: { hearts: "6+" }
+    action: "3H"
+    priority: 92
+
+  - id: resp_1c_2d_2h_3d_4d_6d
+    description: "1C-2D-2H-3D-4D 后，14+ 且 6+ 方块叫 6D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2H R:Pass M:3D L:Pass P:4D R:Pass"
+    when: { hcp: "14+", diamonds: "6+", partnerOpened: true }
+    action: "6D"
+    priority: 95
+
+  - id: resp_1c_2d_2h_3d_4d_5d
+    description: "1C-2D-2H-3D-4D 后，8-13 且 6+ 方块叫 5D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2H R:Pass M:3D L:Pass P:4D R:Pass"
+    when: { hcp: "8-13", diamonds: "6+", partnerOpened: true }
+    action: "5D"
+    priority: 92
+
+  - id: resp_1c_2d_2h_3nt
+    description: "1C-2D-2H 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1c_2d_2s_4s
+    description: "1C-2D-2S 后，8+ 且 3+ 黑桃进局"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "8+", spades: "3+", partnerOpened: true }
+    action: "4S"
+    priority: 93
+
+  - id: resp_1c_2d_2s_3d
+    description: "1C-2D-2S 后，8+ 且 6+ 方块再叫 3D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "8+", diamonds: "6+", partnerOpened: true }
+    action: "3D"
+    priority: 91
+
+  - id: opener_1c_2d_2s_3d_3nt
+    description: "1C-2D-2S-3D 后，16+ 均型叫 3NT"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { hcp: "16+", balanced: true }
+    action: "3NT"
+    priority: 95
+
+  - id: opener_1c_2d_2s_3d_4d
+    description: "1C-2D-2S-3D 后，3+ 方块加叫 4D"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { diamonds: "3+" }
+    action: "4D"
+    priority: 94
+
+  - id: opener_1c_2d_2s_3d_3s
+    description: "1C-2D-2S-3D 后，6+ 黑桃再叫 3S"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2S L:Pass P:3D R:Pass"
+    when: { spades: "6+" }
+    action: "3S"
+    priority: 92
+
+  - id: resp_1c_2d_2s_3d_4d_6d
+    description: "1C-2D-2S-3D-4D 后，14+ 且 6+ 方块叫 6D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:4D R:Pass"
+    when: { hcp: "14+", diamonds: "6+", partnerOpened: true }
+    action: "6D"
+    priority: 95
+
+  - id: resp_1c_2d_2s_3d_4d_5d
+    description: "1C-2D-2S-3D-4D 后，8-13 且 6+ 方块叫 5D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2S R:Pass M:3D L:Pass P:4D R:Pass"
+    when: { hcp: "8-13", diamonds: "6+", partnerOpened: true }
+    action: "5D"
+    priority: 92
+
+  - id: resp_1c_2d_2s_3nt
+    description: "1C-2D-2S 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1c_2d_2nt_3nt
+    description: "1C-2D-2NT 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2NT R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_1c_2d_2nt_3d
+    description: "1C-2D-2NT 后，8+ 且 6+ 方块再叫 3D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:2NT R:Pass"
+    when: { hcp: "8+", diamonds: "6+", partnerOpened: true }
+    action: "3D"
+    priority: 91
+
+  - id: resp_1c_2d_3c_3nt
+    description: "1C-2D-3C 后，8+ 均型叫 3NT"
+    sequence: "P:1C R:Pass M:2D L:Pass P:3C R:Pass"
+    when: { hcp: "8+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1c_2d_3d_4d
+    description: "1C-2D-3D 后，8+ 加叫 4D"
+    sequence: "P:1C R:Pass M:2D L:Pass P:3D R:Pass"
+    when: { hcp: "8+", diamonds: "4+", partnerOpened: true }
+    action: "4D"
+    priority: 90
+
+  # 1C-1NT 后开叫人再叫高花，应叫人补加叫
+  - id: resp_1c_1nt_2h_4h
+    description: "1C-1NT-2H 后，8-10 且 4+ 红桃进局"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { hcp: "8-10", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1c_1nt_2h_3nt
+    description: "1C-1NT-2H 后，8-10 均型无红桃配合叫 3NT"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { hcp: "8-10", balanced: true, hearts: "0-3", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1c_1nt_2h_2s
+    description: "1C-1NT-2H 后，8-10 且 4+ 黑桃叫 2S"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass"
+    when: { hcp: "8-10", spades: "4+", hearts: "0-3", partnerOpened: true }
+    action: "2S"
+    priority: 92
+
+  - id: opener_1c_1nt_2h_2s_3nt
+    description: "1C-1NT-2H-2S 后，16+ 均型叫 3NT"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "16+", balanced: true, spades: "0-3" }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_1nt_2h_2s_4h
+    description: "1C-1NT-2H-2S 后，6+ 红桃叫 4H"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hearts: "6+" }
+    action: "4H"
+    priority: 95
+
+  - id: opener_1c_1nt_2h_2s_3h
+    description: "1C-1NT-2H-2S 后，5+ 红桃再叫 3H"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 93
+
+  - id: resp_1c_1nt_2h_2s_3h_3nt
+    description: "1C-1NT-2H-2S-3H 后，应叫人 8-10 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_1nt_2h_2s_3h_4h
+    description: "1C-1NT-2H-2S-3H 后，应叫人 8-10 且 2+ 红桃进局 4H"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "8-10", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: opener_1c_1nt_2h_2s_3s
+    description: "1C-1NT-2H-2S 后，4+ 黑桃加叫 3S"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { spades: "4+" }
+    action: "3S"
+    priority: 94
+
+  - id: resp_1c_1nt_2h_2s_3s_4s
+    description: "1C-1NT-2H-2S-3S 后，应叫人 8-10 且 4+ 黑桃进局 4S"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8-10", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 95
+
+  - id: resp_1c_1nt_2h_2s_3s_3nt
+    description: "1C-1NT-2H-2S-3S 后，应叫人 8-10 均型叫 3NT"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2H R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "8-10", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: opener_1c_1nt_2h_3nt_4h
+    description: "1C-1NT-2H-3NT 后，6+ 红桃修正到 4H"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2H L:Pass P:3NT R:Pass"
+    when: { hearts: "6+" }
+    action: "4H"
+    priority: 94
+
+  - id: resp_1c_1nt_2s_4s
+    description: "1C-1NT-2S 后，8-10 且 4+ 黑桃进局"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass"
+    when: { hcp: "8-10", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 93
+
+  - id: resp_1c_1nt_2s_4nt
+    description: "1C-1NT-2S 后，10 点、4+ 黑桃、联手 29+ 且 2+ 控制时 4NT 问 A"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass"
+    when: { hcp: "10", spades: "4+", controls: "2+", combinedHcp: "29+", partnerOpened: true }
+    action: "4NT"
+    priority: 95
+
+  - id: blackwood_1c_1nt_2s_4nt_0_4
+    description: "1C-1NT-2S-4NT 后，0 或 4 A 答 5C"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:4NT R:Pass"
+    when: { aces: "0" }
+    action: "5C"
+    priority: 96
+
+  - id: blackwood_1c_1nt_2s_4nt_4
+    description: "1C-1NT-2S-4NT 后，4 A 答 5C"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:4NT R:Pass"
+    when: { aces: "4" }
+    action: "5C"
+    priority: 95
+
+  - id: blackwood_1c_1nt_2s_4nt_1
+    description: "1C-1NT-2S-4NT 后，1 A 答 5D"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:4NT R:Pass"
+    when: { aces: "1" }
+    action: "5D"
+    priority: 96
+
+  - id: blackwood_1c_1nt_2s_4nt_2
+    description: "1C-1NT-2S-4NT 后，2 A 答 5H"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:4NT R:Pass"
+    when: { aces: "2" }
+    action: "5H"
+    priority: 96
+
+  - id: blackwood_1c_1nt_2s_4nt_3
+    description: "1C-1NT-2S-4NT 后，3 A 答 5S"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:4NT R:Pass"
+    when: { aces: "3" }
+    action: "5S"
+    priority: 96
+
+  - id: resp_1c_1nt_2s_4nt_5c_5s
+    description: "1C-1NT-2S-4NT-5C 后，应叫人止叫 5S"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass M:4NT L:Pass P:5C R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "5S"
+    priority: 96
+
+  - id: resp_1c_1nt_2s_4nt_5d_5s
+    description: "1C-1NT-2S-4NT-5D 后，应叫人止叫 5S"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass M:4NT L:Pass P:5D R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "5S"
+    priority: 96
+
+  - id: resp_1c_1nt_2s_4nt_5h_6s
+    description: "1C-1NT-2S-4NT-5H 后，应叫人 6S"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass M:4NT L:Pass P:5H R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: resp_1c_1nt_2s_4nt_5s_6s
+    description: "1C-1NT-2S-4NT-5S 后，应叫人 6S"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass M:4NT L:Pass P:5S R:Pass"
+    when: { spades: "4+", partnerOpened: true }
+    action: "6S"
+    priority: 96
+
+  - id: opener_1c_1nt_2s_4nt_5c_5s_4a_6s
+    description: "1C-1NT-2S-4NT-5C-5S 后，开叫人 4 A 改叫 6S"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:4NT R:Pass M:5C L:Pass P:5S R:Pass"
+    when: { aces: "4" }
+    action: "6S"
+    priority: 96
+
+  - id: resp_1c_1nt_2s_3nt
+    description: "1C-1NT-2S 后，8-10 均型无黑桃配合叫 3NT"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2S R:Pass"
+    when: { hcp: "8-10", balanced: true, spades: "0-3", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: opener_1c_1nt_2s_3nt_4s
+    description: "1C-1NT-2S-3NT 后，6+ 黑桃修正到 4S"
+    sequence: "M:1C L:Pass P:1NT R:Pass M:2S L:Pass P:3NT R:Pass"
+    when: { spades: "6+" }
+    action: "4S"
+    priority: 94
+
+  - id: resp_1c_1nt_2nt_3nt
+    description: "1C-1NT-2NT 后，8-10 选择 3NT"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:2NT R:Pass"
+    when: { hcp: "8-10", partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_1nt_3nt_pass
+    description: "1C-1NT-3NT 后，应叫人 Pass"
+    sequence: "P:1C R:Pass M:1NT L:Pass P:3NT R:Pass"
+    when: { partnerOpened: true }
+    action: "Pass"
+    priority: 80
+
+  # ------------------------------------------------------------------
+  # 1NT 斯台曼/转移后的应叫人继续（补足邀请与进局）
+  # ------------------------------------------------------------------
+  - id: resp_1nt_stayman_h_4h
+    description: "1NT-2C-2H 后，10+ 四张红桃进局"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "10+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 91
+
+  - id: resp_1nt_stayman_h_3nt
+    description: "1NT-2C-2H 后，8-9 无红桃配合叫 3NT/2NT 邀叫"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "8-9", hearts: "0-3", partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: resp_1nt_stayman_s_4s
+    description: "1NT-2C-2S 后，10+ 四张黑桃进局"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "10+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 91
+
+  - id: resp_1nt_stayman_s_3nt
+    description: "1NT-2C-2S 后，8-9 无黑桃配合叫 2NT 邀叫"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "8-9", spades: "0-3", partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: resp_1nt_transfer_h_3nt
+    description: "1NT-2D-2H 后，10+ 五张红桃选择 3NT"
+    sequence: "P:1NT R:Pass M:2D L:Pass P:2H R:Pass"
+    when: { hcp: "10+", hearts: "5", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1nt_transfer_s_3nt
+    description: "1NT-2H-2S 后，10+ 五张黑桃选择 3NT"
+    sequence: "P:1NT R:Pass M:2H L:Pass P:2S R:Pass"
+    when: { hcp: "10+", spades: "5", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  # ------------------------------------------------------------------
+  # 同伴开叫、RHO 争叫后的负加倍与竞争加叫
+  # ------------------------------------------------------------------
+  - id: neg_double_1h_over_1s_d
+    description: "1H-(1S)-X：负加倍，7+，4+ 方块"
+    sequence: "P:1H R:1S"
+    when: { hcp: "7+", diamonds: "4+", spades: "0-3", partnerOpened: true }
+    action: "X"
+    priority: 79
+
+  - id: neg_double_1h_over_1s_c
+    description: "1H-(1S)-X：负加倍，7+，4+ 梅花"
+    sequence: "P:1H R:1S"
+    when: { hcp: "7+", clubs: "4+", spades: "0-3", partnerOpened: true }
+    action: "X"
+    priority: 78
+
+  - id: comp_raise_1h_over_1s_weak
+    description: "1H-(1S) 后竞争加叫 2H：3+ 支持，6-9"
+    sequence: "P:1H R:1S"
+    when: { hcp: "6-9", hearts: "3+", partnerOpened: true }
+    action: "2H"
+    priority: 76
+
+  - id: comp_raise_1h_over_1s_invite
+    description: "1H-(1S) 后竞争加叫 3H：3+ 支持，10-12"
+    sequence: "P:1H R:1S"
+    when: { hcp: "10-12", hearts: "3+", partnerOpened: true }
+    action: "3H"
+    priority: 77
+
+  - id: comp_raise_1h_over_1s_game
+    description: "1H-(1S) 后竞争加叫 4H：4+ 支持，13+"
+    sequence: "P:1H R:1S"
+    when: { hcp: "13+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 81
+
+  - id: comp_1nt_over_1s
+    description: "1H-(1S) 后 1NT：8-10，黑桃有挡张"
+    sequence: "P:1H R:1S"
+    when: { hcp: "8-10", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "1NT"
+    priority: 75
+
+  - id: neg_double_1s_over_2c_d
+    description: "1S-(2C)-X：负加倍，7+，4+ 方块"
+    sequence: "P:1S R:2C"
+    when: { hcp: "7+", diamonds: "4+", clubs: "0-3", partnerOpened: true }
+    action: "X"
+    priority: 79
+
+  - id: neg_double_1s_over_2c_h
+    description: "1S-(2C)-X：负加倍，7+，4+ 红桃"
+    sequence: "P:1S R:2C"
+    when: { hcp: "7+", hearts: "4+", partnerOpened: true }
+    action: "X"
+    priority: 78
+
+  - id: comp_raise_1s_over_2c_weak
+    description: "1S-(2C) 后竞争加叫 2S：3+ 支持，6-9"
+    sequence: "P:1S R:2C"
+    when: { hcp: "6-9", spades: "3+", partnerOpened: true }
+    action: "2S"
+    priority: 76
+
+  - id: comp_raise_1s_over_2c_invite
+    description: "1S-(2C) 后竞争加叫 3S：3+ 支持，10-12"
+    sequence: "P:1S R:2C"
+    when: { hcp: "10-12", spades: "3+", partnerOpened: true }
+    action: "3S"
+    priority: 77
+
+  - id: comp_raise_1s_over_2c_game
+    description: "1S-(2C) 后竞争加叫 4S：4+ 支持，13+"
+    sequence: "P:1S R:2C"
+    when: { hcp: "13+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 81
+
+  # 1H-(2D)、1S-(2H) 后的竞争叫牌
+  - id: neg_double_1h_over_2d_s
+    description: "1H-(2D)-X：负加倍，7+，4+ 黑桃"
+    sequence: "P:1H R:2D"
+    when: { hcp: "7+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 79
+
+  - id: neg_double_1h_over_2d_c
+    description: "1H-(2D)-X：负加倍，7+，4+ 梅花"
+    sequence: "P:1H R:2D"
+    when: { hcp: "7+", clubs: "4+", diamonds: "0-3", partnerOpened: true }
+    action: "X"
+    priority: 78
+
+  - id: comp_raise_1h_over_2d_weak
+    description: "1H-(2D) 后竞争加叫 2H：3+ 支持，6-9"
+    sequence: "P:1H R:2D"
+    when: { hcp: "6-9", hearts: "3+", partnerOpened: true }
+    action: "2H"
+    priority: 76
+
+  - id: comp_raise_1h_over_2d_invite
+    description: "1H-(2D) 后竞争加叫 3H：3+ 支持，10-12"
+    sequence: "P:1H R:2D"
+    when: { hcp: "10-12", hearts: "3+", partnerOpened: true }
+    action: "3H"
+    priority: 77
+
+  - id: comp_raise_1h_over_2d_game
+    description: "1H-(2D) 后竞争加叫 4H：4+ 支持，13+"
+    sequence: "P:1H R:2D"
+    when: { hcp: "13+", hearts: "4+", partnerOpened: true }
+    action: "4H"
+    priority: 81
+
+  - id: comp_raise_1s_over_2h_weak
+    description: "1S-(2H) 后竞争加叫 2S：3+ 支持，6-9"
+    sequence: "P:1S R:2H"
+    when: { hcp: "6-9", spades: "3+", partnerOpened: true }
+    action: "2S"
+    priority: 76
+
+  - id: comp_raise_1s_over_2h_weak_0
+    description: "1S-(2H) 后竞争加叫 2S：4+ 支持，0-5"
+    sequence: "P:1S R:2H"
+    when: { hcp: "0-5", spades: "4+", partnerOpened: true }
+    action: "2S"
+    priority: 70
+
+  - id: opener_1s_over_2h_2s_4s
+    description: "1S-(2H)-2S 后，开叫人 11-15 且 6+ 黑桃进局 4S"
+    sequence: "M:1S L:2H P:2S R:Pass"
+    when: { hcp: "11-15", spades: "6+" }
+    action: "4S"
+    priority: 80
+
+  - id: comp_raise_1s_over_2h_invite
+    description: "1S-(2H) 后竞争加叫 3S：3+ 支持，10-12"
+    sequence: "P:1S R:2H"
+    when: { hcp: "10-12", spades: "3+", partnerOpened: true }
+    action: "3S"
+    priority: 77
+
+  - id: comp_raise_1s_over_2h_game
+    description: "1S-(2H) 后竞争加叫 4S：4+ 支持，13+"
+    sequence: "P:1S R:2H"
+    when: { hcp: "13+", spades: "4+", partnerOpened: true }
+    action: "4S"
+    priority: 81
+
+  - id: comp_raise_1s_over_2h_game_3
+    description: "1S-(2H) 后竞争加叫 4S：3 张支持，13+"
+    sequence: "P:1S R:2H"
+    when: { hcp: "13+", spades: "3", partnerOpened: true }
+    action: "4S"
+    priority: 80
+
+  - id: resp_1s_over_2h_3nt
+    description: "1S-(2H) 后 3NT：13+ 均型，红桃有挡张"
+    sequence: "P:1S R:2H"
+    when: { hcp: "13+", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "3NT"
+    priority: 82
+
+  - id: resp_1s_over_2h_2nt
+    description: "1S-(2H) 后 2NT：10-12 均型，红桃有挡张"
+    sequence: "P:1S R:2H"
+    when: { hcp: "10-12", balanced: true, stoppers: "H", partnerOpened: true }
+    action: "2NT"
+    priority: 78
+
+  - id: resp_1s_over_2h_3c
+    description: "1S-(2H) 后 3C：11+，5+ 梅花"
+    sequence: "P:1S R:2H"
+    when: { hcp: "11+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 77
+
+  - id: resp_1s_over_2h_3d
+    description: "1S-(2H) 后 3D：11+，5+ 方块"
+    sequence: "P:1S R:2H"
+    when: { hcp: "11+", diamonds: "5+", partnerOpened: true }
+    action: "3D"
+    priority: 77
+
+  - id: opener_1s_over_2h_x
+    description: "1S-(2H)-P-P 后，开叫人 13+ 且红桃短时技术性加倍"
+    sequence: "M:1S L:2H P:Pass R:Pass"
+    when: { hcp: "13+", hearts: "0-2" }
+    action: "X"
+    priority: 80
+
+  - id: opener_1s_over_2h_3s
+    description: "1S-(2H)-P-P 后，开叫人 13+ 且 6+ 黑桃再叫 3S"
+    sequence: "M:1S L:2H P:Pass R:Pass"
+    when: { hcp: "13+", spades: "6+" }
+    action: "3S"
+    priority: 79
+
+  - id: opener_1s_over_2h_3s_5
+    description: "1S-(2H)-P-P 后，开叫人 13+ 且 5+ 黑桃再叫 3S"
+    sequence: "M:1S L:2H P:Pass R:Pass"
+    when: { hcp: "13+", spades: "5+" }
+    action: "3S"
+    priority: 77
+
+  - id: opener_1s_over_2h_2nt
+    description: "1S-(2H)-P-P 后，开叫人 13-15 均型且有红桃挡张叫 2NT"
+    sequence: "M:1S L:2H P:Pass R:Pass"
+    when: { hcp: "13-15", balanced: true, stoppers: "H" }
+    action: "2NT"
+    priority: 78
+
+  - id: neg_double_1s_over_2h_d
+    description: "1S-(2H)-X：负加倍，7+，4+ 方块"
+    sequence: "P:1S R:2H"
+    when: { hcp: "7+", diamonds: "4+", hearts: "0-3", partnerOpened: true }
+    action: "X"
+    priority: 79
+
+  - id: neg_double_1s_over_2h_c
+    description: "1S-(2H)-X：负加倍，7+，4+ 梅花"
+    sequence: "P:1S R:2H"
+    when: { hcp: "7+", clubs: "4+", hearts: "0-3", partnerOpened: true }
+    action: "X"
+    priority: 78
+
+  # 1D-(1S) 后应叫人的自然与竞争叫牌
+  - id: resp_1d_over_1s_2h
+    description: "1D-(1S) 后 2H：8+，5+ 红桃"
+    sequence: "P:1D R:1S"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 73
+
+  - id: resp_1d_over_1s_2c
+    description: "1D-(1S) 后 2C：8+，5+ 梅花"
+    sequence: "P:1D R:1S"
+    when: { hcp: "8+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 72
+
+  - id: resp_1d_over_1s_raise
+    description: "1D-(1S) 后加叫 2D：6-9，4+ 方块"
+    sequence: "P:1D R:1S"
+    when: { hcp: "6-9", diamonds: "4+", partnerOpened: true }
+    action: "2D"
+    priority: 71
+
+  - id: resp_1d_over_1s_invite
+    description: "1D-(1S) 后加叫 3D：10-12，4+ 方块"
+    sequence: "P:1D R:1S"
+    when: { hcp: "10-12", diamonds: "4+", partnerOpened: true }
+    action: "3D"
+    priority: 72
+
+  - id: resp_1d_over_1s_1nt
+    description: "1D-(1S) 后 1NT：8-10，黑桃有挡张"
+    sequence: "P:1D R:1S"
+    when: { hcp: "8-10", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "1NT"
+    priority: 70
+
+  - id: resp_1d_over_1s_3nt
+    description: "1D-(1S) 后 3NT：13+ 均型，黑桃有挡张"
+    sequence: "P:1D R:1S"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 79
+
+  - id: resp_1d_over_1s_2nt
+    description: "1D-(1S) 后 2NT：11-12 均型，黑桃有挡张"
+    sequence: "P:1D R:1S"
+    when: { hcp: "11-12", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "2NT"
+    priority: 74
+
+  - id: resp_1d_over_1s_5d
+    description: "1D-(1S) 后 5D：13+，5+ 方块进局"
+    sequence: "P:1D R:1S"
+    when: { hcp: "13+", diamonds: "5+", partnerOpened: true }
+    action: "5D"
+    priority: 77
+
+  # 1D-(2C) 后应叫人的自然与竞争叫牌
+  - id: resp_1d_over_2c_pass
+    description: "1D-(2C) 后弱牌 Pass：0-7"
+    sequence: "P:1D R:2C"
+    when: { hcp: "0-7", partnerOpened: true }
+    action: "Pass"
+    priority: 30
+
+  - id: resp_1d_over_2c_x
+    description: "1D-(2C) 后 X：8+，4+ 双高花"
+    sequence: "P:1D R:2C"
+    when: { hcp: "8+", hearts: "4+", spades: "4+", partnerOpened: true }
+    action: "X"
+    priority: 82
+
+  - id: resp_1d_over_2c_2h
+    description: "1D-(2C) 后 2H：8+，5+ 红桃"
+    sequence: "P:1D R:2C"
+    when: { hcp: "8+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 80
+
+  - id: resp_1d_over_2c_2s
+    description: "1D-(2C) 后 2S：8+，5+ 黑桃"
+    sequence: "P:1D R:2C"
+    when: { hcp: "8+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 79
+
+  - id: resp_1d_over_2c_2d
+    description: "1D-(2C) 后 2D：6-9，4+ 方块"
+    sequence: "P:1D R:2C"
+    when: { hcp: "6-9", diamonds: "4+", partnerOpened: true }
+    action: "2D"
+    priority: 75
+
+  - id: resp_1d_over_2c_3d
+    description: "1D-(2C) 后 3D：10-12，4+ 方块邀叫"
+    sequence: "P:1D R:2C"
+    when: { hcp: "10-12", diamonds: "4+", partnerOpened: true }
+    action: "3D"
+    priority: 76
+
+  - id: resp_1d_over_2c_2nt
+    description: "1D-(2C) 后 2NT：8-10 均型，梅花有挡张"
+    sequence: "P:1D R:2C"
+    when: { hcp: "8-10", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "2NT"
+    priority: 78
+
+  - id: resp_1d_over_2c_3nt
+    description: "1D-(2C) 后 3NT：13+ 均型，梅花有挡张"
+    sequence: "P:1D R:2C"
+    when: { hcp: "13+", balanced: true, stoppers: "C", partnerOpened: true }
+    action: "3NT"
+    priority: 81
+
+  - id: resp_1d_over_2c_5d
+    description: "1D-(2C) 后 5D：15+，5+ 方块进局"
+    sequence: "P:1D R:2C"
+    when: { hcp: "15+", diamonds: "5+", partnerOpened: true }
+    action: "5D"
+    priority: 77
+
+  # 1D-(2C)-P-P 后开叫人重开叫
+  - id: opener_1d_over_2c_2d
+    description: "1D-(2C)-P-P 后，6+ 方块再叫 2D"
+    sequence: "M:1D L:2C P:Pass R:Pass"
+    when: { diamonds: "6+" }
+    action: "2D"
+    priority: 88
+
+  - id: opener_1d_over_2c_x
+    description: "1D-(2C)-P-P 后，13+ 技术性加倍"
+    sequence: "M:1D L:2C P:Pass R:Pass"
+    when: { hcp: "13+" }
+    action: "X"
+    priority: 85
+
+  - id: opener_1d_over_2c_2h
+    description: "1D-(2C)-P-P 后，4+ 红桃再叫 2H"
+    sequence: "M:1D L:2C P:Pass R:Pass"
+    when: { hearts: "4+" }
+    action: "2H"
+    priority: 83
+
+  - id: opener_1d_over_2c_2s
+    description: "1D-(2C)-P-P 后，4+ 黑桃再叫 2S"
+    sequence: "M:1D L:2C P:Pass R:Pass"
+    when: { spades: "4+" }
+    action: "2S"
+    priority: 82
+
+  - id: opener_1d_over_2c_2nt
+    description: "1D-(2C)-P-P 后，13-15 均型且有梅花挡张叫 2NT"
+    sequence: "M:1D L:2C P:Pass R:Pass"
+    when: { hcp: "13-15", balanced: true, stoppers: "C" }
+    action: "2NT"
+    priority: 81
+
+  - id: opener_1d_over_2c_3nt
+    description: "1D-(2C)-P-P 后，16+ 均型且有梅花挡张叫 3NT"
+    sequence: "M:1D L:2C P:Pass R:Pass"
+    when: { hcp: "16+", balanced: true, stoppers: "C" }
+    action: "3NT"
+    priority: 87
+
+  # 1D-1H-(1S) 后应叫人再叫红桃
+  - id: resp_1d_1h_over_1s_2h
+    description: "1D-1H-(1S) 后，6-10 且 6+ 红桃竞争 2H"
+    sequence: "P:1D R:Pass M:1H L:1S P:Pass R:Pass"
+    when: { hcp: "6-10", hearts: "6+", partnerOpened: true }
+    action: "2H"
+    priority: 70
+
+  # 1C-2C-2S-3S / 2H-3H 后开叫人进局
+  - id: opener_1c_2c_2s_3s_4s
+    description: "1C-2C-2S-3S 后，16+ 且 3+ 黑桃进局"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2S L:Pass P:3S R:Pass"
+    when: { hcp: "16+", spades: "3+" }
+    action: "4S"
+    priority: 94
+
+  - id: opener_1c_2c_2h_3h_4h
+    description: "1C-2C-2H-3H 后，16+ 且 3+ 红桃进局"
+    sequence: "M:1C L:Pass P:2C R:Pass M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "16+", hearts: "3+" }
+    action: "4H"
+    priority: 94
+
+  # 负加倍后开叫人的选择
+  - id: opener_after_neg_double_1h_2c
+    description: "1H-(1S)-X 后，开叫人 4+ 梅花叫 2C"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { clubs: "4+" }
+    action: "2C"
+    priority: 70
+
+  - id: opener_after_neg_double_1h_2d
+    description: "1H-(1S)-X 后，开叫人 4+ 方块叫 2D"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { diamonds: "4+" }
+    action: "2D"
+    priority: 69
+
+  - id: opener_after_neg_double_1h_2h
+    description: "1H-(1S)-X 后，开叫人 6+ 红桃再叫 2H"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { hearts: "6+" }
+    action: "2H"
+    priority: 68
+
+  - id: opener_after_neg_double_1h_3h
+    description: "1H-(1S)-X 后，开叫人 6+ 红桃跳叫 3H"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { hearts: "6+", hcp: "13+" }
+    action: "3H"
+    priority: 73
+
+  - id: opener_after_neg_double_1h_1nt
+    description: "1H-(1S)-X 后，开叫人均型且有黑桃挡张叫 1NT"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { balanced: true, stoppers: "S" }
+    action: "1NT"
+    priority: 72
+
+  - id: opener_after_neg_double_1h_2nt
+    description: "1H-(1S)-X 后，开叫人 12-13 均型且有黑桃挡张叫 2NT"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { hcp: "12-13", balanced: true, stoppers: "S" }
+    action: "2NT"
+    priority: 74
+
+  - id: opener_after_neg_double_1h_3nt
+    description: "1H-(1S)-X 后，开叫人 14-15 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1H L:1S P:X R:Pass"
+    when: { hcp: "14-15", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 75
+
+  - id: opener_after_neg_double_1h_2d_2s_2nt
+    description: "1H-(1S)-X-2D-2S 后，开叫人黑桃有挡张叫 2NT"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { stoppers: "S" }
+    action: "2NT"
+    priority: 86
+
+  - id: opener_after_neg_double_1h_2d_2s_3nt
+    description: "1H-(1S)-X-2D-2S 后，开叫人 14-15 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "14-15", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 88
+
+  - id: opener_after_neg_double_1h_2d_2s_3d
+    description: "1H-(1S)-X-2D-2S 后，开叫人 6+ 方块再叫 3D"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { diamonds: "6+" }
+    action: "3D"
+    priority: 84
+
+  - id: opener_after_neg_double_1h_2d_2s_3h
+    description: "1H-(1S)-X-2D-2S 后，开叫人 6+ 红桃再叫 3H"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hearts: "6+" }
+    action: "3H"
+    priority: 85
+
+  - id: resp_1h_over_1s_x_2d_2h
+    description: "1H-(1S)-X-2D 后，应叫人 4+ 红桃叫 2H"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass"
+    when: { hearts: "4+", partnerOpened: true }
+    action: "2H"
+    priority: 90
+
+  - id: resp_1h_over_1s_x_2d_2nt
+    description: "1H-(1S)-X-2D 后，应叫人 8-12 均型且有黑桃挡张叫 2NT"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass"
+    when: { hcp: "8-12", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: resp_1h_over_1s_x_2d_3nt
+    description: "1H-(1S)-X-2D 后，应叫人 13+ 均型且有黑桃挡张叫 3NT"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 89
+
+  - id: resp_1h_over_1s_x_2d_3d
+    description: "1H-(1S)-X-2D 后，应叫人 11+ 且 4+ 方块加叫 3D"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass"
+    when: { hcp: "11+", diamonds: "4+", partnerOpened: true }
+    action: "3D"
+    priority: 89
+
+  - id: resp_1h_over_1s_x_2d_2s
+    description: "1H-(1S)-X-2D 后，应叫人 8+ 且 4+ 黑桃再叫 2S"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass"
+    when: { hcp: "8+", spades: "4+", partnerOpened: true }
+    action: "2S"
+    priority: 91
+
+  - id: opener_after_pen_x_2d_2s_2nt
+    description: "1H-(1S)-X-2D-2S 后，开叫人黑桃有挡张叫 2NT"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { stoppers: "S" }
+    action: "2NT"
+    priority: 90
+
+  - id: opener_after_pen_x_2d_2s_3nt
+    description: "1H-(1S)-X-2D-2S 后，开叫人 14-15 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "14-15", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 91
+
+  - id: opener_after_pen_x_2d_2s_3d
+    description: "1H-(1S)-X-2D-2S 后，开叫人 6+ 方块再叫 3D"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { diamonds: "6+" }
+    action: "3D"
+    priority: 89
+
+  - id: opener_after_pen_x_2d_2s_3h
+    description: "1H-(1S)-X-2D-2S 后，开叫人 5+ 红桃再叫 3H"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 89
+
+  - id: opener_after_pen_x_2d_2s_3d_5
+    description: "1H-(1S)-X-2D-2S 后，开叫人 5+ 方块再叫 3D"
+    sequence: "M:1H L:1S P:X R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { diamonds: "5+" }
+    action: "3D"
+    priority: 88
+
+  - id: resp_1h_over_1s_x_2d_2s_3h_3nt
+    description: "1H-(1S)-X-2D-2S-3H 后，应叫人 10+ 均型叫 3NT"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "10+", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1h_over_1s_x_2d_2s_3h_4h
+    description: "1H-(1S)-X-2D-2S-3H 后，应叫人 10+ 且 2+ 红桃进局 4H"
+    sequence: "P:1H R:1S M:X L:Pass P:2D R:Pass M:2S L:Pass P:3H R:Pass"
+    when: { hcp: "10+", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 93
+
+  - id: resp_1h_over_1s_x_2c_2h
+    description: "1H-(1S)-X-2C 后，应叫人 4+ 红桃叫 2H"
+    sequence: "P:1H R:1S M:X L:Pass P:2C R:Pass"
+    when: { hearts: "4+", partnerOpened: true }
+    action: "2H"
+    priority: 90
+
+  - id: resp_1h_over_1s_x_2c_2nt
+    description: "1H-(1S)-X-2C 后，应叫人 8-12 均型且有黑桃挡张叫 2NT"
+    sequence: "P:1H R:1S M:X L:Pass P:2C R:Pass"
+    when: { hcp: "8-12", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "2NT"
+    priority: 88
+
+  - id: resp_1h_over_1s_x_2c_3nt
+    description: "1H-(1S)-X-2C 后，应叫人 13+ 均型且有黑桃挡张叫 3NT"
+    sequence: "P:1H R:1S M:X L:Pass P:2C R:Pass"
+    when: { hcp: "13+", balanced: true, stoppers: "S", partnerOpened: true }
+    action: "3NT"
+    priority: 89
+
+  # ------------------------------------------------------------------
+  # 阻击叫的应叫与对抗（2026-10-23 补强）
+  # ------------------------------------------------------------------
+  # 同伴 3C/3H/3S 阻击后的应叫（与 3D 对称）
+  - id: resp_3c_5c
+    description: "同伴 3C 阻击后，16+ 且 2+ 梅花进局 5C"
+    sequence: "P:3C R:Pass"
+    when: { hcp: "16+", clubs: "3+", partnerOpened: true }
+    action: "5C"
+    priority: 92
+
+  - id: resp_3c_3nt
+    description: "同伴 3C 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "P:3C R:Pass"
+    when: { hcp: "16+", clubs: "0-2", stoppers: "HSD", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_3c_4c
+    description: "同伴 3C 阻击后，13-15 且 2+ 梅花邀叫 4C"
+    sequence: "P:3C R:Pass"
+    when: { hcp: "13-15", clubs: "2+", partnerOpened: true }
+    action: "4C"
+    priority: 88
+
+  - id: resp_3h_4h
+    description: "同伴 3H 阻击后，16+ 且 2+ 红桃进局 4H"
+    sequence: "P:3H R:Pass"
+    when: { hcp: "16+", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 92
+
+  - id: resp_3h_3nt
+    description: "同伴 3H 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "P:3H R:Pass"
+    when: { hcp: "16+", hearts: "0-2", stoppers: "SDC", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_3h_4h_inv
+    description: "同伴 3H 阻击后，13-15 且 2+ 红桃邀叫 4H"
+    sequence: "P:3H R:Pass"
+    when: { hcp: "13-15", hearts: "2+", partnerOpened: true }
+    action: "4H"
+    priority: 88
+
+  - id: resp_3s_4s
+    description: "同伴 3S 阻击后，16+ 且 2+ 黑桃进局 4S"
+    sequence: "P:3S R:Pass"
+    when: { hcp: "16+", spades: "2+", partnerOpened: true }
+    action: "4S"
+    priority: 92
+
+  - id: resp_3s_3nt
+    description: "同伴 3S 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "P:3S R:Pass"
+    when: { hcp: "16+", spades: "0-2", stoppers: "HDC", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_3s_4s_inv
+    description: "同伴 3S 阻击后，13-15 且 2+ 黑桃邀叫 4S"
+    sequence: "P:3S R:Pass"
+    when: { hcp: "13-15", spades: "2+", partnerOpened: true }
+    action: "4S"
+    priority: 88
+
+  # 对手 3 阶阻击后的直接争叫
+  - id: over_3c_4h
+    description: "对手 3C 阻击后，15+ 且 5+ 红桃叫 4H"
+    sequence: "R:3C"
+    when: { hcp: "15+", hearts: "5+" }
+    action: "4H"
+    priority: 94
+
+  - id: over_3c_3nt
+    description: "对手 3C 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "R:3C"
+    when: { hcp: "16+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 92
+
+  - id: over_3d_4s
+    description: "对手 3D 阻击后，14+ 且 5+ 黑桃叫 4S"
+    sequence: "R:3D"
+    when: { hcp: "14+", spades: "5+" }
+    action: "4S"
+    priority: 94
+
+  - id: over_3d_3nt
+    description: "对手 3D 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "R:3D"
+    when: { hcp: "16+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 92
+
+  - id: over_3h_4s
+    description: "对手 3H 阻击后，14+ 且 5+ 黑桃叫 4S"
+    sequence: "R:3H"
+    when: { hcp: "14+", spades: "5+" }
+    action: "4S"
+    priority: 94
+
+  - id: over_3h_3nt
+    description: "对手 3H 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "R:3H"
+    when: { hcp: "16+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 92
+
+  - id: over_3s_4h
+    description: "对手 3S 阻击后，14+ 且 5+ 红桃叫 4H"
+    sequence: "R:3S"
+    when: { hcp: "14+", hearts: "5+" }
+    action: "4H"
+    priority: 94
+
+  - id: over_3s_3nt
+    description: "对手 3S 阻击后，16+ 且其余三花有挡张叫 3NT"
+    sequence: "R:3S"
+    when: { hcp: "16+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 92
+
+  # 对手 3 阶阻击、两家 Pass 后的平衡（LHO 开叫、同伴 Pass、RHO Pass）
+  - id: balance_over_3c_3nt
+    description: "LHO 3C 两家 Pass 后，18+ 且有挡张平衡 3NT"
+    sequence: "L:3C P:Pass R:Pass"
+    when: { hcp: "18+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 90
+
+  - id: balance_over_3d_3nt
+    description: "LHO 3D 两家 Pass 后，18+ 且有挡张平衡 3NT"
+    sequence: "L:3D P:Pass R:Pass"
+    when: { hcp: "18+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 90
+
+  - id: balance_over_3h_3nt
+    description: "LHO 3H 两家 Pass 后，18+ 且有挡张平衡 3NT"
+    sequence: "L:3H P:Pass R:Pass"
+    when: { hcp: "18+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 90
+
+  - id: balance_over_3s_3nt
+    description: "LHO 3S 两家 Pass 后，18+ 且有挡张平衡 3NT"
+    sequence: "L:3S P:Pass R:Pass"
+    when: { hcp: "18+", stoppers: "HSDC" }
+    action: "3NT"
+    priority: 92
+
+  - id: balance_over_3s_4nt
+    description: "LHO 3S 两家 Pass 后，20-21 均型定量邀叫 4NT"
+    sequence: "L:3S P:Pass R:Pass"
+    when: { hcp: "20-21", balanced: true }
+    action: "4NT"
+    priority: 94
+
+  - id: resp_balance_4nt_6h
+    description: "3S-(P)-P-4NT-(P) 后，8+ 且 6+ 红桃接受满贯 6H"
+    sequence: "R:3S M:Pass L:Pass P:4NT R:Pass"
+    when: { hcp: "8+", hearts: "6+" }
+    action: "6H"
+    priority: 96
+
+  - id: resp_over_3d_4s_6s
+    description: "3D-(P)-4S-(P) 后，8+ 且 3+ 黑桃加叫 6S"
+    sequence: "M:Pass L:3D P:4S R:Pass"
+    when: { hcp: "8+", spades: "3+" }
+    action: "6S"
+    priority: 96
+
+  # ------------------------------------------------------------------
+  # 1C / 1D 后续的成局与满贯补强
+  # ------------------------------------------------------------------
+  - id: opener_1c_1d_3nt_strong
+    description: "1C-1D 负应后，22+ 直接 3NT"
+    sequence: "M:1C L:Pass P:1D R:Pass"
+    when: { hcp: "22+" }
+    action: "3NT"
+    priority: 97
+
+  - id: resp_1c_1d_2nt_3nt_c
+    description: "1C-1D-2NT 后，4-7 且 5+ 梅花叫 3NT"
+    sequence: "P:1C R:Pass M:1D L:Pass P:2NT R:Pass"
+    when: { hcp: "4-7", clubs: "5+" }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_1d_2nt_3nt_d
+    description: "1C-1D-2NT 后，4-7 且 5+ 方块叫 3NT"
+    sequence: "P:1C R:Pass M:1D L:Pass P:2NT R:Pass"
+    when: { hcp: "4-7", diamonds: "5+" }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_1d_2nt_3nt_h
+    description: "1C-1D-2NT 后，4-7 且 5+ 红桃叫 3NT"
+    sequence: "P:1C R:Pass M:1D L:Pass P:2NT R:Pass"
+    when: { hcp: "4-7", hearts: "5+" }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_1d_2nt_3nt_s
+    description: "1C-1D-2NT 后，4-7 且 5+ 黑桃叫 3NT"
+    sequence: "P:1C R:Pass M:1D L:Pass P:2NT R:Pass"
+    when: { hcp: "4-7", spades: "5+" }
+    action: "3NT"
+    priority: 94
+
+  - id: resp_1c_1h_1nt_6h
+    description: "1C-1H-1NT 后，12+ 且 7+ 红桃叫 6H"
+    sequence: "P:1C R:Pass M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "12+", hearts: "7+", partnerOpened: true }
+    action: "6H"
+    priority: 96
+
+  - id: resp_1c_1h_2c_2nt
+    description: "1C-1H-2C 后，11-13 均型叫 2NT"
+    sequence: "P:1C R:Pass M:1H L:Pass P:2C R:Pass"
+    when: { hcp: "11-13", balanced: true, partnerOpened: true }
+    action: "2NT"
+    priority: 90
+
+  - id: opener_1c_1h_2c_2nt_6c
+    description: "1C-1H-2C-2NT 后，16+ 且 6+ 梅花叫 6C"
+    sequence: "M:1C L:Pass P:1H R:Pass M:2C L:Pass P:2NT R:Pass"
+    when: { hcp: "16+", clubs: "6+" }
+    action: "6C"
+    priority: 96
+
+  - id: resp_1c_2d_2nt_3d_6d
+    description: "1C-2D-2NT-3D 后，16+ 且 3+ 方块叫 6D"
+    sequence: "M:1C L:Pass P:2D R:Pass M:2NT L:Pass P:3D R:Pass"
+    when: { hcp: "16+", diamonds: "3+" }
+    action: "6D"
+    priority: 98
+
+  - id: opener_2c_3c_3nt
+    description: "2C-3C 后，15+ 且低花有挡张叫 3NT"
+    sequence: "M:2C L:Pass P:3C R:Pass"
+    when: { hcp: "15+", stoppers: "HDC" }
+    action: "3NT"
+    priority: 90
+
+  # ------------------------------------------------------------------
+  # 1D / 2S 竞争叫牌补强
+  # ------------------------------------------------------------------
+  - id: opener_1d_2c_2nt_11_13
+    description: "1D-2C 后，11-13 均型叫 2NT"
+    sequence: "M:1D L:Pass P:2C R:Pass"
+    when: { hcp: "11-13", balanced: true }
+    action: "2NT"
+    priority: 90
+
+  - id: resp_1d_2c_2nt_3nt
+    description: "1D-2C-2NT 后，11-13 均型叫 3NT"
+    sequence: "P:1D R:Pass M:2C L:Pass P:2NT R:Pass"
+    when: { hcp: "11-13", balanced: true, partnerOpened: true }
+    action: "3NT"
+    priority: 93
+
+  - id: resp_1d_1h_1s_2s_4s
+    description: "1D-(1H)-1S-(P)-2S 后，11+ 且 6+ 黑桃叫 4S"
+    sequence: "P:1D R:1H M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "11+", spades: "6+" }
+    action: "4S"
+    priority: 95
+
+  - id: overcall_2h_after_1s_5
+    description: "对 1S 争叫 2H：14-18，5+ 红桃"
+    sequence: "R:1S"
+    when: { hcp: "14-18", hearts: "5+" }
+    action: "2H"
+    priority: 58
+
+  - id: raise_partner_overcall_2h
+    description: "同伴争叫 2H 后加叫 3H（3+ 支持，8-11）"
+    sequence: "P:2H R:Pass"
+    when: { hcp: "8-11", hearts: "3+", partnerOpened: false }
+    action: "3H"
+    priority: 68
+
+  - id: overcaller_2h_raise_4h
+    description: "同伴加叫 3H 后，14+ 争叫人进局 4H"
+    sequence: "M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "14+" }
+    action: "4H"
+    priority: 90
+
+  - id: over_2s_3h
+    description: "对手 2S 阻击后，12+ 且 4+ 红桃叫 3H"
+    sequence: "R:2S"
+    when: { hcp: "12+", hearts: "4+" }
+    action: "3H"
+    priority: 76
+
+  - id: resp_over_2s_3h_4h
+    description: "2S-(P)-3H-(P) 后，8+ 且 4+ 红桃进局 4H"
+    sequence: "L:2S P:3H R:Pass"
+    when: { hcp: "8+", hearts: "4+" }
+    action: "4H"
+    priority: 92
+
+  - id: comp_raise_2h_over_2s
+    description: "1S-(2H)-2S 后，6-10 且 3+ 红桃竞争 3H"
+    sequence: "M:Pass L:1S P:2H R:2S"
+    when: { hcp: "6-10", hearts: "3+" }
+    action: "3H"
+    priority: 72
+
+  - id: overcaller_2h_comp_4h
+    description: "1S-(2H)-2S-(3H)-(P) 后，14+ 争叫人进局 4H"
+    sequence: "P:Pass R:1S M:2H L:2S P:3H R:Pass"
+    when: { hcp: "14+", hearts: "5+" }
+    action: "4H"
+    priority: 91
+
+  - id: resp_1nt_stayman_s_3nt_game
+    description: "1NT-2C-2S 后，10+ 无黑桃配合直接 3NT"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2S R:Pass"
+    when: { hcp: "10+", spades: "0-3", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1nt_stayman_h_3nt_game
+    description: "1NT-2C-2H 后，10+ 无红桃配合直接 3NT"
+    sequence: "P:1NT R:Pass M:2C L:Pass P:2H R:Pass"
+    when: { hcp: "10+", hearts: "0-3", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1h_1s_2s_4s_shape
+    description: "1H-1S-2S 后，6-9 且 4+ 黑桃、红桃短门直接进局 4S"
+    sequence: "P:1H R:Pass M:1S L:Pass P:2S R:Pass"
+    when: { hcp: "6-9", spades: "4+", hearts: "0-1", partnerOpened: true }
+    action: "4S"
+    priority: 89
+
+  - id: resp_1c_2c_3c_3nt_shape
+    description: "1C-2C-3C 后，8-11 且 5+ 梅花非均型叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:3C R:Pass"
+    when: { hcp: "8-11", clubs: "5+", partnerOpened: true }
+    action: "3NT"
+    priority: 91
+
+  - id: resp_1c_2c_2nt_3nt_shape
+    description: "1C-2C-2NT 后，8-10 且 5+ 梅花非均型叫 3NT"
+    sequence: "P:1C R:Pass M:2C L:Pass P:2NT R:Pass"
+    when: { hcp: "8-10", clubs: "5+", partnerOpened: true }
+    action: "3NT"
+    priority: 93
+
+  - id: opener_1d_over_1s_5d_6nt
+    description: "1D-(1S)-5D-(P) 后，13+ 且其余三花有挡张叫 6NT"
+    sequence: "M:1D L:1S P:5D R:Pass"
+    when: { hcp: "13+", stoppers: "HSC" }
+    action: "6NT"
+    priority: 98
+
+  - id: resp_1c_1s_2d_3d
+    description: "1C-1S-2D 后，8-11 且 2+ 方块加叫 3D"
+    sequence: "P:1C R:Pass M:1S L:Pass P:2D R:Pass"
+    when: { hcp: "8-11", diamonds: "2+", partnerOpened: true }
+    action: "3D"
+    priority: 88
+
+  - id: opener_1c_1s_2d_3d_6d
+    description: "1C-1S-2D-3D 后，18+ 且 5+ 方块叫 6D"
+    sequence: "M:1C L:Pass P:1S R:Pass M:2D L:Pass P:3D R:Pass"
+    when: { hcp: "18+", diamonds: "5+" }
+    action: "6D"
+    priority: 97
+
+  - id: resp_1d_1h_2c_3d
+    description: "1D-1H-2C 后，16+ 且 4+ 方块叫 3D"
+    sequence: "P:1D R:Pass M:1H L:Pass P:2C R:Pass"
+    when: { hcp: "16+", diamonds: "4+", partnerOpened: true }
+    action: "3D"
+    priority: 90
+
+  - id: opener_1d_1h_2c_3d_6d
+    description: "1D-1H-2C-3D 后，11-14 且 4+ 方块叫 6D"
+    sequence: "M:1D L:Pass P:1H R:Pass M:2C L:Pass P:3D R:Pass"
+    when: { hcp: "11-14", diamonds: "4+" }
+    action: "6D"
+    priority: 97
+
+  - id: opener_2c_2s_3c
+    description: "2C-2S 后，6+ 梅花再叫 3C"
+    sequence: "M:2C L:Pass P:2S R:Pass"
+    when: { clubs: "6+", hcp: "11-15" }
+    action: "3C"
+    priority: 70
+
+  - id: resp_2c_2s_3c_6c
+    description: "2C-2S-3C 后，16+ 且 1+ 梅花叫 6C"
+    sequence: "P:2C R:Pass M:2S L:Pass P:3C R:Pass"
+    when: { hcp: "16+", clubs: "1+", partnerOpened: true }
+    action: "6C"
+    priority: 97
+
+  - id: raise_opener_3h_over_2s_4h
+    description: "1C-(1S)-P-(2S)-3H-(P) 后，6-9 且 3+ 红桃加叫 4H"
+    sequence: "P:1C R:1S M:Pass L:2S P:3H R:Pass"
+    when: { hcp: "6-9", hearts: "3+" }
+    action: "4H"
+    priority: 90
+
+  - id: opener_1h_3h_4h_min
+    description: "1H-3H 后，11-12 且 5+ 红桃低限接受进局 4H"
+    sequence: "M:1H L:Pass P:3H R:Pass"
+    when: { hcp: "11-12", hearts: "5+" }
+    action: "4H"
+    priority: 85
+
+  - id: opener_weak2_h_3h_4h
+    description: "弱二 2H-3H 后，8-10 且 6+ 红桃接受进局 4H"
+    sequence: "M:2H L:Pass P:3H R:Pass"
+    when: { hcp: "8-10", hearts: "6+" }
+    action: "4H"
+    priority: 85
+
+  - id: resp_1d_1h_1nt_3nt
+    description: "1D-1H-1NT 后，10-11 且 5+ 红桃叫 3NT"
+    sequence: "P:1D R:Pass M:1H L:Pass P:1NT R:Pass"
+    when: { hcp: "10-11", hearts: "5+", partnerOpened: true }
+    action: "3NT"
+    priority: 88
+
+  - id: resp_1h_2d_2s_4s_shape
+    description: "1H-2D-2S 后，8+ 且 4+ 黑桃、红桃短门进局 4S"
+    sequence: "P:1H R:Pass M:2D L:Pass P:2S R:Pass"
+    when: { hcp: "8+", spades: "4+", hearts: "0-1", partnerOpened: true }
+    action: "4S"
+    priority: 91
+
+  - id: opener_1d_over_1s_2nt_3nt
+    description: "1D-(1S)-2NT 后，开叫人 15+ 且 6+ 方块叫 3NT"
+    sequence: "P:Pass R:Pass M:1D L:1S P:2NT R:Pass"
+    when: { hcp: "15+", diamonds: "6+" }
+    action: "3NT"
+    priority: 92
+
+  - id: resp_1s_2c_2d_3nt
+    description: "1S-2C-2D 后，11-12 且双高有挡叫 3NT"
+    sequence: "P:1S R:Pass M:2C L:Pass P:2D R:Pass"
+    when: { hcp: "11-12", partnerOpened: true }
+    action: "3NT"
+    priority: 90
+
+  - id: resp_1s_2d_3c_3s
+    description: "1S-2D-3C 后，15+ 且 2+ 黑桃支持再叫 3S"
+    sequence: "P:1S R:Pass M:2D L:Pass P:3C R:Pass"
+    when: { hcp: "15+", spades: "2+" }
+    action: "3S"
+    priority: 90
+
+  - id: resp_1s_2d_3c_3s_4s
+    description: "1S-2D-3C-3S 后，10+ 且 5+ 黑桃进局 4S"
+    sequence: "R:Pass M:1S L:Pass P:2D R:Pass M:3C L:Pass P:3S R:Pass"
+    when: { hcp: "10+", spades: "5+" }
+    action: "4S"
+    priority: 92
+
+  - id: opener_1d_1s_3s_4nt_7nt
+    description: "1D-1S-3S-4NT 后，15+、7+ 方块且 3 个 A 叫 7NT"
+    sequence: "M:1D L:Pass P:1S R:Pass M:3S L:Pass P:4NT R:Pass"
+    when: { hcp: "15+", diamonds: "7+", aces: "3+" }
+    action: "7NT"
+    priority: 99
+
+  - id: resp_1nt_3nt_clubs
+    description: "同伴 1NT 后，8-9 且 6+ 梅花的进局选择 3NT"
+    sequence: "P:1NT R:Pass"
+    when: { hcp: "8-9", clubs: "6+", partnerOpened: true }
+    action: "3NT"
+    priority: 70
+
+  - id: opener_1c_1h_2c_2nt_3c
+    description: "1C-1H-2C-2NT 后，16+ 且 6+ 梅花再叫 3C"
+    sequence: "M:1C L:Pass P:1H R:Pass M:2C L:Pass P:2NT R:Pass"
+    when: { hcp: "16+", clubs: "6+" }
+    action: "3C"
+    priority: 97
+
+  - id: resp_1c_1h_2c_2nt_3c_3nt
+    description: "1C-1H-2C-2NT-3C 后，12+ 且 2+ 梅花叫 3NT"
+    sequence: "P:1C R:Pass M:1H L:Pass P:2C R:Pass M:2NT L:Pass P:3C R:Pass"
+    when: { hcp: "12+", clubs: "2+" }
+    action: "3NT"
+    priority: 98
+
+  # 1C-(X)-P-(1S) 后开叫人的强无将再叫
+  - id: opener_1c_x_pass_1s_3nt
+    description: "1C-(X)-P-(1S) 后，18-20 均型且有黑桃挡张叫 3NT"
+    sequence: "M:1C L:X P:Pass R:1S"
+    when: { hcp: "18-20", balanced: true, stoppers: "S" }
+    action: "3NT"
+    priority: 94
 
   # ------------------------------------------------------------------
   # 兜底规则（写在末尾；多个兜底应对不同情景）

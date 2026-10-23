@@ -1,34 +1,41 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
-import { parseBiddingRules, parseLeadRules } from '../engine/loader';
-import type { BiddingRule, LeadRule } from '../engine/types';
+import { parseBiddingRules, parseLeadRules, parseSignalRules } from '../engine/loader';
+import type { BiddingRule, LeadRule, SignalRule } from '../engine/types';
 
 const open = defineModel<boolean>({ default: false });
 const store = useGameStore();
 
-type Tab = 'bidding' | 'lead';
+type Tab = 'bidding' | 'lead' | 'signal';
 type Mode = 'list' | 'edit';
 
 const activeTab = ref<Tab>('bidding');
 const biddingFile = ref(store.biddingRuleFile.name);
 const leadFile = ref(store.leadRuleFile.name);
+const signalFile = ref(store.signalRuleFile.name);
 const mode = ref<Mode>('list');
 const draft = ref('');
 const errors = ref<string[]>([]);
 const notice = ref('');
 
-const files = computed(() =>
-  activeTab.value === 'bidding' ? store.availableBiddingFiles : store.availableLeadFiles,
-);
-const currentFile = computed(() => (activeTab.value === 'bidding' ? biddingFile.value : leadFile.value));
+const files = computed(() => {
+  if (activeTab.value === 'bidding') return store.availableBiddingFiles;
+  if (activeTab.value === 'lead') return store.availableLeadFiles;
+  return store.availableSignalFiles;
+});
+const currentFile = computed(() => {
+  if (activeTab.value === 'bidding') return biddingFile.value;
+  if (activeTab.value === 'lead') return leadFile.value;
+  return signalFile.value;
+});
 const source = computed(() => store.getRuleSource(activeTab.value, currentFile.value));
 const overridden = computed(() => store.isRuleOverridden(activeTab.value, currentFile.value));
-const isActiveFile = computed(() =>
-  activeTab.value === 'bidding'
-    ? store.biddingRuleFile.name === biddingFile.value
-    : store.leadRuleFile.name === leadFile.value,
-);
+const isActiveFile = computed(() => {
+  if (activeTab.value === 'bidding') return store.biddingRuleFile.name === biddingFile.value;
+  if (activeTab.value === 'lead') return store.leadRuleFile.name === leadFile.value;
+  return store.signalRuleFile.name === signalFile.value;
+});
 
 /** 浏览用：解析当前文件（失败时返回空表，错误在编辑模式下提示） */
 const biddingRules = computed<BiddingRule[]>(() => {
@@ -47,7 +54,31 @@ const leadRules = computed<LeadRule[]>(() => {
     return [];
   }
 });
-const ruleCount = computed(() => (activeTab.value === 'bidding' ? biddingRules.value.length : leadRules.value.length));
+const parsedSignalRules = computed(() => {
+  if (activeTab.value !== 'signal') return { rules: [] as SignalRule[], settings: {} };
+  try {
+    return parseSignalRules(source.value);
+  } catch {
+    return { rules: [] as SignalRule[], settings: {} };
+  }
+});
+const signalRules = computed(() => parsedSignalRules.value.rules);
+const signalSettings = computed(() => parsedSignalRules.value.settings);
+const ruleCount = computed(() => {
+  if (activeTab.value === 'bidding') return biddingRules.value.length;
+  if (activeTab.value === 'lead') return leadRules.value.length;
+  return signalRules.value.length;
+});
+
+const PHASE_LABEL: Record<SignalRule['phase'], string> = {
+  follow: '跟牌',
+  discard: '垫牌',
+  signal: '信号',
+};
+
+function phaseLabel(phase: string): string {
+  return PHASE_LABEL[phase as SignalRule['phase']] ?? phase;
+}
 
 function formatWhen(when: Record<string, unknown> | undefined): string {
   if (!when || Object.keys(when).length === 0) return '—';
@@ -65,7 +96,8 @@ function resetView(): void {
 
 function onFileChange(name: string): void {
   if (activeTab.value === 'bidding') biddingFile.value = name;
-  else leadFile.value = name;
+  else if (activeTab.value === 'lead') leadFile.value = name;
+  else signalFile.value = name;
 }
 
 function openEdit(): void {
@@ -104,8 +136,15 @@ function resetDefault(): void {
 
 function useAsActive(): void {
   if (activeTab.value === 'bidding') store.setBiddingRuleFile(biddingFile.value);
-  else store.setLeadRuleFile(leadFile.value);
-  notice.value = `已设为当前使用的${activeTab.value === 'bidding' ? '叫牌' : '打牌'}规则`;
+  else if (activeTab.value === 'lead') store.setLeadRuleFile(leadFile.value);
+  else store.setSignalRuleFile(signalFile.value);
+  const label =
+    activeTab.value === 'bidding'
+      ? '叫牌'
+      : activeTab.value === 'lead'
+        ? '首攻'
+        : '跟牌/垫牌';
+  notice.value = `已设为当前使用的${label}规则`;
 }
 
 function clearAll(): void {
@@ -123,7 +162,7 @@ function clearAll(): void {
 watch(open, (visible) => {
   if (visible) resetView();
 });
-watch([activeTab, biddingFile, leadFile], () => resetView());
+watch([activeTab, biddingFile, leadFile, signalFile], () => resetView());
 </script>
 
 <template>
@@ -140,6 +179,7 @@ watch([activeTab, biddingFile, leadFile], () => resetView());
     <el-tabs v-model="activeTab">
       <el-tab-pane label="叫牌规则" name="bidding" />
       <el-tab-pane label="打牌规则（首攻）" name="lead" />
+      <el-tab-pane label="打牌细则（跟牌/垫牌）" name="signal" />
     </el-tabs>
 
     <div class="toolbar">
@@ -192,7 +232,7 @@ watch([activeTab, biddingFile, leadFile], () => resetView());
       </el-table>
 
       <el-table
-        v-else
+        v-else-if="activeTab === 'lead'"
         :data="leadRules"
         size="small"
         border
@@ -216,7 +256,33 @@ watch([activeTab, biddingFile, leadFile], () => resetView());
         <el-table-column prop="priority" label="优先级" width="80" />
       </el-table>
 
-      <p class="hint">共 {{ ruleCount }} 条规则，按优先级从高到低排列（与 AI 裁决顺序一致）。</p>
+      <el-table
+        v-else
+        :data="signalRules"
+        size="small"
+        border
+        height="400"
+        empty-text="该文件没有可展示的打牌细则"
+      >
+        <el-table-column prop="id" label="细则 ID" width="220" />
+        <el-table-column prop="description" label="说明" min-width="260" />
+        <el-table-column label="阶段" width="80">
+          <template #default="{ row }">{{ phaseLabel(row.phase) }}</template>
+        </el-table-column>
+        <el-table-column label="条件（when）" min-width="150">
+          <template #default="{ row }">{{ formatWhen(row.when) }}</template>
+        </el-table-column>
+        <el-table-column prop="action" label="策略" width="190" />
+        <el-table-column prop="priority" label="优先级" width="80" />
+      </el-table>
+
+      <p v-if="activeTab === 'signal'" class="signal-settings">
+        可执行阈值：张数信号最大牌面 {{ signalSettings.signal_spot_max_rank ?? '默认 10' }}；
+        有将鼓励垫牌最小牌面 {{ signalSettings.encourage_discard_min_rank ?? '默认 8' }}。
+        规则列表由 AI 解释执行，阈值修改后会立即影响打牌。
+      </p>
+
+      <p class="hint">共 {{ ruleCount }} 条{{ activeTab === 'signal' ? '细则' : '规则' }}，按优先级从高到低排列（与 AI 裁决顺序一致）。</p>
     </div>
 
     <div v-else class="edit-view">
@@ -257,6 +323,14 @@ watch([activeTab, biddingFile, leadFile], () => resetView());
   margin: 8px 0 0;
   font-size: 12px;
   color: #6a7770;
+}
+.signal-settings {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  border-left: 3px solid #188a55;
+  background: #f3fbf6;
+  color: #345846;
+  font-size: 12px;
 }
 .edit-actions {
   display: flex;

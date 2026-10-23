@@ -5,6 +5,7 @@ import Table from './components/Table.vue';
 import BiddingBox from './components/BiddingBox.vue';
 import DealResultDialog from './components/DealResultDialog.vue';
 import GameHistory from './components/GameHistory.vue';
+import PbnDialog from './components/PbnDialog.vue';
 import RuleEditor from './components/RuleEditor.vue';
 import type { Position, StyleLevel } from './models/gameState';
 
@@ -12,6 +13,7 @@ const store = useGameStore();
 
 const settingsVisible = ref(false);
 const historyVisible = ref(false);
+const pbnVisible = ref(false);
 const rulesVisible = ref(false);
 const resultVisible = ref(false);
 const ROBOT_SEATS: Position[] = ['N', 'E', 'W'];
@@ -95,6 +97,7 @@ function onRoundSize(value: number): void {
       <el-button type="primary" @click="onNewGame">新一局</el-button>
       <el-button :disabled="store.phase !== 'scoring'" @click="resultVisible = true">本局结果</el-button>
       <el-button @click="historyVisible = true">对局记录</el-button>
+      <el-button @click="pbnVisible = true">PBN 导入/导出</el-button>
       <el-button @click="rulesVisible = true">规则管理</el-button>
       <el-button @click="settingsVisible = true">风格 / 规则设置</el-button>
     </header>
@@ -108,6 +111,7 @@ function onRoundSize(value: number): void {
 
     <DealResultDialog v-model="resultVisible" />
     <GameHistory v-model="historyVisible" />
+    <PbnDialog v-model="pbnVisible" />
     <RuleEditor v-model="rulesVisible" />
 
     <el-dialog v-model="settingsVisible" title="机器人风格与规则设置" width="620px">
@@ -171,6 +175,16 @@ function onRoundSize(value: number): void {
           </el-select>
         </label>
         <label>
+          跟牌/垫牌细则（规则文件）
+          <el-select
+            :model-value="store.signalRuleFile.name"
+            size="small"
+            @update:model-value="store.setSignalRuleFile"
+          >
+            <el-option v-for="f in store.availableSignalFiles" :key="f" :label="f" :value="f" />
+          </el-select>
+        </label>
+        <label>
           计点循环（副数）
           <el-select
             :model-value="store.roundSize"
@@ -187,6 +201,10 @@ function onRoundSize(value: number): void {
 
       <div class="game-options">
         <label class="switch-row">
+          <el-switch :model-value="store.showHints" @update:model-value="store.setShowHints" />
+          <span>显示提示与推荐（叫牌含义 / 推荐叫品 / 推荐出牌）</span>
+        </label>
+        <label class="switch-row">
           <el-switch :model-value="store.autoPilot" @update:model-value="toggleAutoPilot" />
           <span>自动托管南家（全机器演示）</span>
         </label>
@@ -196,6 +214,13 @@ function onRoundSize(value: number): void {
             @update:model-value="store.setUseHcpAdjust"
           />
           <span>计点贴点制</span>
+        </label>
+        <label class="switch-row">
+          <el-switch
+            :model-value="store.useDdsPlayAI"
+            @update:model-value="store.setDdsPlayEnabled"
+          />
+          <span>DDS 深度打牌（隐藏牌抽样，较慢但更强）</span>
         </label>
       </div>
 

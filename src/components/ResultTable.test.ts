@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ResultTable from './ResultTable.vue';
@@ -38,7 +39,9 @@ function setup() {
     leader: 'W',
     winner: index < 10 ? 'N' : 'E',
   }));
-  const wrapper = mount(ResultTable, { global: { plugins: [pinia] } });
+  const wrapper = mount(ResultTable, {
+    global: { plugins: [pinia], stubs: { 'el-dialog': true } },
+  });
   return { store, wrapper };
 }
 
@@ -46,16 +49,21 @@ describe('ResultTable 结果窗口', () => {
   it('按结果显示窗口提供五个区域与完整汇总列', () => {
     const { wrapper } = setup();
     expect(wrapper.findAll('.res-title').map((title) => title.text())).toEqual([
-      '本桌累计得分',
+      '本桌累计得分 点数已按贴点制折算',
       '牌型分布',
       '比较得分',
       '叫牌过程',
       '打牌过程',
     ]);
-    expect(wrapper.get('.summary-table').text()).toContain('我方得分');
-    expect(wrapper.get('.summary-table').text()).toContain('对方得分');
-    expect(wrapper.get('.comparison-table').text()).toContain('NS得分');
-    expect(wrapper.get('.comparison-table').text()).toContain('EW得分');
+    expect(wrapper.get('.summary-table').text()).toContain('NS原始分');
+    expect(wrapper.get('.summary-table').text()).toContain('EW原始分');
+    expect(wrapper.get('.summary-table').text()).toContain('NS点数');
+    expect(wrapper.get('.summary-table').text()).toContain('EW点数');
+    expect(wrapper.get('.comparison-table').text()).toContain('NS原始分');
+    expect(wrapper.get('.comparison-table').text()).toContain('EW原始分');
+    expect(wrapper.get('.comparison-table').text()).toContain('NS点数');
+    expect(wrapper.get('.comparison-table').text()).toContain('EW点数');
+    expect(wrapper.get('.res-adjust-note').text()).toContain('贴点');
   });
 
   it('显示定约结果、牌型分布与当前得分行', () => {
@@ -73,6 +81,28 @@ describe('ResultTable 结果窗口', () => {
     expect(wrapper.find('.comparison-table tr.current').exists()).toBe(true);
   });
 
+  it('开启贴点时结果窗口显示贴点后的点数，关闭后回退为原始 IMP', async () => {
+    const { store, wrapper } = setup();
+    store.score = { NS: 420, EW: 0 };
+    store.dealHcp = { NS: 26, EW: 14 };
+    await nextTick();
+
+    const summaryCells = wrapper.findAll('.summary-table tbody td');
+    expect(summaryCells[2].text()).toBe('420');
+    expect(summaryCells[4].text()).toBe('3');
+    expect(summaryCells[5].text()).toBe('-3');
+
+    const comparisonCells = wrapper.findAll('.comparison-table tr.current td');
+    expect(comparisonCells[2].text()).toBe('420');
+    expect(comparisonCells[4].text()).toBe('3');
+    expect(comparisonCells[5].text()).toBe('-3');
+
+    store.setUseHcpAdjust(false);
+    await nextTick();
+    expect(wrapper.findAll('.summary-table tbody td')[4].text()).toBe('9');
+    expect(wrapper.findAll('.comparison-table tr.current td')[4].text()).toBe('9');
+  });
+
   it('叫牌进行中时显示未定约而不是流局', () => {
     const pinia = createPinia();
     setActivePinia(pinia);
@@ -83,7 +113,9 @@ describe('ResultTable 结果窗口', () => {
     store.biddingHistory = [{ position: 'N', call: { type: 'pass' } }];
     store.dealer = 'N';
 
-    const wrapper = mount(ResultTable, { global: { plugins: [pinia] } });
+    const wrapper = mount(ResultTable, {
+      global: { plugins: [pinia], stubs: { 'el-dialog': true } },
+    });
     expect(wrapper.get('.summary-table').text()).toContain('未定约');
     expect(wrapper.get('.distribution').text()).toContain('未定约');
     expect(wrapper.text()).not.toContain('流局');
@@ -126,7 +158,9 @@ describe('ResultTable 结果窗口', () => {
       { position: 'N', call: { type: 'pass' } },
     ];
 
-    const wrapper = mount(ResultTable, { global: { plugins: [pinia] } });
+    const wrapper = mount(ResultTable, {
+      global: { plugins: [pinia], stubs: { 'el-dialog': true } },
+    });
     expect(wrapper.findAll('.bid-table thead th').map((cell) => cell.text())).toEqual([
       '东',
       '南',

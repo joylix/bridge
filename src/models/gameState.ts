@@ -19,6 +19,8 @@ export interface BidRecord {
   alerted?: boolean;
   /** 提醒内容（如“约定叫”），仅供悬停查看 */
   alertText?: string;
+  /** 产生该叫品的规则 id；用于在叫牌含义浮窗中稳定展示规则说明 */
+  ruleId?: string;
 }
 
 export interface Contract {

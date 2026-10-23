@@ -85,6 +85,8 @@ describe('SouthPlayed 右下角已出牌与操作', () => {
     const dialogs = wrapper.findAllComponents(ElDialog);
     expect(dialogs[0].props('title')).toBe('结果');
     expect(dialogs[0].props('draggable')).toBe(true);
+    // 拖动后松手或误点遮罩不能把窗口关掉
+    expect(dialogs[0].props('closeOnClickModal')).toBe(false);
   });
 
   it('一局出牌结束后，已出牌堆叠只再显示 1 秒', async () => {

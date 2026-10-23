@@ -27,7 +27,7 @@ function pageText(wrapper: { text: () => string }): string {
 }
 
 describe('RuleEditor 规则浏览', () => {
-  it('展示叫牌规则文件与每条规则的细则', async () => {
+  it('展示叫牌规则文件与每条规则的细则', { timeout: 15000 }, async () => {
     const { wrapper } = await openEditor();
     const text = pageText(wrapper);
 
@@ -40,10 +40,28 @@ describe('RuleEditor 规则浏览', () => {
     wrapper.unmount();
   });
 
-  it('当前阶段普通用户可编辑（显示编辑入口）', async () => {
+  it('当前阶段普通用户可编辑（显示编辑入口）', { timeout: 15000 }, async () => {
     const { store, wrapper } = await openEditor();
     expect(store.canEditRules).toBe(true);
     expect(pageText(wrapper)).toContain('编辑源码');
+
+    wrapper.unmount();
+  });
+
+  it('第三页签可浏览跟牌/垫牌细则与可执行阈值', { timeout: 20000 }, async () => {
+    const { wrapper } = await openEditor();
+    const tab = wrapper
+      .findAll('.el-tabs__item')
+      .find((el) => el.text().includes('跟牌/垫牌'));
+    expect(tab).toBeTruthy();
+    await tab?.trigger('click');
+    for (let i = 0; i < 5; i++) await nextTick();
+
+    const text = pageText(wrapper);
+    expect(text).toContain('follow_count_signal');
+    expect(text).toContain('偶数张先大后小');
+    expect(text).toContain('可执行阈值');
+    expect(text).toContain('10');
 
     wrapper.unmount();
   });

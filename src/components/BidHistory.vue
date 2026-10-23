@@ -2,11 +2,24 @@
 import { computed } from 'vue';
 import { FINAL_PASS_TEXT, useGameStore, describeCall, suitName } from '../store/game';
 import { auctionRows } from '../core/bidding/auctionGrid';
-import type { BidRecord, Position } from '../models/gameState';
+import { meaningForBidRecord, type BidMeaningRow } from '../engine/bidMeaning';
+import type { BidCall, BidRecord, Position } from '../models/gameState';
 
-const props = withDefaults(defineProps<{ variant?: 'panel' | 'table' }>(), {
-  variant: 'panel',
-});
+const props = withDefaults(
+  defineProps<{
+    variant?: 'panel' | 'table';
+    /** 悬停已完成叫牌时，向外发出该叫品的含义 */
+    showMeanings?: boolean;
+  }>(),
+  {
+    variant: 'panel',
+    showMeanings: false,
+  },
+);
+
+const emit = defineEmits<{
+  (e: 'bid-hover', row: BidMeaningRow | null): void;
+}>();
 
 const store = useGameStore();
 const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
@@ -14,11 +27,15 @@ const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
 const SEAT_LABEL: Record<Position, string> = { N: '北', E: '东', S: '南', W: '西' };
 
 interface BidCell {
+  position: Position;
+  call?: BidCall;
   level: string;
   suit: string;
   red: boolean;
   label: string;
   final: boolean;
+  /** 该叫品的规则含义（仅在开启提示时计算） */
+  meaning?: string;
   /** “确认+提醒”提交的叫牌：白底突出 */
   alerted?: boolean;
   alertText?: string;
@@ -35,25 +52,43 @@ const finalPassIndex = computed(() => {
 });
 
 /** 将叫品拆成“阶数 + 花色符号”，便于单独放大花色符号 */
-function toBidCell(rec: BidRecord | null, final = false): BidCell | null {
+function toBidCell(rec: BidRecord | null, index: number, final = false): BidCell | null {
   if (!rec) return null;
+  const meaning =
+    props.showMeanings && store.showHints
+      ? meaningForBidRecord(
+          rec,
+          index,
+          store.biddingHistory,
+          store.hands[rec.position],
+          store.styles[rec.position].bid,
+          store.biddingRules.rules,
+        )
+      : undefined;
+
   if (rec.call.type === 'bid') {
     return {
+      position: rec.position,
+      call: rec.call,
       level: String(rec.call.level),
       suit: suitName(rec.call.suit),
       red: rec.call.suit === 'D' || rec.call.suit === 'H',
       label: '',
       final: false,
+      meaning,
       alerted: rec.alerted,
       alertText: rec.alertText,
     };
   }
   return {
+    position: rec.position,
+    call: rec.call,
     level: '',
     suit: '',
     red: false,
     label: final ? FINAL_PASS_TEXT : describeCall(rec.call),
     final,
+    meaning,
     alerted: rec.alerted,
     alertText: rec.alertText,
   };
@@ -69,7 +104,7 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
   store.biddingHistory.forEach((rec, i) => {
     const r = rowIndices[i] ?? 0;
     if (!rows[r]) rows[r] = [null, null, null, null];
-    rows[r][COLUMNS.indexOf(rec.position)] = toBidCell(rec, i === finalPassIndex.value);
+    rows[r][COLUMNS.indexOf(rec.position)] = toBidCell(rec, i, i === finalPassIndex.value);
   });
 
   // 叫牌进行中：当前叫牌人的空档填问号，表示“正在考虑”
@@ -81,7 +116,15 @@ const bidRounds = computed<(BidCell | null)[][]>(() => {
     if (col >= 0) {
       if (!rows[row]) rows[row] = [null, null, null, null];
       if (!rows[row][col]) {
-        rows[row][col] = { level: '', suit: '', red: false, label: '？', final: false, thinking: true };
+        rows[row][col] = {
+          position: store.currentBidder,
+          level: '',
+          suit: '',
+          red: false,
+          label: '？',
+          final: false,
+          thinking: true,
+        };
       }
     }
   }
@@ -94,11 +137,30 @@ function cellTitle(cell: BidCell): string | undefined {
   if (cell.alerted) return cell.alertText ? `提醒：${cell.alertText}` : '提醒';
   return undefined;
 }
+
+/** 悬停已完成的叫品：复用牌桌上唯一的含义浮动层 */
+function onCellEnter(cell: BidCell): void {
+  if (!props.showMeanings || !store.showHints) return;
+  if (cell.thinking || !cell.call || !cell.meaning) return;
+  emit('bid-hover', {
+    position: cell.position,
+    call: cell.call,
+    meaning: cell.meaning,
+  });
+}
+
+function onCellLeave(): void {
+  if (props.showMeanings) emit('bid-hover', null);
+}
+
+function onScroll(): void {
+  if (props.showMeanings) emit('bid-hover', null);
+}
 </script>
 
 <template>
-  <div class="bid-history" :class="`variant-${props.variant}`">
-    <div class="bid-scroll">
+  <div class="bid-history" :class="[`variant-${props.variant}`, { interactive: props.showMeanings }]">
+    <div class="bid-scroll" @scroll="onScroll">
       <div class="bid-header">
         <span v-for="c in COLUMNS" :key="c" :title="c">{{ SEAT_LABEL[c] }}</span>
       </div>
@@ -108,7 +170,10 @@ function cellTitle(cell: BidCell): string | undefined {
           :key="j"
           class="bid-cell"
           :class="{ alerted: cell?.alerted, thinking: cell?.thinking }"
+          :data-position="cell?.position"
           :title="cell ? cellTitle(cell) : undefined"
+          @mouseenter="cell && onCellEnter(cell)"
+          @mouseleave="onCellLeave"
         >
           <template v-if="cell">
             <template v-if="cell.suit">
@@ -263,6 +328,12 @@ function cellTitle(cell: BidCell): string | undefined {
   border-right: 0;
   border-radius: 0;
   color: #10201b;
+}
+.variant-table.interactive .bid-cell:not(.thinking) {
+  cursor: help;
+}
+.variant-table.interactive .bid-cell:not(.thinking):hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 .variant-table .bid-cell.alerted {
   background: #ffffff;

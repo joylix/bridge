@@ -111,7 +111,7 @@ const roundDone = computed(
     </h3>
     <div class="points">
       <div v-if="store.phase === 'scoring'" class="points-row">
-        <span>本局点数</span>
+        <span>本局点数{{ store.useHcpAdjust ? '（已贴点）' : '（原始 IMP）' }}</span>
         <strong>{{ dealPointsLabel }}</strong>
       </div>
       <label class="hcp-toggle">

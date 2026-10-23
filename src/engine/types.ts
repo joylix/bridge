@@ -30,7 +30,26 @@ export interface ConditionSpec {
   balanced?: boolean; // 均型（4-3-3-3 / 4-4-3-2 / 5-3-3-2）
   /** 首叫座位：1=发牌人，2=第二家，3=第三家，4=第四家；仅开叫时有效 */
   openingSeat?: NumRange;
-  // 未来扩展位（MVP 不解析）：losers, keycards, ...
+  /** 失张数（简单 LTC，0-12；越小牌越好） */
+  losers?: NumRange;
+  /** 缺门 / 单张 / 双张的花色数 */
+  voids?: NumRange;
+  singletons?: NumRange;
+  doubletons?: NumRange;
+  /** 至少有一门 4+ / 5+ 高花（斯台曼等约定叫常用） */
+  fourCardMajor?: boolean;
+  fiveCardMajor?: boolean;
+  /** A / K 的张数 */
+  aces?: NumRange;
+  kings?: NumRange;
+  /** 指定花色的挡张，如 "SHD" 表示黑桃、红桃、方块均有挡张 */
+  stoppers?: string;
+  /** 同伴是否是本副第一个实质叫牌人（用于区分“应叫开叫”与“应叫争叫/再叫”） */
+  partnerOpened?: boolean;
+  /** 同伴点力估计下限（由叫牌序列推断；仅用于明确含义的叫品） */
+  partnerHcp?: NumRange;
+  /** 联手点力估计下限：自己 HCP + 同伴 HCP 下限 */
+  combinedHcp?: NumRange;
 }
 
 /** "16-40" / "5+" / "0-7" / "12" / 可含风格变量 "${open1ntMin}-15" */
@@ -76,8 +95,29 @@ export interface BidCandidate {
   specificity: number;
 }
 
-/** 防守信号规则：MVP 阶段仅作文档记录，程序不解析（见 rules/play/signals.yml） */
+/** 打牌细则规则：记录跟牌/垫牌/信号约定，供规则库浏览与阈值配置。 */
 export interface SignalRule {
-  id?: string;
-  description?: string;
+  id: string;
+  description: string;
+  /** 细则阶段：跟牌 / 垫牌 / 信号 */
+  phase: 'follow' | 'discard' | 'signal';
+  /** 适用条件（与叫牌/首攻共用条件词表） */
+  when?: ConditionSpec;
+  /** 策略标识，由 ai/playAI.ts 解释执行 */
+  action: string;
+  priority: number;
+}
+
+/** signals.yml 中可被 AI 直接使用的阈值（牌面点数，2-14） */
+export interface SignalSettings {
+  /** 张数信号允许使用的最大牌面，默认 10 */
+  signal_spot_max_rank?: number;
+  /** 有将垫牌时“鼓励信号”的最小牌面，默认 8 */
+  encourage_discard_min_rank?: number;
+}
+
+/** 解析后的打牌细则文件 */
+export interface SignalRuleSet {
+  rules: SignalRule[];
+  settings: SignalSettings;
 }

@@ -87,7 +87,7 @@ describe('ScoreBoard 定约与赢墩', () => {
     const wrapper = mount(ScoreBoard, { global: { plugins: [pinia] } });
 
     const points = wrapper.get('.points').text();
-    expect(points).toContain('本局点数');
+    expect(points).toContain('本局点数（已贴点）');
     expect(points).toContain('NS +9'); // 420 → 9 点
     expect(points).toContain('NS 累计点数');
     expect(points).toContain('EW 累计点数');

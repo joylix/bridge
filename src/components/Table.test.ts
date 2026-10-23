@@ -15,6 +15,16 @@ function newStoreAndTable() {
   return { store, wrapper };
 }
 
+function findCardSlot(
+  wrapper: ReturnType<typeof mount>,
+  position: string,
+  card: number,
+) {
+  return wrapper
+    .findAll(`.hand.pos-${position} .card-slot`)
+    .find((slot) => slot.attributes('data-card') === String(card));
+}
+
 describe('Table 叫牌高亮', () => {
   let store: ReturnType<typeof useGameStore>;
   let wrapper: ReturnType<typeof mount>;
@@ -352,7 +362,12 @@ describe('Table 中央出牌区', () => {
   });
 
   it('本轮有牌时只显示本轮牌面，不再提供上一墩切换按钮', async () => {
-    const { store, wrapper } = newStoreAndTable();
+    // 先在 store 中构造“上一墩已完成、当前墩已有牌”的加载态，再挂载组件，
+    // 避免把“刚完成的墩优先展示 1 秒”的规则误判为当前墩展示。
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGameStore();
+    store.startNewGame({ autoStart: false, seed: 99 });
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
     const plays = [
@@ -364,6 +379,7 @@ describe('Table 中央出牌区', () => {
     store.tricks = [{ plays, leader: 'S', winner: 'S' }];
     store.currentTrick = [{ position: 'W', card: parseHand('C2')[0] }];
     store.nextPlayer = 'N';
+    const wrapper = mount(Table, { global: { plugins: [pinia] } });
     await nextTick();
 
     const currentPlays = wrapper.findAll('.trick-stack .trick-play');
@@ -407,6 +423,49 @@ describe('Table 中央出牌区', () => {
       store.currentTrick = [{ position: 'W', card: parseHand('C7')[0] }];
       await nextTick();
       expect(wrapper.findAll('.trick-play')).toHaveLength(1);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('下一墩第一张牌提前落地时，上一墩仍完整展示满 1 秒', async () => {
+    vi.useFakeTimers();
+    try {
+      const { store, wrapper } = newStoreAndTable();
+      store.phase = 'play';
+      store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+      store.currentTrick = [
+        { position: 'N', card: parseHand('SA')[0] },
+        { position: 'E', card: parseHand('H2')[0] },
+        { position: 'S', card: parseHand('D3')[0] },
+      ];
+      store.nextPlayer = 'W';
+      store.trickLeader = 'N';
+      await nextTick();
+
+      // 第四家出牌，本墩结束
+      store.applyPlay('W', store.hands.W[0]);
+      await nextTick();
+      expect(store.tricks).toHaveLength(1);
+      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+
+      // 模拟竞态：下一墩第一张牌在 1 秒内提前写入 currentTrick
+      store.currentTrick = [{ position: 'N', card: parseHand('C7')[0] }];
+      await nextTick();
+      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+      expect(wrapper.get('.trick-stack').text()).toContain('♠A');
+
+      await vi.advanceTimersByTimeAsync(PLAY_DISPLAY_MS - 1);
+      await nextTick();
+      expect(wrapper.findAll('.trick-play')).toHaveLength(4);
+
+      // 展示满 1 秒后才切换到下一墩
+      await vi.advanceTimersByTimeAsync(1);
+      await nextTick();
+      const nextPlays = wrapper.findAll('.trick-play');
+      expect(nextPlays).toHaveLength(1);
+      expect(nextPlays[0].get('.playing-card').text()).toContain('♣7');
     } finally {
       vi.clearAllTimers();
       vi.useRealTimers();
@@ -561,10 +620,12 @@ describe('Table 南家已出牌与常用操作', () => {
 });
 
 describe('Table 选牌与出牌', () => {
-  it('左键选中/取消，右键确认后才出牌', async () => {
+  it('左键选中/取消，右键直接出牌', async () => {
     vi.useFakeTimers();
     const { store, wrapper } = newStoreAndTable();
     try {
+      // 本用例只验证普通选牌，关闭推荐提示避免误点推荐牌
+      store.setShowHints(false);
       store.phase = 'play';
       store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
       store.tricks = [];
@@ -599,6 +660,7 @@ describe('Table 选牌与出牌', () => {
 
   it('点击本轮不允许出的牌不会弹出选中', async () => {
     const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(false);
     store.phase = 'play';
     store.contract = { level: 1, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
     store.tricks = [];
@@ -692,5 +754,266 @@ describe('Table 明手显示', () => {
     expect(east.get('.suits').classes()).toContain('single-row');
     expect(east.findAll('.hand-row')).toHaveLength(1);
     expect(east.findAll('.card').every((card) => card.classes().includes('size-xxl'))).toBe(true);
+  });
+});
+
+describe('Table 叫牌含义浮层', () => {
+  it('默认不显示，悬停已完成的叫品时在中央显示含义，移开记录格即隐去', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'bidding';
+    store.biddingHistory = [
+      { position: 'N', call: { type: 'bid', level: 1, suit: 'H' }, ruleId: 'open_1h' },
+      { position: 'E', call: { type: 'pass' }, ruleId: 'fallback_pass' },
+      { position: 'S', call: { type: 'bid', level: 1, suit: 'S' }, ruleId: 'open_1s' },
+    ];
+    await nextTick();
+
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+
+    const northCell = wrapper.get('.bid-cell[data-position="N"]:not(.thinking)');
+    await northCell.trigger('mouseenter');
+    const panel = wrapper.get('.bid-meanings');
+    expect(panel.text()).toContain('北');
+    expect(panel.text()).toContain('1♥');
+    expect(panel.text()).toContain('5+ 红桃');
+    // 新浮层没有边框和题头，只保留座位、叫品和含义
+    expect(panel.find('.bm-title').exists()).toBe(false);
+
+    await northCell.trigger('mouseleave');
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+  });
+
+  it('悬停自己的叫品也会显示，移开后隐去', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'bidding';
+    store.biddingHistory = [
+      { position: 'S', call: { type: 'bid', level: 1, suit: 'S' }, ruleId: 'open_1s' },
+    ];
+    await nextTick();
+
+    const southCell = wrapper.get('.bid-cell[data-position="S"]:not(.thinking)');
+    await southCell.trigger('mouseenter');
+    expect(wrapper.get('.bid-meanings').text()).toContain('1S 开叫');
+    await southCell.trigger('mouseleave');
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+  });
+
+  it('叫牌卡悬停合法叫品时，中央浮层显示该叫品含义和推荐叫品', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'bidding';
+    store.currentBidder = 'S';
+    store.setBidPreview({
+      position: 'S',
+      call: { type: 'bid', level: 1, suit: 'S' },
+      meaning: '1S 自然叫品',
+      recommended: false,
+      recommendedCall: { type: 'bid', level: 1, suit: 'C' },
+      recommendedMeaning: '精确 1C 开叫',
+    });
+    await nextTick();
+
+    const panel = wrapper.get('.bid-meanings');
+    expect(panel.text()).toContain('1♠');
+    expect(panel.text()).toContain('1S 自然叫品');
+    expect(panel.text()).toContain('推荐');
+    expect(panel.text()).toContain('1♣');
+    expect(panel.text()).toContain('精确 1C 开叫');
+
+    store.setBidPreview(null);
+    await nextTick();
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+  });
+
+  it('关闭提示后悬停也不显示含义浮层', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'bidding';
+    store.biddingHistory = [
+      { position: 'N', call: { type: 'bid', level: 1, suit: 'H' }, ruleId: 'open_1h' },
+    ];
+    await nextTick();
+
+    const northCell = wrapper.get('.bid-cell[data-position="N"]:not(.thinking)');
+    await northCell.trigger('mouseenter');
+    expect(wrapper.find('.bid-meanings').exists()).toBe(true);
+
+    store.setShowHints(false);
+    await nextTick();
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+    await northCell.trigger('mouseenter');
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+  });
+
+  it('叫牌结束后悬停也不再显示含义浮层', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'bidding';
+    store.biddingHistory = [
+      { position: 'N', call: { type: 'bid', level: 1, suit: 'H' }, ruleId: 'open_1h' },
+    ];
+    await nextTick();
+
+    const northCell = wrapper.get('.bid-cell[data-position="N"]:not(.thinking)');
+    await northCell.trigger('mouseenter');
+    expect(wrapper.find('.bid-meanings').exists()).toBe(true);
+
+    store.phase = 'play';
+    await nextTick();
+    expect(wrapper.find('.bid-meanings').exists()).toBe(false);
+  });
+});
+
+describe('Table 推荐出牌', () => {
+  it('人类可选时箭头指向推荐牌并显示理由，关闭提示后回到固定回合位置', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'play';
+    store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.hands.S = parseHand('SAKQ2 HJT98 D543 C87');
+    store.currentTrick = [];
+    store.nextPlayer = 'S';
+    store.tricks = [];
+    await nextTick();
+
+    const details = store.recommendPlayDetails('S');
+    expect(details).not.toBeNull();
+    const slot = findCardSlot(wrapper, 'S', details!.card);
+    expect(slot).toBeDefined();
+    const arrow = slot!.get('.turn-arrow');
+    expect(arrow.classes()).toContain('has-reason');
+    expect(arrow.attributes('aria-label')).toContain('推荐');
+    expect(slot!.get('.turn-arrow-tip').text()).toContain(details!.reason);
+    // 推荐牌本身不再自动弹起
+    expect(slot!.get('.playing-card').classes()).not.toContain('selected');
+    // 固定回合箭头与推荐箭头不会同时出现
+    expect(wrapper.findAll('.hand.pos-S .turn-arrow')).toHaveLength(1);
+
+    store.setShowHints(false);
+    await nextTick();
+    expect(wrapper.find('.hand.pos-S .card-slot .turn-arrow').exists()).toBe(false);
+    // 关闭提示后仍保留固定位置的回合箭头
+    expect(wrapper.find('.hand.pos-S > .turn-arrow').exists()).toBe(true);
+    store.setShowHints(true);
+  });
+
+  it('推荐牌不再自动弹起，左键选中/取消正常，箭头保持指向推荐牌', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'play';
+    store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.hands.S = parseHand('SAKQ2 HJT98 D543 C87');
+    store.currentTrick = [];
+    store.nextPlayer = 'S';
+    store.tricks = [];
+    await nextTick();
+
+    const details = store.recommendPlayDetails('S');
+    expect(details).not.toBeNull();
+    const slot = findCardSlot(wrapper, 'S', details!.card)!;
+    const card = slot.get('.playing-card');
+    expect(card.classes()).not.toContain('selected');
+
+    await card.trigger('click');
+    expect(card.classes()).toContain('selected');
+    expect(slot.find('.turn-arrow').exists()).toBe(true);
+
+    await card.trigger('click');
+    expect(card.classes()).not.toContain('selected');
+    expect(wrapper.findAll('.hand.pos-S .playing-card.selected')).toHaveLength(0);
+  });
+
+  it('右键点击推荐牌会一次直接打出', async () => {
+    vi.useFakeTimers();
+    const { store, wrapper } = newStoreAndTable();
+    try {
+      store.setShowHints(true);
+      store.phase = 'play';
+      store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+      store.hands.S = parseHand('SAKQ2 HJT98 D543 C87');
+      store.currentTrick = [];
+      store.nextPlayer = 'S';
+      store.tricks = [];
+      await nextTick();
+
+      const details = store.recommendPlayDetails('S');
+      expect(details).not.toBeNull();
+      const slot = findCardSlot(wrapper, 'S', details!.card)!;
+      await slot.get('.playing-card').trigger('contextmenu');
+      await nextTick();
+
+      expect(store.currentTrick).toHaveLength(1);
+      expect(store.currentTrick[0].position).toBe('S');
+      expect(wrapper.find('.hand.pos-S .playing-card.selected').exists()).toBe(false);
+      // 出牌后推荐箭头随该牌一起离开手牌
+      expect(wrapper.find('.hand.pos-S .turn-arrow').exists()).toBe(false);
+    } finally {
+      store.startNewGame({ autoStart: false, seed: 102 });
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it('改选其他牌时只有选中牌弹起，推荐箭头仍指向推荐牌', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'play';
+    store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.hands.S = parseHand('SAKQ2 HJT98 D543 C87');
+    store.currentTrick = [];
+    store.nextPlayer = 'S';
+    store.tricks = [];
+    await nextTick();
+
+    const details = store.recommendPlayDetails('S');
+    expect(details).not.toBeNull();
+    const recommendedSlot = findCardSlot(wrapper, 'S', details!.card)!;
+    const otherSlot = wrapper
+      .findAll('.hand.pos-S .card-slot')
+      .find((slot) => slot.attributes('data-card') !== String(details!.card));
+    expect(otherSlot).toBeDefined();
+
+    await otherSlot!.get('.playing-card').trigger('click');
+    expect(otherSlot!.get('.playing-card').classes()).toContain('selected');
+    expect(recommendedSlot.get('.playing-card').classes()).not.toContain('selected');
+    expect(wrapper.findAll('.hand.pos-S .playing-card.selected')).toHaveLength(1);
+    expect(recommendedSlot.find('.turn-arrow').exists()).toBe(true);
+  });
+
+  it('非人类回合箭头停在固定位置，不指向具体牌张', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'play';
+    store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.nextPlayer = 'E';
+    store.currentTrick = [];
+    store.tricks = [];
+    await nextTick();
+
+    expect(wrapper.find('.hand.pos-E > .turn-arrow').exists()).toBe(true);
+    expect(wrapper.find('.hand.pos-E .card-slot .turn-arrow').exists()).toBe(false);
+  });
+
+  it('人类坐庄操作明手时，箭头也指向明手的推荐牌', async () => {
+    const { store, wrapper } = newStoreAndTable();
+    store.setShowHints(true);
+    store.phase = 'play';
+    store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.dummyOpen = true;
+    store.hands.N = parseHand('SAKQ2 HJT98 D543 C87');
+    store.currentTrick = [{ position: 'W', card: parseHand('C2')[0] }];
+    store.nextPlayer = 'N';
+    store.tricks = [];
+    await nextTick();
+
+    expect(store.isHumanControlled('N')).toBe(true);
+    const details = store.recommendPlayDetails('N');
+    expect(details).not.toBeNull();
+    const slot = findCardSlot(wrapper, 'N', details!.card);
+    expect(slot).toBeDefined();
+    expect(slot!.find('.turn-arrow').exists()).toBe(true);
+    expect(wrapper.find('.hand.pos-N > .turn-arrow').exists()).toBe(false);
   });
 });

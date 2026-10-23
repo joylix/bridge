@@ -8,6 +8,7 @@ import { trumpSuitOf, type Position } from '../models/gameState';
 import { sortHand } from '../models/hand';
 import { parseHand } from '../testing/testUtils';
 import { clearRuleOverrides } from '../engine/loader';
+import { parsePbnDeal } from '../core/pbn';
 
 const SEATS: Position[] = ['N', 'E', 'S', 'W'];
 
@@ -59,6 +60,55 @@ describe('发牌与开局（用例 1、20）', () => {
     expect(store.tricks).toEqual([]);
     expect(store.contract).toBeNull();
     expect(store.score).toEqual({ NS: 0, EW: 0 });
+  });
+});
+
+describe('PBN 导入 / 导出', () => {
+  const PBN =
+    'E:KT64.Q72.AJ5.A62 J3.AKT98.K832.Q3 AQ9872.4.T97.985 5.J653.Q64.KJT74';
+
+  it('导出的 PBN 可以重新导入，牌张与发牌人一致', () => {
+    const store = newStore();
+    store.startNewGame({ autoStart: false, seed: 99 });
+    const text = store.exportDealPbn();
+    const original = parsePbnDeal(text);
+
+    store.startNewGame({ autoStart: false, seed: 100 });
+    store.importDealPbn(text, { autoStart: false });
+
+    expect(store.dealer).toBe(original.dealer);
+    for (const p of SEATS) expect(store.hands[p]).toEqual(sortHand(original.hands[p]));
+    for (const p of SEATS) expect(store.dealHands[p]).toEqual(sortHand(original.hands[p]));
+    expect(store.phase).toBe('bidding');
+    expect(store.biddingHistory).toEqual([]);
+    expect(store.gamesPlayed).toBe(3);
+  });
+
+  it('打牌过程中仍可导出原始发牌快照', () => {
+    const store = newStore();
+    store.startNewGame({ autoStart: false, seed: 5 });
+    const before = store.exportDealPbn();
+    store.applyPlay('N', store.hands.N[0]);
+    expect(store.hands.N).toHaveLength(12);
+    expect(store.exportDealPbn()).toBe(before);
+  });
+
+  it('非法 PBN 不改变当前对局', () => {
+    const store = newStore();
+    store.startNewGame({ autoStart: false, seed: 7 });
+    const hands = SEATS.map((p) => [...store.hands[p]]);
+    expect(() => store.importDealPbn('N:AKQ.J.2.3', { autoStart: false })).toThrow();
+    expect(SEATS.map((p) => store.hands[p])).toEqual(hands);
+    expect(store.gamesPlayed).toBe(1);
+  });
+
+  it('可导入指定发牌人的 PBN 并从该座位开始叫牌', () => {
+    const store = newStore();
+    store.importDealPbn(PBN, { autoStart: false, vulnerability: 'both' });
+    expect(store.dealer).toBe('E');
+    expect(store.currentBidder).toBe('E');
+    expect(store.vulnerability).toBe('both');
+    expect(store.hands.S).toEqual(sortHand(parsePbnDeal(PBN).hands.S));
   });
 });
 
@@ -590,6 +640,42 @@ describe('规则浏览 / 修改', () => {
 
     store.resetRuleSource('lead', 'leads');
     clearRuleOverrides();
+  });
+
+  it('跟牌/垫牌细则可切换、保存并应用阈值', () => {
+    clearRuleOverrides();
+    const store = newStore();
+    expect(store.signalRuleFile.name).toBe('signals');
+    expect(store.signalRuleSet.rules.some((r) => r.id === 'follow_count_signal')).toBe(true);
+
+    const original = store.getRuleSource('signal', 'signals');
+    const modified = original.replace('signal_spot_max_rank: 10', 'signal_spot_max_rank: 9');
+    store.saveRuleSource('signal', 'signals', modified);
+    expect(store.isRuleOverridden('signal', 'signals')).toBe(true);
+    expect(store.signalRuleSet.settings.signal_spot_max_rank).toBe(9);
+
+    store.resetRuleSource('signal', 'signals');
+    expect(store.signalRuleSet.settings.signal_spot_max_rank).toBe(10);
+    clearRuleOverrides();
+  });
+
+  it('提示开关关闭后不再返回出牌推荐', () => {
+    clearRuleOverrides();
+    const store = newStore();
+    store.startNewGame({ autoStart: false, seed: 21 });
+    store.phase = 'play';
+    store.contract = { level: 3, suit: 'NT', doubled: false, redoubled: false, declarer: 'S', dummy: 'N' };
+    store.hands.S = parseHand('SAKQ2 HJT98 D543 C87');
+    store.currentTrick = [];
+    store.nextPlayer = 'S';
+    store.setShowHints(false);
+    expect(store.recommendPlay('S')).toBeNull();
+    expect(store.recommendPlayDetails('S')).toBeNull();
+    store.setShowHints(true);
+    expect(store.recommendPlay('S')).not.toBeNull();
+    const details = store.recommendPlayDetails('S');
+    expect(details?.card).toBe(store.recommendPlay('S'));
+    expect(details?.reason).toBeTruthy();
   });
 
   it('当前阶段所有用户均可编辑规则', () => {

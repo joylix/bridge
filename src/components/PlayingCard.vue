@@ -521,6 +521,11 @@ const ace = computed(() => {
   filter: brightness(1.06);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
 }
+/* 行动高亮：轮到该手牌时淡金描边 */
+.playing-card.active {
+  outline: 2px solid #ffd666;
+  outline-offset: 1px;
+}
 /* 左键选中的牌：上移弹出，再次点击或出牌后复原 */
 .playing-card.selected,
 .playing-card.selected:hover {
@@ -529,10 +534,6 @@ const ace = computed(() => {
   outline: 2px solid #ffd666;
   outline-offset: 1px;
   z-index: 9;
-}
-.playing-card.active {
-  outline: 2px solid #ffd666;
-  outline-offset: 1px;
 }
 .playing-card:disabled {
   cursor: default;

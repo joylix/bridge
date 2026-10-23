@@ -10,15 +10,19 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "benchmark": "vite-node scripts/benchmark.ts",
+    "bidding-eval": "vite-node scripts/biddingEval.ts"
   },
   "dependencies": {
+    "bridge-dds": "^1.4.0",
     "element-plus": "^2.8.0",
     "js-yaml": "^4.1.0",
     "pinia": "^2.2.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@types/emscripten": "^1.41.6",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.0",
     "@vitejs/plugin-vue": "^5.2.0",

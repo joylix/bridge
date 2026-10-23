@@ -5,6 +5,7 @@ import { nextTick } from 'vue';
 import ElementPlus from 'element-plus';
 import BiddingBox from './BiddingBox.vue';
 import { useGameStore } from '../store/game';
+import { parseHand } from '../testing/testUtils';
 
 function setup() {
   const pinia = createPinia();
@@ -16,6 +17,74 @@ function setup() {
 }
 
 describe('BiddingBox 叫牌浮窗', () => {
+  it('人类回合自动选中并高亮推荐叫品，悬停合法叫品时把含义和推荐同步到浮动层', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGameStore();
+    store.startNewGame({ autoStart: false, seed: 9 });
+    store.setShowHints(true);
+    store.biddingHistory = [];
+    store.currentBid = null;
+    store.currentBidder = 'S';
+    store.hands.S = parseHand('SAKQ2 HAK3 D5432 C87'); // 16 HCP 均型
+    const wrapper = mount(BiddingBox, { global: { plugins: [pinia, ElementPlus] } });
+    await nextTick();
+
+    const oneClub = wrapper.get('button.bid-btn[data-level="1"][data-suit="C"]');
+    const oneSpade = wrapper.get('button.bid-btn[data-level="1"][data-suit="S"]');
+    expect(oneClub.classes()).toContain('recommended');
+    expect(oneClub.classes()).toContain('selected');
+    expect(wrapper.get('.confirm-btn').attributes('disabled')).toBeUndefined();
+    // 叫牌卡内不再保留含义预览和“恢复推荐”按钮
+    expect(wrapper.find('.meaning-preview').exists()).toBe(false);
+    expect(wrapper.find('.restore-recommended').exists()).toBe(false);
+
+    // 悬停非推荐叫品：浮动层数据同时带出该叫品和推荐叫品含义
+    await oneSpade.trigger('mouseenter');
+    expect(store.bidPreview?.call).toEqual({ type: 'bid', level: 1, suit: 'S' });
+    expect(store.bidPreview?.recommended).toBe(false);
+    expect(store.bidPreview?.recommendedCall).toEqual({ type: 'bid', level: 1, suit: 'C' });
+    expect(store.bidPreview?.recommendedMeaning).toContain('精确 1C 开叫');
+    await oneSpade.trigger('mouseleave');
+    expect(store.bidPreview).toBeNull();
+
+    // 改选其他叫品：推荐标记保留在 1C，选中切换到新叫品
+    await oneSpade.trigger('click');
+    expect(oneSpade.classes()).toContain('selected');
+    expect(oneClub.classes()).toContain('recommended');
+    expect(oneClub.classes()).not.toContain('selected');
+
+    // 悬停推荐叫品：浮动层标注推荐
+    await oneClub.trigger('mouseenter');
+    expect(store.bidPreview?.call).toEqual({ type: 'bid', level: 1, suit: 'C' });
+    expect(store.bidPreview?.recommended).toBe(true);
+    expect(store.bidPreview?.meaning).toContain('精确 1C 开叫');
+    expect(store.bidPreview?.recommendedCall).toBeUndefined();
+  });
+
+  it('关闭提示后不再自动选中、不显示推荐与含义', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const store = useGameStore();
+    store.startNewGame({ autoStart: false, seed: 9 });
+    store.biddingHistory = [];
+    store.currentBid = null;
+    store.currentBidder = 'S';
+    store.hands.S = parseHand('SAKQ2 HAK3 D5432 C87');
+    store.setShowHints(false);
+    const wrapper = mount(BiddingBox, { global: { plugins: [pinia, ElementPlus] } });
+    await nextTick();
+
+    expect(wrapper.find('.recommended').exists()).toBe(false);
+    expect(wrapper.find('.meaning-preview').exists()).toBe(false);
+    expect(wrapper.get('.confirm-btn').attributes('disabled')).toBeDefined();
+
+    const oneSpade = wrapper.get('button.bid-btn[data-level="1"][data-suit="S"]');
+    await oneSpade.trigger('mouseenter');
+    expect(store.bidPreview).toBeNull();
+    store.setShowHints(true);
+  });
+
   it('只包含叫牌卡控件，不再内嵌叫牌过程或最终结果', () => {
     const { wrapper } = setup();
     expect(wrapper.find('.bidding-popup').exists()).toBe(true);

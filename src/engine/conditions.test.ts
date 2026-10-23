@@ -49,6 +49,48 @@ describe('条件组合 checkConditions（扁平 AND）', () => {
     expect(checkConditions(hand, { openingSeat: '3-4' }, normal)).toBe(false);
   });
 
+  it('失张 / 牌型 / 高花 / 大牌数条件', () => {
+    const hand = parseHand('SAKQ2 HJT9 D543 C876'); // 4-3-3-3，4 张黑桃，1 A 1 K
+    expect(checkConditions(hand, { fourCardMajor: true }, normal)).toBe(true);
+    expect(checkConditions(hand, { fiveCardMajor: true }, normal)).toBe(false);
+    expect(checkConditions(hand, { aces: '1', kings: '1' }, normal)).toBe(true);
+    expect(checkConditions(hand, { aces: '2+' }, normal)).toBe(false);
+    expect(checkConditions(hand, { voids: '0', singletons: '0', doubletons: '0' }, normal)).toBe(true);
+    expect(checkConditions(hand, { losers: '0-9' }, normal)).toBe(true);
+    expect(checkConditions(hand, { losers: '0-8' }, normal)).toBe(false);
+
+    const twoDoubletons = parseHand('SAKQ32 HJT98 D54 C87'); // 5-4-2-2
+    expect(checkConditions(twoDoubletons, { doubletons: '2', fiveCardMajor: true }, normal)).toBe(true);
+  });
+
+  it('同伴开叫条件需要上下文', () => {
+    const hand = parseHand('SAKQ2 HJT9 D543 C876');
+    expect(checkConditions(hand, { partnerOpened: true }, normal, { partnerOpened: true })).toBe(true);
+    expect(checkConditions(hand, { partnerOpened: true }, normal, { partnerOpened: false })).toBe(false);
+    expect(checkConditions(hand, { partnerOpened: true }, normal, {})).toBe(false);
+  });
+
+  it('无将挡张条件按花色检查', () => {
+    const hand = parseHand('SAK2 HQJ3 D876 C5432');
+    expect(checkConditions(hand, { stoppers: 'SH' }, normal)).toBe(true);
+    expect(checkConditions(hand, { stoppers: 'SHD' }, normal)).toBe(false); // 方块无挡张
+    expect(checkConditions(hand, { stoppers: 'S' }, normal)).toBe(true);
+  });
+
+  it('同伴点力 / 联手点力条件使用推断下限', () => {
+    const hand = parseHand('SA432 HK73 DQ85 CJ62'); // 10 HCP
+    expect(checkConditions(hand, { partnerHcp: '19+' }, normal, { partnerHcpMin: 19 })).toBe(true);
+    expect(checkConditions(hand, { partnerHcp: '20+' }, normal, { partnerHcpMin: 19 })).toBe(false);
+    expect(
+      checkConditions(hand, { combinedHcp: '29+' }, normal, { partnerHcpMin: 19, combinedHcpMin: 29 }),
+    ).toBe(true);
+    expect(
+      checkConditions(hand, { combinedHcp: '30+' }, normal, { partnerHcpMin: 19, combinedHcpMin: 29 }),
+    ).toBe(false);
+    // 没有推断上下文时条件不成立，避免规则误命中。
+    expect(checkConditions(hand, { combinedHcp: '29+' }, normal, {})).toBe(false);
+  });
+
   it('具体度 = 指定条件数量', () => {
     expect(conditionSpecificity({})).toBe(0);
     expect(conditionSpecificity({ hcp: '16-40' })).toBe(1);

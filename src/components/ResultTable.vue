@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
   FINAL_PASS_TEXT,
   PASS_TEXT,
@@ -14,8 +14,10 @@ import type { Hand } from '../models/hand';
 import ResultDistribution from './ResultDistribution.vue';
 import ResultPlayTable from './ResultPlayTable.vue';
 import ResultText from './ResultText.vue';
+import DdAnalysisPanel from './DdAnalysisPanel.vue';
 
 const store = useGameStore();
+const analysisOpen = ref(false);
 
 const SEAT_CN: Record<Position, string> = { N: '北', E: '东', S: '南', W: '西' };
 const VUL_TEXT: Record<string, string> = {
@@ -206,9 +208,23 @@ const vulnerabilityText = computed(() =>
 
 <template>
   <div class="result-table">
+    <button
+      class="dd-entry"
+      type="button"
+      :disabled="!displayDeal"
+      title="查看本副双明手结果"
+      @click="analysisOpen = true"
+    >
+      双明手
+    </button>
     <!-- 左上：本桌累计得分 -->
     <section class="res-panel cumulative-panel">
-      <h4 class="res-title">本桌累计得分</h4>
+      <h4 class="res-title">
+        本桌累计得分
+        <span class="res-adjust-note">
+          {{ store.useHcpAdjust ? '点数已按贴点制折算' : '点数为原始 IMP' }}
+        </span>
+      </h4>
       <div class="res-table-wrap">
         <table class="res-table summary-table">
           <colgroup>
@@ -223,10 +239,10 @@ const vulnerabilityText = computed(() =>
             <tr>
               <th>No</th>
               <th>结果</th>
-              <th>NS</th>
-              <th>EW</th>
-              <th>我方得分</th>
-              <th>对方得分</th>
+              <th title="复式赛原始得分，未贴点">NS原始分</th>
+              <th title="复式赛原始得分，未贴点">EW原始分</th>
+              <th title="按当前设置折算后的点数">NS点数</th>
+              <th title="按当前设置折算后的点数">EW点数</th>
             </tr>
           </thead>
           <tbody>
@@ -280,10 +296,10 @@ const vulnerabilityText = computed(() =>
             <tr>
               <th>No</th>
               <th>结果</th>
-              <th>NS</th>
-              <th>EW</th>
-              <th>NS得分</th>
-              <th>EW得分</th>
+              <th title="复式赛原始得分，未贴点">NS原始分</th>
+              <th title="复式赛原始得分，未贴点">EW原始分</th>
+              <th title="按当前设置折算后的点数">NS点数</th>
+              <th title="按当前设置折算后的点数">EW点数</th>
             </tr>
           </thead>
           <tbody>
@@ -370,6 +386,22 @@ const vulnerabilityText = computed(() =>
       <div v-else class="res-empty">尚无出牌</div>
     </section>
   </div>
+
+  <el-dialog
+    v-model="analysisOpen"
+    :title="displayDeal ? `第 ${displayDeal.index} 局双明手分析` : '双明手分析'"
+    width="min(900px, 94vw)"
+    append-to-body
+  >
+    <DdAnalysisPanel
+      v-if="analysisOpen && displayDeal"
+      :hands="displayHands"
+      :dealer="displayDeal.dealer"
+      :vulnerability="displayDeal.vulnerability"
+      :contract="displayDeal.contract"
+    />
+    <div v-else class="res-empty">尚无牌局</div>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -378,6 +410,7 @@ const vulnerabilityText = computed(() =>
   --res-green-current: #0d8d7b;
   --res-line: rgba(255, 255, 255, 0.36);
   --club-color: var(--club-on-dark);
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: minmax(250px, 1.15fr) minmax(106px, 0.52fr) minmax(158px, 1fr);
@@ -404,6 +437,28 @@ const vulnerabilityText = computed(() =>
   border: 1px solid #818181;
   background: var(--res-green);
 }
+.dd-entry {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  padding: 1px 8px;
+  border: 1px solid #9a9a9a;
+  border-radius: 4px;
+  background: linear-gradient(#fff, #ececec);
+  color: #14563a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.dd-entry:hover:not(:disabled) {
+  background: #fff;
+}
+.dd-entry:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .cumulative-panel {
   grid-area: cumulative;
 }
@@ -429,6 +484,13 @@ const vulnerabilityText = computed(() =>
   font-size: 13px;
   font-weight: 700;
   line-height: 1.3;
+}
+.res-adjust-note {
+  margin-left: 6px;
+  color: #555;
+  font-size: 10px;
+  font-weight: 400;
+  white-space: nowrap;
 }
 .res-table-wrap {
   flex: 1;

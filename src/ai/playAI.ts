@@ -1,7 +1,7 @@
 import type { Hand } from '../models/hand';
 import type { BidRecord, CardPlay, Contract, Position, StyleLevel } from '../models/gameState';
 import { bidSuitToIndex, getPartner, getSide } from '../models/gameState';
-import type { LeadRule } from '../engine/types';
+import type { LeadRule, SignalSettings } from '../engine/types';
 import { STYLE_PARAMS } from '../engine/types';
 import { getLegalCards } from '../core/playing';
 import { beatsCard, determineTrickWinner, getTrickWinnerCard } from '../core/trick';
@@ -13,6 +13,8 @@ export interface PlayAIOptions {
   rng?: () => number;
   /** 供“攻未叫高级花色”等首攻约定使用 */
   biddingHistory?: BidRecord[];
+  /** 跟牌/垫牌阈值，来自 signals.yml 的 settings（可选） */
+  signalSettings?: SignalSettings;
 }
 
 const ALL_SUITS: SuitIndex[] = [0, 1, 2, 3];
@@ -53,6 +55,7 @@ export function playAI(
       dummyHand,
       tricksWonByDeclarer,
       opts.biddingHistory ?? [],
+      opts.signalSettings,
     );
   }
 
@@ -60,6 +63,136 @@ export function playAI(
     return legalCards[Math.floor(rng() * legalCards.length)];
   }
   return selected;
+}
+
+/** 首攻规则 id → 简短理由，供推荐箭头浮层展示 */
+const LEAD_REASON_BY_ID: Record<string, string> = {
+  nt_lead_unbid_major: '首攻敌方未叫过的高级花色',
+  nt_longest_4th: '无将定约长四首攻',
+  suit_honor_sequence: '有将定约连张首攻',
+  suit_longest_4th: '有将定约长四首攻',
+};
+
+/**
+ * 为已经选出的牌生成一句人类可读的推荐理由。
+ * 只做高层解释，不重复暴露内部评分细节；无法判断时给出保守描述。
+ */
+export function describePlayDecision(
+  hand: Hand,
+  dummyHand: Hand | null,
+  currentTrick: CardPlay[],
+  trumpSuit: SuitIndex | null,
+  position: Position,
+  contract: Contract,
+  tricksWonByDeclarer: number,
+  leadRules: LeadRule[],
+  style: StyleLevel,
+  card: number,
+  opts: PlayAIOptions = {},
+): string {
+  void dummyHand;
+  void tricksWonByDeclarer;
+  const leadSuit = currentTrick.length === 0 ? null : getSuit(currentTrick[0].card);
+  const legalCards = getLegalCards(hand, leadSuit, trumpSuit);
+  if (legalCards.length <= 1) return '唯一合法牌，自动打出';
+  if (currentTrick.length === 0) {
+    return describeLead(hand, position, contract, leadRules, style, card, trumpSuit);
+  }
+  return describeFollow(legalCards, currentTrick, trumpSuit, position, contract, card, opts);
+}
+
+function describeLead(
+  hand: Hand,
+  position: Position,
+  contract: Contract,
+  leadRules: LeadRule[],
+  style: StyleLevel,
+  card: number,
+  trumpSuit: SuitIndex | null,
+): string {
+  const ctype = contract.suit === 'NT' ? 'NT' : 'suit';
+  const vars = STYLE_PARAMS[style];
+  const isDefender = getSide(position) !== getSide(contract.declarer);
+  const rule = leadRules.find((entry) => {
+    if (entry.context.contract_type !== ctype) return false;
+    if (entry.role === 'defender' && !isDefender) return false;
+    if (entry.role === 'declarer' && isDefender) return false;
+    if (entry.when && !checkConditions(hand, entry.when, vars)) return false;
+    return true;
+  });
+  const suit = getSuit(card);
+  const cards = hand
+    .filter((entry) => getSuit(entry) === suit)
+    .sort((a, b) => getRank(b) - getRank(a));
+  const isTopOfSequence =
+    cards.length > 1 && cards[0] === card && getRank(cards[0]) - getRank(cards[1]) === 1;
+
+  if (rule) {
+    const base = LEAD_REASON_BY_ID[rule.id] ?? rule.description;
+    return isTopOfSequence ? `${base}（连张顶张）` : base;
+  }
+  if (trumpSuit !== null && suit === trumpSuit) return '首攻将牌，减少明手将吃';
+  return isTopOfSequence ? '首攻连张顶张' : '首攻：从最长花色低引';
+}
+
+function describeFollow(
+  legalCards: Hand,
+  currentTrick: CardPlay[],
+  trumpSuit: SuitIndex | null,
+  position: Position,
+  contract: Contract,
+  card: number,
+  opts: PlayAIOptions,
+): string {
+  const leadSuit = getSuit(currentTrick[0].card);
+  const following = legalCards.some((entry) => getSuit(entry) === leadSuit);
+  const isDefender = getSide(position) !== getSide(contract.declarer);
+  const partnerWinning = determineTrickWinner(currentTrick, trumpSuit) === getPartner(position);
+  const bestSoFar = getTrickWinnerCard(currentTrick, trumpSuit);
+  const winners = legalCards.filter((entry) => beatsCard(entry, bestSoFar, leadSuit, trumpSuit));
+  const cardIsLowestWinner = winners.length > 0 && card === lowest(winners);
+  const cardSuit = getSuit(card);
+
+  if (!following) {
+    if (trumpSuit !== null && cardSuit === trumpSuit) {
+      return partnerWinning ? '同伴已赢，不将吃' : '缺门，用将牌将吃';
+    }
+    return partnerWinning ? '同伴已赢，垫牌' : '缺门，按垫牌约定垫小牌';
+  }
+
+  const leadCards = legalCards.filter((entry) => getSuit(entry) === leadSuit);
+  const sortedLeadCards = [...leadCards].sort((a, b) => getRank(a) - getRank(b));
+  const thresholds = signalThresholds(opts.signalSettings);
+  const isCountSignal =
+    isDefender &&
+    leadCards.length % 2 === 0 &&
+    getRank(card) <= thresholds.spotMaxRank &&
+    card === sortedLeadCards[sortedLeadCards.length - 1];
+
+  const lowReason = (): string => {
+    if (isDefender && isCountSignal) return '防守方跟牌张数信号：偶数张先大后小';
+    return isDefender ? '跟小牌，保留大牌' : '庄家跟小牌，保留大牌';
+  };
+
+  if (currentTrick.length === 1) {
+    const leader = currentTrick[0];
+    const leaderIsOpponent = getSide(leader.position) !== getSide(position);
+    if (leaderIsOpponent && isHonor(leader.card) && cardIsLowestWinner) {
+      return '第二家盖打对手大牌';
+    }
+    return lowReason();
+  }
+
+  if (currentTrick.length === 2) {
+    if (partnerWinning) {
+      if (isHonor(currentTrick[0].card)) return lowReason();
+      return cardIsLowestWinner ? '第三家高牌保护同伴' : lowReason();
+    }
+    return cardIsLowestWinner ? '第三家出最小赢张' : lowReason();
+  }
+
+  if (partnerWinning) return lowReason();
+  return cardIsLowestWinner ? '第四家用最小赢张' : lowReason();
 }
 
 /* ------------------------------------------------------------------ *
@@ -205,10 +338,29 @@ function topOfSequence(hand: Hand, trumpSuit: SuitIndex | null): number {
  *   垫该张以鼓励同伴攻此花色；否则回退到无将垫牌逻辑。
  * ------------------------------------------------------------------ */
 
-/** 信号张上限：10（rank 8），不拿 J 及以上大牌做信号 */
-const SIGNAL_SPOT_MAX_RANK = 8;
-/** “鼓励垫牌”的最小信号张：8（rank 6） */
-const ENCOURAGE_DISCARD_MIN_RANK = 6;
+/** 信号张上限默认值：10（rank 8），不拿 J 及以上大牌做信号 */
+const DEFAULT_SIGNAL_SPOT_MAX_RANK = 8;
+/** “鼓励垫牌”的最小信号张默认值：8（rank 6） */
+const DEFAULT_ENCOURAGE_DISCARD_MIN_RANK = 6;
+
+/** 牌面点数（2-14）→ 内部 rank（0-12）；非法值回退默认 */
+function faceToRank(value: number | undefined, fallback: number): number {
+  if (value === undefined || !Number.isFinite(value)) return fallback;
+  return Math.min(12, Math.max(0, Math.round(value) - 2));
+}
+
+function signalThresholds(settings: SignalSettings | undefined): {
+  spotMaxRank: number;
+  encourageMinRank: number;
+} {
+  return {
+    spotMaxRank: faceToRank(settings?.signal_spot_max_rank, DEFAULT_SIGNAL_SPOT_MAX_RANK),
+    encourageMinRank: faceToRank(
+      settings?.encourage_discard_min_rank,
+      DEFAULT_ENCOURAGE_DISCARD_MIN_RANK,
+    ),
+  };
+}
 
 /** 某花色的荣誉力量：J=1 / Q=2 / K=3 / A=4 */
 function honorPoints(hand: Hand, suit: SuitIndex): number {
@@ -228,9 +380,11 @@ function selectFollow(
   dummyHand: Hand | null,
   tricksWonByDeclarer: number,
   biddingHistory: BidRecord[],
+  signalSettings?: SignalSettings,
 ): number {
   void tricksWonByDeclarer;
 
+  const thresholds = signalThresholds(signalSettings);
   const leadSuit = getSuit(currentTrick[0].card);
   const following = legalCards.some((card) => getSuit(card) === leadSuit);
   // 防守信号只对防守方生效；庄家侧跟牌时低牌优先，垫牌时考虑避免堵塞同伴长套。
@@ -242,7 +396,16 @@ function selectFollow(
     biddingHistory,
   );
   const lowPlay = (): number => {
-    if (isDefender) return lowCardOrSignal(legalCards, leadSuit, trumpSuit, following, partnerLongSuits);
+    if (isDefender) {
+      return lowCardOrSignal(
+        legalCards,
+        leadSuit,
+        trumpSuit,
+        following,
+        partnerLongSuits,
+        thresholds,
+      );
+    }
     if (following) return lowest(legalCards);
     return chooseDeclarerDiscard(legalCards, trumpSuit, partnerLongSuits);
   };
@@ -327,9 +490,16 @@ function lowCardOrSignal(
   trumpSuit: SuitIndex | null,
   following: boolean,
   partnerLongSuits: Set<SuitIndex>,
+  thresholds: { spotMaxRank: number; encourageMinRank: number },
 ): number {
-  if (following) return followWithCountSignal(legalCards, leadSuit);
-  return chooseDiscard(legalCards, trumpSuit, partnerLongSuits);
+  if (following) return followWithCountSignal(legalCards, leadSuit, thresholds.spotMaxRank);
+  return chooseDiscard(
+    legalCards,
+    trumpSuit,
+    partnerLongSuits,
+    thresholds.spotMaxRank,
+    thresholds.encourageMinRank,
+  );
 }
 
 /**
@@ -338,14 +508,18 @@ function lowCardOrSignal(
  * - 剩奇数张 → 先打最小牌。
  * 下一轮剩余张数奇偶性翻转，自然形成“先大后小 / 先小后大”。
  */
-function followWithCountSignal(legalCards: Hand, leadSuit: SuitIndex): number {
+function followWithCountSignal(
+  legalCards: Hand,
+  leadSuit: SuitIndex,
+  spotMaxRank: number,
+): number {
   const ordered = legalCards
     .filter((card) => getSuit(card) === leadSuit)
     .sort((a, b) => getRank(a) - getRank(b));
   if (ordered.length === 0) return lowest(legalCards);
 
   if (ordered.length % 2 === 0) {
-    const spots = ordered.filter((card) => getRank(card) <= SIGNAL_SPOT_MAX_RANK);
+    const spots = ordered.filter((card) => getRank(card) <= spotMaxRank);
     if (spots.length > 0) return spots[spots.length - 1];
   }
   return ordered[0];
@@ -361,6 +535,8 @@ function chooseDiscard(
   legalCards: Hand,
   trumpSuit: SuitIndex | null,
   partnerLongSuits: Set<SuitIndex>,
+  spotMaxRank: number,
+  encourageMinRank: number,
 ): number {
   const candidateSuits = ALL_SUITS.filter(
     (suit) => (trumpSuit === null || suit !== trumpSuit) && legalCards.some((card) => getSuit(card) === suit),
@@ -385,8 +561,8 @@ function chooseDiscard(
       const topRank = getRank(cards[cards.length - 1]);
       const spots = cards.filter(
         (card) =>
-          getRank(card) >= ENCOURAGE_DISCARD_MIN_RANK &&
-          getRank(card) <= SIGNAL_SPOT_MAX_RANK &&
+          getRank(card) >= encourageMinRank &&
+          getRank(card) <= spotMaxRank &&
           getRank(card) !== topRank,
       );
       if (spots.length > 0) return spots[spots.length - 1];

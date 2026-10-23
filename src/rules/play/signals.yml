@@ -1,23 +1,94 @@
 # =====================================================================
-# 防守信号约定（signals.yml）
+# 跟牌 / 垫牌 / 信号细则（signals.yml）
 # ---------------------------------------------------------------------
-# 以下约定已由 ai/playAI.ts 实际执行（跟牌 / 垫牌启发式）：
-#   - 第二家：通常出小牌；对手领出荣誉大牌（10 以上）时，
-#     用最小能盖过的牌盖打，同伴领出的荣誉大牌不盖。
-#   - 第三家：同伴的荣誉大牌已赢则出小牌；同伴的小牌当前虽赢但
-#     第四家可能超过时，出最小能赢的牌保护；对手当前赢时同样出
-#     最小能赢的牌（连张时保留更大牌）。
-#   - 第四家：能赢则用最小赢张；同伴（第二家）已赢时不得无谓超打。
-#   - 跟牌张数信号：偶数张“先大后小”，奇数张“先小后大”；
-#     信号张只用 10 及以下，保留 J 以上大牌。
-#   - 无将垫牌：从“不鼓励”（荣誉力量最弱）的花色垫最小牌。
-#   - 有将垫牌：若某非将花色有力量且存在无损失的高信号张（8/9/10），
-#     垫该张表示鼓励同伴攻此花色；否则回退到“不鼓励”花色垫最小牌。
-#   - 避免堵塞：已知同伴长套时优先避开；只能从该花色垫牌时保留低牌，
-#     改垫最小荣誉牌，避免把同伴长套的桥引垫掉。
-# 首攻约定见 leads.yml（由 YAML 规则驱动）：NT 长套默认长四，
-# 若长套顶张为 AKQ/KQJ/QJT 等连张，则出连张顶张。
+# 本文件由 ai/playAI.ts 解释执行。settings 中的阈值会被 AI 直接读取，
+# rules 段用于规则库浏览（也可在此调整顺序/说明，供后续扩展）。
+# 首攻约定见 leads.yml。
 # =====================================================================
+
+settings:
+  # 张数信号允许使用的最大牌面（2-14；10 表示只用 10 及以下）
+  signal_spot_max_rank: 10
+  # 有将定约“鼓励垫牌”的最小牌面（8 表示 8/9/10 可作鼓励信号）
+  encourage_discard_min_rank: 8
+
+rules:
+  - id: cover_honor_second_hand
+    description: "第二家：对手领出荣誉大牌（10 以上）时，用最小能盖过它的牌盖打；同伴领出的荣誉不盖"
+    phase: follow
+    when: {}
+    action: "cover_honor_second_hand"
+    priority: 110
+
+  - id: second_hand_low
+    description: "第二家：通常出小牌，把赢墩机会留给第三家/同伴"
+    phase: follow
+    when: {}
+    action: "second_hand_low"
+    priority: 100
+
+  - id: third_hand_duck_partner_honor
+    description: "第三家：同伴的荣誉大牌已经赢墩时出小牌，不无谓超打同伴"
+    phase: follow
+    when: {}
+    action: "third_hand_duck_partner_honor"
+    priority: 110
+
+  - id: third_hand_high
+    description: "第三家：同伴小牌当前虽赢但可能被第四家超打，或对手当前赢时，出最小能赢的牌保护"
+    phase: follow
+    when: {}
+    action: "third_hand_high"
+    priority: 100
+
+  - id: fourth_hand_min_winner
+    description: "第四家：能赢时用足够赢的最小牌，保留更大牌"
+    phase: follow
+    when: {}
+    action: "fourth_hand_min_winner"
+    priority: 100
+
+  - id: fourth_hand_duck_partner
+    description: "第四家：同伴（第二家）已经赢墩时出小牌，不得无谓超打同伴"
+    phase: follow
+    when: {}
+    action: "fourth_hand_duck_partner"
+    priority: 110
+
+  - id: follow_count_signal
+    description: "跟牌张数信号：该花色剩偶数张先大后小，奇数张先小后大；信号张只用 10 及以下"
+    phase: signal
+    when: {}
+    action: "follow_count_signal"
+    priority: 90
+
+  - id: nt_discard_least_encouraging
+    description: "无将垫牌：从荣誉力量最弱、同力量时较长的花色垫最小牌，表示不欢迎该花色"
+    phase: discard
+    when: {}
+    action: "nt_discard_least_encouraging"
+    priority: 90
+
+  - id: suit_discard_encourage
+    description: "有将垫牌：优先从有力量的非将花色垫 8/9/10 等高信号张，鼓励同伴攻该花色"
+    phase: discard
+    when: {}
+    action: "suit_discard_encourage"
+    priority: 100
+
+  - id: discard_avoid_block
+    description: "垫牌避免堵塞：已知同伴长套时优先避开；只能垫该花色时保留低牌，改垫最小荣誉牌"
+    phase: discard
+    when: {}
+    action: "discard_avoid_block"
+    priority: 95
+
+  - id: declarer_discard_avoid_partner_long
+    description: "庄家侧垫牌：优先避开明手/同伴叫过的长套桥引；只能垫时保留低牌"
+    phase: discard
+    when: {}
+    action: "declarer_discard_avoid_partner_long"
+    priority: 95
 
 conventions:
   follow_play:

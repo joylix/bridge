@@ -11,6 +11,61 @@ const precision = loadBiddingRules('precision');
 const natural = loadBiddingRules('natural');
 
 describe('叫牌 AI（bidAI）', () => {
+  it('精确制：1C-1H 后 22+ 均型有 4 张红桃支持时先加叫，不用 3NT 掩盖配合', () => {
+    const hand = parseHand('SAKQ2 HAKQJ DA32 C32'); // 24 HCP, 4-4-3-2
+    const h = history(['N', '1C'], ['E', 'Pass'], ['S', '1H'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 1, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'H' });
+  });
+
+  it('精确制：1C-1H 后 22+ 均型无 4 张红桃支持时叫 3NT', () => {
+    const hand = parseHand('SAKQJ HAKQ DA32 C432'); // 23 HCP, 4-3-3-3
+    const h = history(['N', '1C'], ['E', 'Pass'], ['S', '1H'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 1, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：1C-1S 后 22+ 均型有 4 张黑桃支持时先加叫', () => {
+    const hand = parseHand('SAKQJ HAKQ2 DA32 C32'); // 24 HCP, 4-4-3-2
+    const h = history(['N', '1C'], ['E', 'Pass'], ['S', '1S'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'S' });
+  });
+
+  it('精确制：1C-2C/2D 后 22+ 均型有 4 张支持时先加叫', () => {
+    const clubHand = parseHand('SAKQ HAKQ DA32 C5432'); // 22 HCP, 3-3-3-4
+    const clubHistory = history(['N', '1C'], ['E', 'Pass'], ['S', '2C'], ['W', 'Pass']);
+    expect(
+      bidAI(clubHand, clubHistory, 'N', { level: 2, suit: 'C' }, precision, {
+        style: 1,
+        randomness: 0,
+        rng: makeRng(1),
+      }),
+    ).toEqual({ type: 'bid', level: 3, suit: 'C' });
+
+    const diamondHand = parseHand('SAKQ HAKQ D5432 CA32'); // 22 HCP, 3-3-4-3
+    const diamondHistory = history(['N', '1C'], ['E', 'Pass'], ['S', '2D'], ['W', 'Pass']);
+    expect(
+      bidAI(diamondHand, diamondHistory, 'N', { level: 2, suit: 'D' }, precision, {
+        style: 1,
+        randomness: 0,
+        rng: makeRng(1),
+      }),
+    ).toEqual({ type: 'bid', level: 3, suit: 'D' });
+  });
+
   it('精确制：16 点均型开叫 1C（优先于 1NT）', () => {
     const hand = parseHand('SAKQ2 HAK3 D5432 C87'); // 16 HCP, 4-4-3-2
     const call = bidAI(hand, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });

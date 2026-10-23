@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useGameStore, vulName } from '../store/game';
 import type { Position } from '../models/gameState';
 import BidHistory from './BidHistory.vue';
 import ContractDisplay from './ContractDisplay.vue';
 import ResultDistribution from './ResultDistribution.vue';
 import ResultPlayTable from './ResultPlayTable.vue';
+import DdAnalysisPanel from './DdAnalysisPanel.vue';
 
 const open = defineModel<boolean>({ default: false });
 const store = useGameStore();
+
+/** 双明手分析放在最后，默认折叠；每次重新打开结果窗口都回到折叠状态 */
+const ddOpen = ref(false);
+watch(open, (visible) => {
+  if (visible) ddOpen.value = false;
+});
 
 const COLUMNS: Position[] = ['N', 'E', 'S', 'W'];
 const VUL_TEXT: Record<string, string> = {
@@ -77,48 +84,45 @@ const hands = computed(() => {
     :title="`第 ${store.gamesPlayed} 局详细结果`"
     width="min(1040px, 95vw)"
     draggable
+    :close-on-click-modal="false"
     class="deal-result-dialog"
   >
-    <div class="result-hero" :class="{ passed: !store.contract }">
-      <div class="hero-main">
-        <span class="hero-label">最终定约</span>
-        <strong class="hero-contract">
-          <ContractDisplay :contract="store.contract" empty-text="流局" />
-        </strong>
-        <span class="hero-outcome">{{ outcomeText }}</span>
+    <!-- 定约、局况、结果与计分项整合为一个信息块 -->
+    <section class="result-card result-summary">
+      <div class="summary-hero" :class="{ passed: !store.contract }">
+        <div class="hero-main">
+          <span class="hero-label">最终定约</span>
+          <strong class="hero-contract">
+            <ContractDisplay :contract="store.contract" empty-text="流局" />
+          </strong>
+          <span class="hero-outcome">{{ outcomeText }}</span>
+        </div>
+        <div class="hero-points">
+          <span>本局点数{{ store.useHcpAdjust ? '（已贴点）' : '（原始 IMP）' }}</span>
+          <strong>{{ dealPointsLabel }}</strong>
+        </div>
       </div>
-      <div class="hero-points">
-        <span>本局点数</span>
-        <strong>{{ dealPointsLabel }}</strong>
+
+      <div class="meta-row">
+        <span>局况 {{ vulName(store.vulnerability) }}</span>
+        <span>发牌人 {{ store.dealer }}</span>
+        <span v-if="store.contract">庄家 {{ store.contract.declarer }} · 明手 {{ store.contract.dummy }}</span>
+        <span v-if="store.contract">{{ declarerTricks }} / {{ requiredTricks }} 墩</span>
       </div>
-    </div>
 
-    <div class="meta-row">
-      <span>局况 {{ vulName(store.vulnerability) }}</span>
-      <span>发牌人 {{ store.dealer }}</span>
-      <span v-if="store.contract">庄家 {{ store.contract.declarer }} · 明手 {{ store.contract.dummy }}</span>
-      <span v-if="store.contract">{{ declarerTricks }} / {{ requiredTricks }} 墩</span>
-    </div>
-
-    <div class="result-body">
-      <section class="result-card summary-card">
-        <h4>计分</h4>
+      <div class="summary-grid">
         <div class="score-grid">
           <div class="score-card">
-            <span>NS 得分</span>
+            <span>NS 原始分</span>
             <strong>{{ store.score.NS }}</strong>
           </div>
           <div class="score-card">
-            <span>EW 得分</span>
+            <span>EW 原始分</span>
             <strong>{{ store.score.EW }}</strong>
           </div>
         </div>
 
         <div class="detail-list">
-          <div v-if="store.contract" class="detail-row">
-            <span>定约方赢墩</span>
-            <strong>{{ declarerTricks }} / {{ requiredTricks }}</strong>
-          </div>
           <div class="detail-row">
             <span>双方大牌点</span>
             <strong>{{ store.pointsSummary.dealHcp.NS }} : {{ store.pointsSummary.dealHcp.EW }}</strong>
@@ -132,13 +136,16 @@ const hands = computed(() => {
             <strong>{{ dealAdjustLabel }}</strong>
           </div>
           <div class="detail-row total">
-            <span>本局点数</span>
+            <span>本局点数{{ store.useHcpAdjust ? '（已贴点）' : '（原始 IMP）' }}</span>
             <strong>{{ dealPointsLabel }}</strong>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="result-card hands-card distribution-card">
+    <!-- 牌型分布与叫牌过程左右分列 -->
+    <div class="result-two-col">
+      <section class="result-card distribution-card">
         <h4>牌型分布</h4>
         <ResultDistribution
           :hands="hands"
@@ -148,26 +155,49 @@ const hands = computed(() => {
           :empty-text="resultEmptyText"
         />
       </section>
-    </div>
 
-    <div class="result-lower">
-      <section class="result-card">
+      <section class="result-card bidding-card">
         <h4>叫牌过程</h4>
         <BidHistory variant="table" />
       </section>
-
-      <section
-        v-if="store.tricks.length || store.currentTrick.length"
-        class="result-card play-card-panel"
-      >
-        <h4>打牌过程</h4>
-        <ResultPlayTable
-          :tricks="store.tricks"
-          :current-trick="store.currentTrick"
-          :contract="store.contract"
-        />
-      </section>
     </div>
+
+    <!-- 打牌过程单独占一行，超出高度时内部滚动 -->
+    <section
+      v-if="store.tricks.length || store.currentTrick.length"
+      class="result-card play-card-panel play-panel"
+    >
+      <h4>打牌过程</h4>
+      <ResultPlayTable
+        :tricks="store.tricks"
+        :current-trick="store.currentTrick"
+        :contract="store.contract"
+      />
+    </section>
+
+    <!-- 双明手分析固定在最后，默认折叠，点击后才开始计算 -->
+    <section class="result-card dd-card">
+      <button
+        type="button"
+        class="dd-toggle"
+        :aria-expanded="ddOpen"
+        aria-controls="deal-result-dd-content"
+        @click="ddOpen = !ddOpen"
+      >
+        <span class="dd-toggle-title">双明手分析</span>
+        <span class="dd-toggle-sub">DDS · 四家明牌的最优结果</span>
+        <span class="dd-toggle-icon" :class="{ open: ddOpen }" aria-hidden="true">⌄</span>
+      </button>
+      <div v-if="ddOpen" id="deal-result-dd-content" class="dd-content">
+        <DdAnalysisPanel
+          :hands="hands"
+          :dealer="store.dealer"
+          :vulnerability="store.vulnerability"
+          :contract="store.contract"
+          :show-header="false"
+        />
+      </div>
+    </section>
 
     <template #footer>
       <el-button type="primary" @click="open = false">关闭</el-button>
@@ -176,7 +206,10 @@ const hands = computed(() => {
 </template>
 
 <style scoped>
-.result-hero {
+.result-summary {
+  padding: 12px 14px;
+}
+.summary-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -189,7 +222,7 @@ const hands = computed(() => {
   border: 1px solid #b6dcc4;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
-.result-hero.passed {
+.summary-hero.passed {
   background: #eef1ef;
   border-color: #dfe5e1;
 }
@@ -241,9 +274,15 @@ const hands = computed(() => {
   font-size: 12px;
   color: #6a7770;
 }
-.result-body {
+.summary-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+.result-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   gap: 12px;
   margin-top: 12px;
 }
@@ -270,7 +309,14 @@ const hands = computed(() => {
   border-color: #00552f;
   background: #006b3f;
 }
+.bidding-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
 .distribution-card h4,
+.bidding-card h4,
 .play-card-panel h4 {
   margin: 0;
   padding: 3px 8px;
@@ -281,8 +327,15 @@ const hands = computed(() => {
 .distribution-card :deep(.distribution) {
   min-height: 216px;
 }
+.bidding-card :deep(.bid-scroll) {
+  margin: 8px;
+  max-height: 216px;
+}
 .play-card-panel :deep(.play-table-wrap) {
-  max-height: 280px;
+  max-height: 260px;
+}
+.play-panel {
+  margin-top: 12px;
 }
 .score-grid {
   display: grid;
@@ -308,7 +361,6 @@ const hands = computed(() => {
   color: #14563a;
 }
 .detail-list {
-  margin-top: 8px;
   display: flex;
   flex-direction: column;
 }
@@ -333,15 +385,57 @@ const hands = computed(() => {
   color: #8a5a00;
   font-size: 15px;
 }
-.result-lower {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 12px;
+.dd-card {
   margin-top: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+.dd-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: #f3f7f4;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dd-toggle:hover {
+  background: #eaf2ed;
+}
+.dd-toggle:focus-visible {
+  outline: 2px solid #2f8f63;
+  outline-offset: -2px;
+}
+.dd-toggle-title {
+  color: #14563a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.dd-toggle-sub {
+  color: #8a9790;
+  font-size: 11px;
+}
+.dd-toggle-icon {
+  margin-left: auto;
+  color: #55705f;
+  font-size: 16px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.dd-toggle-icon.open {
+  transform: rotate(180deg);
+}
+.dd-content {
+  padding: 10px 12px 12px;
+  border-top: 1px solid #e0e7e2;
 }
 @media (max-width: 780px) {
-  .result-body,
-  .result-lower {
+  .summary-grid,
+  .result-two-col {
     grid-template-columns: 1fr;
   }
 }

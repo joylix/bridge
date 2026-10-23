@@ -9,9 +9,9 @@ export interface BoardTrick {
 
 /**
  * 中央出牌区的展示规则：
- * - 本轮已有牌时显示本轮；
- * - 第四家出牌完成、本墩被结算后，完整的一墩继续停留 PLAY_DISPLAY_MS，然后全部清除；
- * - 清除后等待下一轮出牌；若 13 墩已全部完成，则由结算界面接管。
+ * - 第四家出牌完成、本墩被结算后，完整的一墩优先停留 PLAY_DISPLAY_MS；
+ * - 即使下一墩第一张牌提前落地，也先展示完上一墩，再切换到下一墩；
+ * - 若 13 墩已全部完成，则由结算界面接管。
  */
 export function useBoardTrick() {
   const store = useGameStore();
@@ -27,12 +27,8 @@ export function useBoardTrick() {
     }
   }
 
-  function hideCompletedTrick(): void {
-    clearTimer();
-    completedTrickVisible.value = false;
-  }
-
-  // 新的一墩被结算（tricks 增加）时，开始 1 秒展示倒计时
+  // 新的一墩被结算（tricks 增加）时，开始 1 秒展示倒计时。
+  // 展示优先级高于下一墩：即使下一墩第一张牌已经落地，也先让完整的四张牌停满 1 秒。
   watch(
     () => store.tricks.length,
     (count, previous) => {
@@ -49,24 +45,17 @@ export function useBoardTrick() {
     },
   );
 
-  // 下一轮第一张牌落地后，立即收起上一墩，避免两墩牌同时出现
-  watch(
-    () => store.currentTrick.length,
-    (length) => {
-      if (length > 0) hideCompletedTrick();
-    },
-  );
-
   const lastTrick = computed<Trick | null>(() =>
     store.tricks.length ? store.tricks[store.tricks.length - 1] : null,
   );
 
   const boardTrick = computed<BoardTrick>(() => {
-    if (store.currentTrick.length > 0) {
-      return { plays: store.currentTrick, winner: null };
-    }
+    // 刚完成的墩优先显示满 1 秒；下一墩的牌会在这之后自然接上。
     if (completedTrickVisible.value && lastTrick.value) {
       return { plays: lastTrick.value.plays, winner: lastTrick.value.winner };
+    }
+    if (store.currentTrick.length > 0) {
+      return { plays: store.currentTrick, winner: null };
     }
     return { plays: [], winner: null };
   });

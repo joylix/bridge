@@ -185,6 +185,7 @@ function toggleAutoPilot(): void {
       width="min(1040px, 96vw)"
       append-to-body
       draggable
+      :close-on-click-modal="false"
       class="result-dialog"
     >
       <ResultTable />

@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useGameStore } from '../store/game';
 import { isCallLegal } from '../core/bidding/validator';
+import { findBidCandidates } from '../engine/matcher';
+import { meaningForCandidate, sameBidCall } from '../engine/bidMeaning';
 import type { BidCall, BidSuit } from '../models/gameState';
 import { getSavedBiddingPopupPosition, saveBiddingPopupPosition } from './biddingPopupPosition';
 
@@ -21,13 +23,84 @@ const selectedCall = ref<BidCall | null>(null);
 /** “确认+提醒”可附带的提醒说明 */
 const alertText = ref('');
 
-/** 回合或阶段变化后清空选择，避免把旧叫品带到下一手 */
+/** 当前人类回合的全部合法候选（规则引擎已按优先级排序） */
+const turnCandidates = computed(() => {
+  if (!isHumanTurn.value) return [];
+  return findBidCandidates(
+    store.hands[store.currentBidder],
+    store.biddingHistory,
+    store.currentBidder,
+    store.currentBid,
+    store.styles[store.currentBidder].bid,
+    store.biddingRules.rules,
+  );
+});
+
+/** 推荐叫品：最高优先级候选；关闭提示时不显示、不自动选中 */
+const recommendedCall = computed<BidCall | null>(() =>
+  store.showHints ? (turnCandidates.value[0]?.call ?? null) : null,
+);
+
+/** 当前鼠标悬停的合法叫品：浮动层显示它的含义，并附带推荐叫品含义 */
+const hoveredCall = ref<BidCall | null>(null);
+
+function meaningOf(call: BidCall | null): string {
+  if (!call) return '';
+  const candidate = turnCandidates.value.find((item) => sameBidCall(item.call, call)) ?? null;
+  return meaningForCandidate(candidate, call);
+}
+
+const recommendedMeaning = computed(() => meaningOf(recommendedCall.value));
+const hoveredMeaning = computed(() => meaningOf(hoveredCall.value));
+const hoveredIsRecommended = computed(
+  () =>
+    hoveredCall.value !== null &&
+    recommendedCall.value !== null &&
+    sameBidCall(hoveredCall.value, recommendedCall.value),
+);
+
+/** 回合或阶段变化后重置选择：默认自动选中推荐叫品 */
 watch(
-  [() => store.currentBidder, () => store.phase, () => store.isAiThinking],
+  [() => store.currentBidder, () => store.phase, () => store.isAiThinking, () => store.showHints],
   () => {
-    selectedCall.value = null;
     alertText.value = '';
+    hoveredCall.value = null;
+    selectedCall.value =
+      isHumanTurn.value && store.showHints && recommendedCall.value
+        ? recommendedCall.value
+        : null;
   },
+  { immediate: true },
+);
+
+/** 悬停合法叫品时把该叫品及推荐叫品含义同步到牌桌浮窗；移开或结束叫牌时清空 */
+watch(
+  [
+    hoveredCall,
+    hoveredMeaning,
+    hoveredIsRecommended,
+    recommendedCall,
+    recommendedMeaning,
+    isHumanTurn,
+    () => store.showHints,
+  ],
+  () => {
+    if (!isHumanTurn.value || !store.showHints || !hoveredCall.value) {
+      store.setBidPreview(null);
+      return;
+    }
+    const recommended = recommendedCall.value;
+    store.setBidPreview({
+      position: store.currentBidder,
+      call: hoveredCall.value,
+      meaning: hoveredMeaning.value,
+      recommended: hoveredIsRecommended.value,
+      ...(recommended && !sameBidCall(recommended, hoveredCall.value)
+        ? { recommendedCall: recommended, recommendedMeaning: recommendedMeaning.value }
+        : {}),
+    });
+  },
+  { immediate: true },
 );
 
 /** 是否应禁用某按钮：AI 思考中 / 非人类回合 / 叫品不合法 */
@@ -37,13 +110,32 @@ function isDisabled(call: BidCall): boolean {
 }
 
 function sameCall(a: BidCall, b: BidCall): boolean {
-  if (a.type !== b.type) return false;
-  if (a.type === 'bid' && b.type === 'bid') return a.level === b.level && a.suit === b.suit;
-  return true;
+  return sameBidCall(a, b);
 }
 
 function isSelected(call: BidCall): boolean {
   return selectedCall.value !== null && sameCall(selectedCall.value, call);
+}
+
+function isRecommended(call: BidCall): boolean {
+  return recommendedCall.value !== null && sameCall(recommendedCall.value, call);
+}
+
+/** 悬停叫牌卡上的合法叫品：把含义送到中央浮动层 */
+function hoverBid(level: number, suit: BidSuit): void {
+  const call: BidCall = { type: 'bid', level, suit };
+  if (isDisabled(call)) return;
+  hoveredCall.value = call;
+}
+
+function hoverSimple(type: 'pass' | 'double' | 'redouble'): void {
+  const call: BidCall = { type };
+  if (isDisabled(call)) return;
+  hoveredCall.value = call;
+}
+
+function clearHover(): void {
+  hoveredCall.value = null;
 }
 
 function selectBid(level: number, suit: BidSuit): void {
@@ -53,6 +145,7 @@ function selectBid(level: number, suit: BidSuit): void {
 /** 双击叫牌卡：直接提交，无需再点确认 */
 function submitImmediately(call: BidCall): void {
   if (isDisabled(call)) return;
+  hoveredCall.value = null;
   selectedCall.value = null;
   void store.humanBid(call);
 }
@@ -80,6 +173,7 @@ function confirmBid(withAlert = false): void {
   const call = selectedCall.value;
   if (!call || isDisabled(call)) return;
 
+  hoveredCall.value = null;
   selectedCall.value = null;
   void store.humanBid(call, withAlert ? { alerted: true, alertText: alertText.value } : undefined);
 }
@@ -146,7 +240,10 @@ onMounted(() => {
   saveBiddingPopupPosition(position.value);
 });
 
-onBeforeUnmount(stopDrag);
+onBeforeUnmount(() => {
+  stopDrag();
+  store.setBidPreview(null);
+});
 </script>
 
 <template>
@@ -174,12 +271,15 @@ onBeforeUnmount(stopDrag);
               red: RED_SUITS.has(suit),
               nt: suit === 'NT',
               selected: isSelected({ type: 'bid', level, suit }),
+              recommended: isRecommended({ type: 'bid', level, suit }),
             }"
             :data-level="level"
             :data-suit="suit"
             :disabled="isDisabled({ type: 'bid', level, suit })"
             @click="selectBid(level, suit)"
             @dblclick="bidImmediately(level, suit)"
+            @mouseenter="hoverBid(level, suit)"
+            @mouseleave="clearHover"
           >
             <span class="bid-level">{{ level }}</span>
             <span
@@ -209,26 +309,32 @@ onBeforeUnmount(stopDrag);
         <button
           type="button"
           class="special-btn x"
-          :class="{ selected: isSelected({ type: 'double' }) }"
+          :class="{ selected: isSelected({ type: 'double' }), recommended: isRecommended({ type: 'double' }) }"
           :disabled="isDisabled({ type: 'double' })"
           @click="selectSimple('double')"
           @dblclick="specialImmediately('double')"
+          @mouseenter="hoverSimple('double')"
+          @mouseleave="clearHover"
         >X</button>
         <button
           type="button"
           class="special-btn xx"
-          :class="{ selected: isSelected({ type: 'redouble' }) }"
+          :class="{ selected: isSelected({ type: 'redouble' }), recommended: isRecommended({ type: 'redouble' }) }"
           :disabled="isDisabled({ type: 'redouble' })"
           @click="selectSimple('redouble')"
           @dblclick="specialImmediately('redouble')"
+          @mouseenter="hoverSimple('redouble')"
+          @mouseleave="clearHover"
         >XX</button>
         <button
           type="button"
           class="special-btn pass"
-          :class="{ selected: isSelected({ type: 'pass' }) }"
+          :class="{ selected: isSelected({ type: 'pass' }), recommended: isRecommended({ type: 'pass' }) }"
           :disabled="isDisabled({ type: 'pass' })"
           @click="selectSimple('pass')"
           @dblclick="specialImmediately('pass')"
+          @mouseenter="hoverSimple('pass')"
+          @mouseleave="clearHover"
         >Pass</button>
       </div>
 
@@ -325,10 +431,24 @@ onBeforeUnmount(stopDrag);
 .bid-btn:hover:not(:disabled) {
   background: #ffffc4;
 }
+.bid-btn.recommended:not(.selected) {
+  background: #dff7e8;
+  box-shadow:
+    inset 0 0 0 2px #188a55,
+    inset 1px 1px 0 rgba(255, 255, 255, 0.7);
+}
 .bid-btn.selected {
   background: #fff36b;
   box-shadow:
     inset 0 0 0 2px #111,
+    inset 1px 1px 0 rgba(255, 255, 255, 0.7);
+}
+/* 推荐格即使被自动选中，也保留绿色推荐环 */
+.bid-btn.recommended.selected {
+  background: #dff7e8;
+  box-shadow:
+    inset 0 0 0 2px #188a55,
+    inset 0 0 0 3px #111,
     inset 1px 1px 0 rgba(255, 255, 255, 0.7);
 }
 .bid-btn:disabled {
@@ -405,10 +525,23 @@ onBeforeUnmount(stopDrag);
 .special-btn:hover:not(:disabled) {
   background: #ffffc4;
 }
+.special-btn.recommended:not(.selected) {
+  background: #dff7e8;
+  box-shadow:
+    inset 0 0 0 2px #188a55,
+    inset 1px 1px 0 rgba(255, 255, 255, 0.7);
+}
 .special-btn.selected {
   background: #fff36b;
   box-shadow:
     inset 0 0 0 2px #111,
+    inset 1px 1px 0 rgba(255, 255, 255, 0.7);
+}
+.special-btn.recommended.selected {
+  background: #dff7e8;
+  box-shadow:
+    inset 0 0 0 2px #188a55,
+    inset 0 0 0 3px #111,
     inset 1px 1px 0 rgba(255, 255, 255, 0.7);
 }
 .special-btn:disabled {
