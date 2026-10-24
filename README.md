@@ -250,6 +250,10 @@ npm run bidding-eval -- --deals 100 --seed 2026 --limit 20
 - **打牌细则（跟牌/垫牌）**（`rules/play/signals*.yml`）：`id / description / phase / when / action / priority`，
   以及 `settings` 中由 AI 直接读取的张数信号上限、鼓励垫牌最小牌面。
 
+精确制的竞争叫牌还包含“**加倍出套**”：对 1C/1D/1H/1S 开叫，16+ 非均型先做技术性加倍，
+同伴应叫后再出 5+ 长套（同伴应叫花色本身有 5+ 时改为加叫），表示 16+ 强套。
+普通技术性加倍仍为 12-16，一/二阶争叫与 1NT 争叫的区间不变。
+
 > 跟牌张数信号、无将/有将垫牌、避免堵塞等细则见 `rules/play/signals.yml`；其中 `settings`
 > 阈值会实际改变 `ai/playAI.ts` 的行为，规则列表用于查阅和后续扩展。
 

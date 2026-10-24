@@ -2822,6 +2822,39 @@ rules:
     priority: 67
 
   # ------------------------------------------------------------------
+  # 强技术性加倍（加倍出套的起始叫品）
+  # 16+ 非均型先加倍，下一轮再出 5+ 长套；优先度低于普通技术性
+  # 加倍、一/二阶争叫和 1NT 争叫，保证已有区间不被改写。
+  # ------------------------------------------------------------------
+  - id: strong_takeout_double_1c
+    description: "对 1C 的强技术性加倍：16+ 非均型，后续再出 5+ 长套"
+    sequence: "R:1C"
+    when: { hcp: "16+", balanced: false }
+    action: "X"
+    priority: 52
+
+  - id: strong_takeout_double_1d
+    description: "对 1D 的强技术性加倍：16+ 非均型，后续再出 5+ 长套"
+    sequence: "R:1D"
+    when: { hcp: "16+", balanced: false }
+    action: "X"
+    priority: 52
+
+  - id: strong_takeout_double_1h
+    description: "对 1H 的强技术性加倍：16+ 非均型，后续再出 5+ 长套"
+    sequence: "R:1H"
+    when: { hcp: "16+", balanced: false }
+    action: "X"
+    priority: 52
+
+  - id: strong_takeout_double_1s
+    description: "对 1S 的强技术性加倍：16+ 非均型，后续再出 5+ 长套"
+    sequence: "R:1S"
+    when: { hcp: "16+", balanced: false }
+    action: "X"
+    priority: 52
+
+  # ------------------------------------------------------------------
   # 应叫同伴的技术性加倍 / 争叫后的简单推进
   # ------------------------------------------------------------------
   - id: adv_double_1s
@@ -2886,6 +2919,200 @@ rules:
     when: { hcp: "0-8", hearts: "4+", partnerOpened: false }
     action: "2H"
     priority: 61
+
+  # ------------------------------------------------------------------
+  # 强技术性加倍后的再叫：加倍出套（16+，5+ 长套）
+  # 初始强加倍见上方 strong_takeout_double_*；这里按对手开叫花色
+  # 与同伴应叫列出常见再叫，避免把对手花色当作自然套。
+  # ------------------------------------------------------------------
+  - id: strong_double_rebid_1c_1h_s
+    description: "对 1C 加倍、同伴 1H 后，16+ 且 5+ 黑桃再叫 1S"
+    sequence: "R:1C M:X L:Pass P:1H R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "1S"
+    priority: 92
+
+  - id: strong_double_rebid_1c_1h_d
+    description: "对 1C 加倍、同伴 1H 后，16+ 且 5+ 方块再叫 2D"
+    sequence: "R:1C M:X L:Pass P:1H R:Pass"
+    when: { hcp: "16+", diamonds: "5+" }
+    action: "2D"
+    priority: 90
+
+  - id: strong_double_rebid_1c_1h_raise
+    description: "对 1C 加倍、同伴 1H 后，16+ 且 5+ 红桃加叫 2H"
+    sequence: "R:1C M:X L:Pass P:1H R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "2H"
+    priority: 80
+
+  - id: strong_double_rebid_1c_1s_h
+    description: "对 1C 加倍、同伴 1S 后，16+ 且 5+ 红桃再叫 2H"
+    sequence: "R:1C M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "2H"
+    priority: 91
+
+  - id: strong_double_rebid_1c_1s_d
+    description: "对 1C 加倍、同伴 1S 后，16+ 且 5+ 方块再叫 2D"
+    sequence: "R:1C M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", diamonds: "5+" }
+    action: "2D"
+    priority: 90
+
+  - id: strong_double_rebid_1c_1s_raise
+    description: "对 1C 加倍、同伴 1S 后，16+ 且 5+ 黑桃加叫 2S"
+    sequence: "R:1C M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "2S"
+    priority: 80
+
+  - id: strong_double_rebid_1d_1h_s
+    description: "对 1D 加倍、同伴 1H 后，16+ 且 5+ 黑桃再叫 1S"
+    sequence: "R:1D M:X L:Pass P:1H R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "1S"
+    priority: 92
+
+  - id: strong_double_rebid_1d_1h_c
+    description: "对 1D 加倍、同伴 1H 后，16+ 且 5+ 梅花再叫 2C"
+    sequence: "R:1D M:X L:Pass P:1H R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "2C"
+    priority: 89
+
+  - id: strong_double_rebid_1d_1h_raise
+    description: "对 1D 加倍、同伴 1H 后，16+ 且 5+ 红桃加叫 2H"
+    sequence: "R:1D M:X L:Pass P:1H R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "2H"
+    priority: 80
+
+  - id: strong_double_rebid_1d_1s_h
+    description: "对 1D 加倍、同伴 1S 后，16+ 且 5+ 红桃再叫 2H"
+    sequence: "R:1D M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "2H"
+    priority: 91
+
+  - id: strong_double_rebid_1d_1s_c
+    description: "对 1D 加倍、同伴 1S 后，16+ 且 5+ 梅花再叫 2C"
+    sequence: "R:1D M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "2C"
+    priority: 89
+
+  - id: strong_double_rebid_1d_1s_raise
+    description: "对 1D 加倍、同伴 1S 后，16+ 且 5+ 黑桃加叫 2S"
+    sequence: "R:1D M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "2S"
+    priority: 80
+
+  - id: strong_double_rebid_1d_2c_s
+    description: "对 1D 加倍、同伴 2C 后，16+ 且 5+ 黑桃再叫 2S"
+    sequence: "R:1D M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "2S"
+    priority: 92
+
+  - id: strong_double_rebid_1d_2c_h
+    description: "对 1D 加倍、同伴 2C 后，16+ 且 5+ 红桃再叫 2H"
+    sequence: "R:1D M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "2H"
+    priority: 91
+
+  - id: strong_double_rebid_1d_2c_raise
+    description: "对 1D 加倍、同伴 2C 后，16+ 且 5+ 梅花加叫 3C"
+    sequence: "R:1D M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "3C"
+    priority: 80
+
+  - id: strong_double_rebid_1h_1s_d
+    description: "对 1H 加倍、同伴 1S 后，16+ 且 5+ 方块再叫 2D"
+    sequence: "R:1H M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", diamonds: "5+" }
+    action: "2D"
+    priority: 90
+
+  - id: strong_double_rebid_1h_1s_c
+    description: "对 1H 加倍、同伴 1S 后，16+ 且 5+ 梅花再叫 2C"
+    sequence: "R:1H M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "2C"
+    priority: 89
+
+  - id: strong_double_rebid_1h_1s_raise
+    description: "对 1H 加倍、同伴 1S 后，16+ 且 5+ 黑桃加叫 2S"
+    sequence: "R:1H M:X L:Pass P:1S R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "2S"
+    priority: 80
+
+  - id: strong_double_rebid_1h_2c_s
+    description: "对 1H 加倍、同伴 2C 后，16+ 且 5+ 黑桃再叫 2S"
+    sequence: "R:1H M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", spades: "5+" }
+    action: "2S"
+    priority: 92
+
+  - id: strong_double_rebid_1h_2c_d
+    description: "对 1H 加倍、同伴 2C 后，16+ 且 5+ 方块再叫 2D"
+    sequence: "R:1H M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", diamonds: "5+" }
+    action: "2D"
+    priority: 90
+
+  - id: strong_double_rebid_1h_2c_raise
+    description: "对 1H 加倍、同伴 2C 后，16+ 且 5+ 梅花加叫 3C"
+    sequence: "R:1H M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "3C"
+    priority: 80
+
+  - id: strong_double_rebid_1s_2h_d
+    description: "对 1S 加倍、同伴 2H 后，16+ 且 5+ 方块再叫 3D"
+    sequence: "R:1S M:X L:Pass P:2H R:Pass"
+    when: { hcp: "16+", diamonds: "5+" }
+    action: "3D"
+    priority: 90
+
+  - id: strong_double_rebid_1s_2h_c
+    description: "对 1S 加倍、同伴 2H 后，16+ 且 5+ 梅花再叫 3C"
+    sequence: "R:1S M:X L:Pass P:2H R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "3C"
+    priority: 89
+
+  - id: strong_double_rebid_1s_2h_raise
+    description: "对 1S 加倍、同伴 2H 后，16+ 且 5+ 红桃加叫 3H"
+    sequence: "R:1S M:X L:Pass P:2H R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "3H"
+    priority: 80
+
+  - id: strong_double_rebid_1s_2c_h
+    description: "对 1S 加倍、同伴 2C 后，16+ 且 5+ 红桃再叫 2H"
+    sequence: "R:1S M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", hearts: "5+" }
+    action: "2H"
+    priority: 91
+
+  - id: strong_double_rebid_1s_2c_d
+    description: "对 1S 加倍、同伴 2C 后，16+ 且 5+ 方块再叫 2D"
+    sequence: "R:1S M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", diamonds: "5+" }
+    action: "2D"
+    priority: 90
+
+  - id: strong_double_rebid_1s_2c_raise
+    description: "对 1S 加倍、同伴 2C 后，16+ 且 5+ 梅花加叫 3C"
+    sequence: "R:1S M:X L:Pass P:2C R:Pass"
+    when: { hcp: "16+", clubs: "5+" }
+    action: "3C"
+    priority: 80
 
   - id: penalty_double_over_1s
     description: "同伴开叫 1H、RHO 争叫 1S 后，4+ 黑桃惩罚加倍"

@@ -150,6 +150,71 @@ describe('叫牌 AI（bidAI）', () => {
     expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 
+  it('精确制：19 点 5 张黑桃对 1D 先加倍，同伴 1H 后再叫 1S', () => {
+    const hand = parseHand('SAKQJ2 H2 DKJ3 CAJ32'); // 19 HCP, 5-1-3-4
+    const first = bidAI(hand, history(['E', '1D']), 'S', { level: 1, suit: 'D' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(first).toEqual({ type: 'double' });
+
+    const h = history(
+      ['E', '1D'],
+      ['S', 'X'],
+      ['W', 'Pass'],
+      ['N', '1H'],
+      ['E', 'Pass'],
+    );
+    const rebid = bidAI(hand, h, 'S', { level: 1, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(rebid).toEqual({ type: 'bid', level: 1, suit: 'S' });
+  });
+
+  it('精确制：16 点 5 张方块对 1S 加倍，同伴 2H 后再出 3D', () => {
+    const hand = parseHand('S2 HAKQ2 DAJ432 CQ32'); // 16 HCP, 1-4-5-3
+    const first = bidAI(hand, history(['E', '1S']), 'S', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(first).toEqual({ type: 'double' });
+
+    const h = history(
+      ['E', '1S'],
+      ['S', 'X'],
+      ['W', 'Pass'],
+      ['N', '2H'],
+      ['E', 'Pass'],
+    );
+    const rebid = bidAI(hand, h, 'S', { level: 2, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(rebid).toEqual({ type: 'bid', level: 3, suit: 'D' });
+  });
+
+  it('精确制：15 点 5 张方块对 1S 加倍后不再出套（加倍出套需 16+）', () => {
+    const hand = parseHand('S2 HKQJ2 DAK432 CQ32'); // 15 HCP, 1-4-5-3
+    const h = history(
+      ['E', '1S'],
+      ['S', 'X'],
+      ['W', 'Pass'],
+      ['N', '2H'],
+      ['E', 'Pass'],
+    );
+    const rebid = bidAI(hand, h, 'S', { level: 2, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(rebid).toEqual({ type: 'pass' });
+  });
+
   it('无规则命中时兜底 Pass（第 9 用例：^$ 与兜底）', () => {
     const hand = parseHand('SJ32 H854 D763 C92'); // 1 HCP，无任何开叫条件
     const call = bidAI(hand, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
