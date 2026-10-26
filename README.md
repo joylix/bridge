@@ -8,7 +8,7 @@
 - **核心法律硬编码**（叫牌合法性、加倍/再加倍、跟牌义务、赢墩判定、标准计分）。
 - **叫牌策略外部化**：YAML 规则 + 相对座位序列匹配 + 扁平 AND 条件 + 优先级/具体度裁决 + ε 探索。
 - **首攻**由 YAML 规则驱动；跟牌/垫牌由 `signals.yml` 的阈值与规则目录配合启发式执行（张数信号、不鼓励垫牌、有将无损失鼓励垫牌、避免堵塞）。
-- **叫牌/打牌提示**：悬停中央叫牌表记录或叫牌卡上的合法叫品时，用右侧浅青薄纱浮层显示该叫品含义，并附带推荐叫品说明；人类回合绿色高亮推荐叫品，出牌时闪烁箭头指向推荐牌，悬停箭头显示推荐理由。所有提示可在设置中一键关闭。
+- **叫牌/打牌提示**：悬停中央叫牌表记录或叫牌卡上的合法叫品时，用右侧浅青薄纱浮层显示该叫品含义，并附带推荐叫品说明；人类回合绿色高亮推荐叫品，出牌时闪烁箭头指向推荐牌，悬停箭头显示推荐理由。所有提示可在设置中一键关闭；非会员可试用前 50 副牌，之后自动关闭，会员可自由开关。
 - **双明手分析**：结算详情中可查看 DDS 双明手结果表、Par 定约与可成约定约（`bridge-dds` WASM，运行在 Web Worker，不阻塞牌桌）。
 - **PBN 导入 / 导出**：牌桌顶部可复制、下载或以 PBN 字符串直接开新牌局。
 - **固定种子基准**：`npm run benchmark` 可批量跑完整 AI 对 AI 牌局，支持 Par 对照与 DDS 打牌强度对抗；`npm run bidding-eval` 用 DDS 双明手结果单独评估纯叫牌。
@@ -65,6 +65,7 @@ src/
 │   └── play/{leads.yml, signals.yml}
 ├── models/               # card / hand / gameState（含 controllableSeats）
 ├── permissions.ts        # 用户角色与规则编辑权限（当前所有用户可改）
+├── membership.ts         # 会员状态与“推荐 + 浮动层解释”50 副试用策略
 ├── store/game.ts         # Pinia 状态机 + AI 调度 + 人类控制权 + 规则管理
 ├── components/           # Table / Hand / BiddingBox / BidMeanings / ScoreBoard / GameHistory / RuleEditor / PbnDialog
 ├── testing/              # 测试辅助
@@ -92,14 +93,46 @@ scripts/
 
 ### 条件词表（扁平 AND，可含风格变量）
 
-`hcp` / `controls`（A=2 K=1）/ `spades|hearts|diamonds|clubs`（长度）/
+`hcp` / `adjustedHcp`（原始大牌点 / 调整点）/ `controls`（A=2 K=1）/
+`spades|hearts|diamonds|clubs`（长度）/
 `balanced`（4-3-3-3 / 4-4-3-2 / 5-3-3-2）/ `losers`（简单 LTC）/
 `voids|singletons|doubletons`（牌型张数）/ `fourCardMajor|fiveCardMajor`/
-`aces|kings` / `stoppers`（如 `"SHD"`）/ `openingSeat` /
-`partnerOpened`（区分“应叫同伴开叫”与“应叫同伴争叫/再叫”）/
+`aces|kings` / `stoppers`（如 `"SHD"`）/ `solidSuit`（坚固长套，如 `"CD"`）/
+`opponentSuitFirstControl`（敌方最后叫过花色的缺门/单张或 Ax）/
+`noLongSuit` / `noLongSuitExcept`（无 5+ 长套 / 除指定花色外无 5+ 长套）/
+`opponentSuitStopper` / `cueSuitStopper`（敌方花色 / 扣叫花色有挡张）/
+`openingSeat` / `partnerOpened`（区分“应叫同伴开叫”与“应叫同伴争叫/再叫”）/
 `partnerHcp` / `combinedHcp`（同伴点力下限 / 联手点力下限）。
 区间支持 `"16-40"`、`"5+"`、`"12"`，可引用 `${open1ntMin}`、`${overcallMinHcp}`
 等风格阈值。
+
+叫牌进程条件由 `matcher` 从历史推断，不是手牌特征：
+`partnerCueBid` / `myCueBid` / `cueBidSuit` / `cueBidLevel`（扣叫上下文）/
+`partnerSuit` / `mySuit` / `partnerNaturalSuit` / `myNaturalSuit`（最后自然花色）/
+`partnerForcingNewSuit` / `myForcingNewSuit`（规则 id 以 `nat_` 开头的强自然新花）/
+`lastBidSuit` / `lastBidLevel` / `partnerBlackwood` / `myBlackwood` /
+`agreedSuit` / `combinedAces`（4NT 与 Blackwood 应答上下文）。
+
+**调整点（Adjusted Points, AP）** 是叫牌专用的名义点力，不参与计分/贴点：
+
+`AP = HCP + 长套点 + 短套点 + 坚固套奖励 − 敌方花色废点`
+
+- 长套点：最长进攻花色（敌方花色除外，除非它本身是将牌）第 5/6/7 张各 +1（最多 +3）；
+- 短套点：仅在同伴已显示支持、将牌明确时计入，旁门缺门 +3 / 单张 +2 / 双张 +1；
+- 坚固套奖励：最长花色 7+ 张且 A/K/Q 领衔时 +1；
+- 敌方花色废点：敌方叫过的花色中若只有单张 K/Q/J，扣 1；
+- 调整量限制在 `[-2, +7]`。原始 `hcp` 仍用于计分/贴点，规则门槛可写
+  `adjustedHcp: "15+"`。
+
+精确制同时加入**赌博 3NT** 开叫：0-10 点、7+ 张 A/K/Q 领衔的坚固低花，且无 4 张高花。
+
+竞争叫牌中加入了**强牌扣叫 + 自然长套**：同伴开叫、RHO 争叫后，16+ 且敌方花色为
+缺门/单张或 Ax（第一轮控制）时，若自己没有 5+ 旁套则扣叫敌方花色，逼同伴叫牌；
+若有 5+ 旁套则优先自然叫出长套（规则 id 以 `nat_` 开头）。扣叫通常表示无长套、
+请同伴叫长套/高花，或作为满贯兴趣。覆盖 1C/1D/1H/1S 开叫后的常见一/二阶争叫；
+开叫人再叫 3M/4M 显示长套或四张高花，扣叫人再根据支持与挡张选择 4M/3NT。
+扣叫后 18+ 且将牌配合时可叫 4NT 作简化 Blackwood，按 A 数应答 5C/5D/5H/5S，
+再根据联手 A 数选择 5M 止叫或 6M 进贯。
 
 `partnerHcp` 与 `combinedHcp` 使用 `src/engine/partnerInference.ts` 的**保守下限推断**：
 只在同伴是本副第一个实质叫牌人（开叫人）时生效，按开叫及少数明确再叫估算同伴 HCP
@@ -276,8 +309,11 @@ npm run bidding-eval -- --deals 100 --seed 2026 --limit 20
   非人类回合、关闭提示或没有推荐时，箭头回到手牌固定位置，只指示该座位出牌；
   人类坐庄操作明手时，箭头也会指向明手的推荐牌。
 - **出牌展示**：每轮四家出牌完成后，中央桌面保留该墩 4 张牌约 1 秒，再切换到下一墩。
-- **设置开关**：顶部“风格 / 规则设置”中可关闭“显示提示与推荐”，关闭后不再自动选中推荐叫品、
-  不显示含义浮层与推荐出牌；设置保存在本机浏览器。
+- **设置开关**：顶部“风格 / 规则设置”中提供“推荐 + 浮动层解释”开关，关闭后不再自动选中推荐叫品、
+  不显示含义浮层与推荐出牌；开关状态保存在本机浏览器。
+- **会员与试用（演示期）**：当前阶段默认按非会员处理，可试用前 50 副牌；用完后开关自动关闭且不能再次开启。
+  后续接入登录态后，可由 `store.setMembership(true)` 注入会员状态，会员可自由开启或关闭。
+  试用进度同样保存在本机浏览器，刷新后继续累计；该策略仅用于演示/内测，不属于付费会员体系。
 
 ## 验收用例对照
 

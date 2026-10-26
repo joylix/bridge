@@ -119,6 +119,13 @@ rules:
     action: "2D"
     priority: 89
 
+  - id: open_3nt_gambling
+    description: "赌博 3NT：0-10 点，7+ 张 A/K/Q 领衔的坚固低花，且无 4 张高花"
+    sequence: "^$"
+    when: { hcp: "0-10", solidSuit: "CD", fourCardMajor: false }
+    action: "3NT"
+    priority: 50
+
   - id: open_preempt_3c
     description: "三阶阻击 3C：长度随风格浮动"
     sequence: "^$"
@@ -1069,9 +1076,9 @@ rules:
     priority: 86
 
   - id: opener_1s_3s_4s_short
-    description: "1S-3S 后，12 点、5+ 黑桃且有单缺时进局 4S"
+    description: "1S-3S 后，调整点 15+、5+ 黑桃进局 4S（长套/配合短套计入 AP）"
     sequence: "M:1S L:Pass P:3S R:Pass"
-    when: { hcp: "12", spades: "5+", singletons: "1+" }
+    when: { adjustedHcp: "15+", spades: "5+" }
     action: "4S"
     priority: 86
 
@@ -6609,6 +6616,1035 @@ rules:
     when: { hcp: "18-20", balanced: true, stoppers: "S" }
     action: "3NT"
     priority: 94
+
+  # ------------------------------------------------------------------
+  # 强牌扣叫：同伴开叫、RHO 争叫后，扣叫敌方花色
+  # 16+、敌方花色第一轮控制（缺门/单张或 Ax），逼同伴叫牌
+  # 通常用于自己无长套、请同伴叫出长套/高花，或满贯兴趣
+  # ------------------------------------------------------------------
+  - id: cue_1h_over_1s
+    description: "1H-(1S)-2S：16+、黑桃缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1H R:1S"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "H" }
+    action: "2S"
+    priority: 92
+
+  - id: cue_1h_over_2c
+    description: "1H-(2C)-3C：16+、梅花缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1H R:2C"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "H" }
+    action: "3C"
+    priority: 92
+
+  - id: cue_1h_over_2d
+    description: "1H-(2D)-3D：16+、方块缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1H R:2D"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "H" }
+    action: "3D"
+    priority: 92
+
+  - id: cue_1h_over_2s
+    description: "1H-(2S)-3S：16+、黑桃缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1H R:2S"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "H" }
+    action: "3S"
+    priority: 92
+
+  - id: cue_1s_over_2c
+    description: "1S-(2C)-3C：16+、梅花缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1S R:2C"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "S" }
+    action: "3C"
+    priority: 92
+
+  - id: cue_1s_over_2d
+    description: "1S-(2D)-3D：16+、方块缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1S R:2D"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "S" }
+    action: "3D"
+    priority: 92
+
+  - id: cue_1s_over_2h
+    description: "1S-(2H)-3H：16+、红桃缺门/单张或 Ax，强牌扣叫逼叫；通常无长套，请同伴叫长套/高花"
+    sequence: "P:1S R:2H"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "S" }
+    action: "3H"
+    priority: 92
+
+  # 扣叫后的开叫人：先叫出自己的长套/高花（3M），逼叫继续
+  - id: opener_1h_over_1s_cue_3h
+    description: "1H-(1S)-2S 强牌扣叫后，开叫人 5+ 红桃再叫 3H，显示长套/高花"
+    sequence: "M:1H L:1S P:2S R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 92
+
+  - id: opener_1h_over_2c_cue_3h
+    description: "1H-(2C)-3C 强牌扣叫后，开叫人 5+ 红桃再叫 3H，显示长套/高花"
+    sequence: "M:1H L:2C P:3C R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 92
+
+  - id: opener_1h_over_2d_cue_3h
+    description: "1H-(2D)-3D 强牌扣叫后，开叫人 5+ 红桃再叫 3H，显示长套/高花"
+    sequence: "M:1H L:2D P:3D R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 92
+
+  - id: opener_1h_over_2s_cue_3h
+    description: "1H-(2S)-3S 强牌扣叫后，开叫人 5+ 红桃再叫 3H，显示长套/高花"
+    sequence: "M:1H L:2S P:3S R:Pass"
+    when: { hearts: "5+" }
+    action: "3H"
+    priority: 92
+
+  - id: opener_1s_over_2c_cue_3s
+    description: "1S-(2C)-3C 强牌扣叫后，开叫人 5+ 黑桃再叫 3S，显示长套/高花"
+    sequence: "M:1S L:2C P:3C R:Pass"
+    when: { spades: "5+" }
+    action: "3S"
+    priority: 92
+
+  - id: opener_1s_over_2d_cue_3s
+    description: "1S-(2D)-3D 强牌扣叫后，开叫人 5+ 黑桃再叫 3S，显示长套/高花"
+    sequence: "M:1S L:2D P:3D R:Pass"
+    when: { spades: "5+" }
+    action: "3S"
+    priority: 92
+
+  - id: opener_1s_over_2h_cue_3s
+    description: "1S-(2H)-3H 强牌扣叫后，开叫人 5+ 黑桃再叫 3S，显示长套/高花"
+    sequence: "M:1S L:2H P:3H R:Pass"
+    when: { spades: "5+" }
+    action: "3S"
+    priority: 92
+
+  # 扣叫人的第二轮：无 3+ 支持但有敌方花色挡张时叫 3NT；否则回将牌进局
+  - id: cue_1h_over_1s_3h_3nt
+    description: "1H-(1S)-2S-3H 后，扣叫人 0-2 红桃且黑桃有挡张叫 3NT"
+    sequence: "P:1H R:1S M:2S L:Pass P:3H R:Pass"
+    when: { hearts: "0-2", stoppers: "S" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1h_over_1s_3h_4h
+    description: "1H-(1S)-2S-3H 后，扣叫人进局 4H（3+ 支持或无挡张）"
+    sequence: "P:1H R:1S M:2S L:Pass P:3H R:Pass"
+    when: {}
+    action: "4H"
+    priority: 91
+
+  - id: cue_1h_over_2c_3h_3nt
+    description: "1H-(2C)-3C-3H 后，扣叫人 0-2 红桃且梅花有挡张叫 3NT"
+    sequence: "P:1H R:2C M:3C L:Pass P:3H R:Pass"
+    when: { hearts: "0-2", stoppers: "C" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1h_over_2c_3h_4h
+    description: "1H-(2C)-3C-3H 后，扣叫人进局 4H（3+ 支持或无挡张）"
+    sequence: "P:1H R:2C M:3C L:Pass P:3H R:Pass"
+    when: {}
+    action: "4H"
+    priority: 91
+
+  - id: cue_1h_over_2d_3h_3nt
+    description: "1H-(2D)-3D-3H 后，扣叫人 0-2 红桃且方块有挡张叫 3NT"
+    sequence: "P:1H R:2D M:3D L:Pass P:3H R:Pass"
+    when: { hearts: "0-2", stoppers: "D" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1h_over_2d_3h_4h
+    description: "1H-(2D)-3D-3H 后，扣叫人进局 4H（3+ 支持或无挡张）"
+    sequence: "P:1H R:2D M:3D L:Pass P:3H R:Pass"
+    when: {}
+    action: "4H"
+    priority: 91
+
+  - id: cue_1h_over_2s_3h_3nt
+    description: "1H-(2S)-3S-3H 后，扣叫人 0-2 红桃且黑桃有挡张叫 3NT"
+    sequence: "P:1H R:2S M:3S L:Pass P:3H R:Pass"
+    when: { hearts: "0-2", stoppers: "S" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1h_over_2s_3h_4h
+    description: "1H-(2S)-3S-3H 后，扣叫人进局 4H（3+ 支持或无挡张）"
+    sequence: "P:1H R:2S M:3S L:Pass P:3H R:Pass"
+    when: {}
+    action: "4H"
+    priority: 91
+
+  - id: cue_1s_over_2c_3s_3nt
+    description: "1S-(2C)-3C-3S 后，扣叫人 0-2 黑桃且梅花有挡张叫 3NT"
+    sequence: "P:1S R:2C M:3C L:Pass P:3S R:Pass"
+    when: { spades: "0-2", stoppers: "C" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1s_over_2c_3s_4s
+    description: "1S-(2C)-3C-3S 后，扣叫人进局 4S（3+ 支持或无挡张）"
+    sequence: "P:1S R:2C M:3C L:Pass P:3S R:Pass"
+    when: {}
+    action: "4S"
+    priority: 91
+
+  - id: cue_1s_over_2d_3s_3nt
+    description: "1S-(2D)-3D-3S 后，扣叫人 0-2 黑桃且方块有挡张叫 3NT"
+    sequence: "P:1S R:2D M:3D L:Pass P:3S R:Pass"
+    when: { spades: "0-2", stoppers: "D" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1s_over_2d_3s_4s
+    description: "1S-(2D)-3D-3S 后，扣叫人进局 4S（3+ 支持或无挡张）"
+    sequence: "P:1S R:2D M:3D L:Pass P:3S R:Pass"
+    when: {}
+    action: "4S"
+    priority: 91
+
+  - id: cue_1s_over_2h_3s_3nt
+    description: "1S-(2H)-3H-3S 后，扣叫人 0-2 黑桃且红桃有挡张叫 3NT"
+    sequence: "P:1S R:2H M:3H L:Pass P:3S R:Pass"
+    when: { spades: "0-2", stoppers: "H" }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_1s_over_2h_3s_4s
+    description: "1S-(2H)-3H-3S 后，扣叫人进局 4S（3+ 支持或无挡张）"
+    sequence: "P:1S R:2H M:3H L:Pass P:3S R:Pass"
+    when: {}
+    action: "4S"
+    priority: 91
+
+  - id: cue_1d_over_1h
+    description: "1D-(1H)-2H：16+、红桃缺门/单张或 Ax，强牌扣叫逼叫；无长旁套（方块支持可含 5+ 方块）"
+    sequence: "P:1D R:1H"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "D" }
+    action: "2H"
+    priority: 92
+
+  - id: cue_1d_over_1s
+    description: "1D-(1S)-2S：16+、黑桃缺门/单张或 Ax，强牌扣叫逼叫；无长旁套（方块支持可含 5+ 方块）"
+    sequence: "P:1D R:1S"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "D" }
+    action: "2S"
+    priority: 92
+
+  - id: cue_1d_over_2c
+    description: "1D-(2C)-3C：16+、梅花缺门/单张或 Ax，强牌扣叫逼叫；无长旁套（方块支持可含 5+ 方块）"
+    sequence: "P:1D R:2C"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuitExcept: "D" }
+    action: "3C"
+    priority: 92
+
+  - id: cue_1c_over_1d
+    description: "1C-(1D)-2D：16+、方块缺门/单张或 Ax，强牌扣叫逼叫；无 5+ 长套"
+    sequence: "P:1C R:1D"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuit: true }
+    action: "2D"
+    priority: 92
+
+  - id: cue_1c_over_1h
+    description: "1C-(1H)-2H：16+、红桃缺门/单张或 Ax，强牌扣叫逼叫；无 5+ 长套"
+    sequence: "P:1C R:1H"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuit: true }
+    action: "2H"
+    priority: 92
+
+  - id: cue_1c_over_1s
+    description: "1C-(1S)-2S：16+、黑桃缺门/单张或 Ax，强牌扣叫逼叫；无 5+ 长套"
+    sequence: "P:1C R:1S"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuit: true }
+    action: "2S"
+    priority: 92
+
+  - id: cue_1c_over_2c
+    description: "1C-(2C)-3C：16+、梅花缺门/单张或 Ax，强牌扣叫逼叫；无 5+ 长套"
+    sequence: "P:1C R:2C"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuit: true }
+    action: "3C"
+    priority: 92
+
+  - id: cue_1c_over_2d
+    description: "1C-(2D)-3D：16+、方块缺门/单张或 Ax，强牌扣叫逼叫；无 5+ 长套"
+    sequence: "P:1C R:2D"
+    when: { hcp: "16+", opponentSuitFirstControl: true, partnerOpened: true, noLongSuit: true }
+    action: "3D"
+    priority: 92
+
+  - id: nat_1h_over_1s_2c
+    description: "1H-(1S)-2C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1H R:1S"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 95
+
+  - id: nat_1h_over_1s_2d
+    description: "1H-(1S)-2D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1H R:1S"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 95
+
+  - id: nat_1h_over_2c_2d
+    description: "1H-(2C)-2D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1H R:2C"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 95
+
+  - id: nat_1h_over_2c_2s
+    description: "1H-(2C)-2S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1H R:2C"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 95
+
+  - id: nat_1h_over_2d_2s
+    description: "1H-(2D)-2S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1H R:2D"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 95
+
+  - id: nat_1h_over_2d_3c
+    description: "1H-(2D)-3C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1H R:2D"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 95
+
+  - id: nat_1h_over_2s_3c
+    description: "1H-(2S)-3C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1H R:2S"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 95
+
+  - id: nat_1h_over_2s_3d
+    description: "1H-(2S)-3D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1H R:2S"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "3D"
+    priority: 95
+
+  - id: nat_1s_over_2c_2d
+    description: "1S-(2C)-2D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1S R:2C"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 95
+
+  - id: nat_1s_over_2c_2h
+    description: "1S-(2C)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1S R:2C"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1s_over_2d_2h
+    description: "1S-(2D)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1S R:2D"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1s_over_2d_3c
+    description: "1S-(2D)-3C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1S R:2D"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 95
+
+  - id: nat_1s_over_2h_3c
+    description: "1S-(2H)-3C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1S R:2H"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 95
+
+  - id: nat_1s_over_2h_3d
+    description: "1S-(2H)-3D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1S R:2H"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "3D"
+    priority: 95
+
+  - id: nat_1d_over_1h_1s
+    description: "1D-(1H)-1S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1D R:1H"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "1S"
+    priority: 95
+
+  - id: nat_1d_over_1h_2c
+    description: "1D-(1H)-2C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1D R:1H"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 95
+
+  - id: nat_1d_over_1s_2c
+    description: "1D-(1S)-2C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1D R:1S"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 95
+
+  - id: nat_1d_over_1s_2h
+    description: "1D-(1S)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1D R:1S"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1d_over_2c_2h
+    description: "1D-(2C)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1D R:2C"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1d_over_2c_2s
+    description: "1D-(2C)-2S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1D R:2C"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 95
+
+  - id: nat_1c_over_1d_1h
+    description: "1C-(1D)-1H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1C R:1D"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "1H"
+    priority: 95
+
+  - id: nat_1c_over_1d_1s
+    description: "1C-(1D)-1S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1C R:1D"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "1S"
+    priority: 95
+
+  - id: nat_1c_over_1d_2c
+    description: "1C-(1D)-2C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1C R:1D"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 95
+
+  - id: nat_1c_over_1h_1s
+    description: "1C-(1H)-1S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1C R:1H"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "1S"
+    priority: 95
+
+  - id: nat_1c_over_1h_2c
+    description: "1C-(1H)-2C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1C R:1H"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 95
+
+  - id: nat_1c_over_1h_2d
+    description: "1C-(1H)-2D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1C R:1H"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 95
+
+  - id: nat_1c_over_1s_2c
+    description: "1C-(1S)-2C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1C R:1S"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "2C"
+    priority: 95
+
+  - id: nat_1c_over_1s_2d
+    description: "1C-(1S)-2D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1C R:1S"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 95
+
+  - id: nat_1c_over_1s_2h
+    description: "1C-(1S)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1C R:1S"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1c_over_2c_2d
+    description: "1C-(2C)-2D：16+、5+ 方块，自然长套逼叫"
+    sequence: "P:1C R:2C"
+    when: { hcp: "16+", diamonds: "5+", partnerOpened: true }
+    action: "2D"
+    priority: 95
+
+  - id: nat_1c_over_2c_2h
+    description: "1C-(2C)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1C R:2C"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1c_over_2c_2s
+    description: "1C-(2C)-2S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1C R:2C"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 95
+
+  - id: nat_1c_over_2d_2h
+    description: "1C-(2D)-2H：16+、5+ 红桃，自然长套逼叫"
+    sequence: "P:1C R:2D"
+    when: { hcp: "16+", hearts: "5+", partnerOpened: true }
+    action: "2H"
+    priority: 95
+
+  - id: nat_1c_over_2d_2s
+    description: "1C-(2D)-2S：16+、5+ 黑桃，自然长套逼叫"
+    sequence: "P:1C R:2D"
+    when: { hcp: "16+", spades: "5+", partnerOpened: true }
+    action: "2S"
+    priority: 95
+
+  - id: nat_1c_over_2d_3c
+    description: "1C-(2D)-3C：16+、5+ 梅花，自然长套逼叫"
+    sequence: "P:1C R:2D"
+    when: { hcp: "16+", clubs: "5+", partnerOpened: true }
+    action: "3C"
+    priority: 95
+
+  - id: cue_reply_h5_3h
+    description: "扣叫后开叫人 5+ 红桃、扣叫在 2 阶：再叫 3H 显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "5+", cueBidLevel: "2", cueBidSuitNot: "H" }
+    action: "3H"
+    priority: 98
+
+  - id: cue_reply_h5_3h_l3_c
+    description: "扣叫后开叫人 5+ 红桃、扣叫 3C：3H 合法，显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "5+", cueBidLevel: "3", cueBidSuit: "C" }
+    action: "3H"
+    priority: 98
+
+  - id: cue_reply_h5_3h_l3_d
+    description: "扣叫后开叫人 5+ 红桃、扣叫 3D：3H 合法，显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "5+", cueBidLevel: "3", cueBidSuit: "D" }
+    action: "3H"
+    priority: 98
+
+  - id: cue_reply_h5_4h_l3
+    description: "扣叫后开叫人 5+ 红桃、扣叫 3H/3S：3H 不合法时再叫 4H"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "5+", cueBidLevel: "3", cueBidSuitNot: "H" }
+    action: "4H"
+    priority: 97
+
+  - id: cue_reply_s5_3s
+    description: "扣叫后开叫人 5+ 黑桃、扣叫在 2 阶：再叫 3S 显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "5+", cueBidLevel: "2", cueBidSuitNot: "S" }
+    action: "3S"
+    priority: 98
+
+  - id: cue_reply_s5_3s_l3_c
+    description: "扣叫后开叫人 5+ 黑桃、扣叫 3C：3S 合法，显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "5+", cueBidLevel: "3", cueBidSuit: "C" }
+    action: "3S"
+    priority: 98
+
+  - id: cue_reply_s5_3s_l3_d
+    description: "扣叫后开叫人 5+ 黑桃、扣叫 3D：3S 合法，显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "5+", cueBidLevel: "3", cueBidSuit: "D" }
+    action: "3S"
+    priority: 98
+
+  - id: cue_reply_s5_3s_l3_h
+    description: "扣叫后开叫人 5+ 黑桃、扣叫 3H：3S 合法，显示长套/高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "5+", cueBidLevel: "3", cueBidSuit: "H" }
+    action: "3S"
+    priority: 98
+
+  - id: cue_reply_s5_4s_l3
+    description: "扣叫后开叫人 5+ 黑桃、扣叫 3S：3S 不合法时再叫 4S"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "5+", cueBidLevel: "3", cueBidSuitNot: "S" }
+    action: "4S"
+    priority: 97
+
+  - id: cue_reply_h4_3h
+    description: "扣叫后开叫人 4+ 红桃、扣叫在 2 阶且非红桃：3H 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "4+", cueBidLevel: "2", cueBidSuitNot: "H" }
+    action: "3H"
+    priority: 97
+
+  - id: cue_reply_h4_3h_l3_c
+    description: "扣叫后开叫人 4+ 红桃、扣叫 3C：3H 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "4+", cueBidLevel: "3", cueBidSuit: "C" }
+    action: "3H"
+    priority: 97
+
+  - id: cue_reply_h4_3h_l3_d
+    description: "扣叫后开叫人 4+ 红桃、扣叫 3D：3H 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "4+", cueBidLevel: "3", cueBidSuit: "D" }
+    action: "3H"
+    priority: 97
+
+  - id: cue_reply_h4_4h_l3_s
+    description: "扣叫后开叫人 4+ 红桃、扣叫 3S：3H 不合法时 4H 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, hearts: "4+", cueBidLevel: "3", cueBidSuit: "S" }
+    action: "4H"
+    priority: 97
+
+  - id: cue_reply_s4_3s
+    description: "扣叫后开叫人 4+ 黑桃、扣叫在 2 阶且非黑桃：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "4+", cueBidLevel: "2", cueBidSuitNot: "S" }
+    action: "3S"
+    priority: 97
+
+  - id: cue_reply_s4_3s_l3_c
+    description: "扣叫后开叫人 4+ 黑桃、扣叫 3C：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "4+", cueBidLevel: "3", cueBidSuit: "C" }
+    action: "3S"
+    priority: 97
+
+  - id: cue_reply_s4_3s_l3_d
+    description: "扣叫后开叫人 4+ 黑桃、扣叫 3D：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "4+", cueBidLevel: "3", cueBidSuit: "D" }
+    action: "3S"
+    priority: 97
+
+  - id: cue_reply_s4_3s_l3_h
+    description: "扣叫后开叫人 4+ 黑桃、扣叫 3H：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerCueBid: true, spades: "4+", cueBidLevel: "3", cueBidSuit: "H" }
+    action: "3S"
+    priority: 97
+
+  - id: cue_reply_3nt_stopper
+    description: "扣叫后开叫人敌方扣叫花色有挡张：3NT"
+    sequence: ".*"
+    when: { partnerCueBid: true, cueSuitStopper: true }
+    action: "3NT"
+    priority: 96
+
+  - id: cue_reply_5c
+    description: "扣叫后开叫人 5+ 梅花且无更高优先选择：5C 进局"
+    sequence: ".*"
+    when: { partnerCueBid: true, clubs: "5+", cueBidSuitNot: "C" }
+    action: "5C"
+    priority: 95
+
+  - id: cue_reply_5d
+    description: "扣叫后开叫人 5+ 方块且无更高优先选择：5D 进局"
+    sequence: ".*"
+    when: { partnerCueBid: true, diamonds: "5+", cueBidSuitNot: "D" }
+    action: "5D"
+    priority: 95
+
+  - id: cue_reply_3nt_balanced
+    description: "扣叫后开叫人均型：3NT 兜底"
+    sequence: ".*"
+    when: { partnerCueBid: true, balanced: true }
+    action: "3NT"
+    priority: 92
+
+  - id: cue_reply_3nt_fallback
+    description: "扣叫后开叫人无其他合适叫品：3NT 兜底"
+    sequence: ".*"
+    when: { partnerCueBid: true }
+    action: "3NT"
+    priority: 90
+
+  - id: cue_follow_3nt_h
+    description: "扣叫后开叫人 3NT，扣叫人 3+ 红桃：4H"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "NT", lastBidLevel: "3", partnerSuit: "H", hearts: "3+" }
+    action: "4H"
+    priority: 95
+
+  - id: cue_follow_3nt_s
+    description: "扣叫后开叫人 3NT，扣叫人 3+ 黑桃：4S"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "NT", lastBidLevel: "3", partnerSuit: "S", spades: "3+" }
+    action: "4S"
+    priority: 95
+
+  - id: cue_follow_3h_4h
+    description: "扣叫后开叫人 3H，扣叫人 3+ 红桃：4H"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "H", lastBidLevel: "3", hearts: "3+" }
+    action: "4H"
+    priority: 95
+
+  - id: cue_follow_3s_4s
+    description: "扣叫后开叫人 3S，扣叫人 3+ 黑桃：4S"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "S", lastBidLevel: "3", spades: "3+" }
+    action: "4S"
+    priority: 95
+
+  - id: cue_follow_3h_3nt
+    description: "扣叫后开叫人 3H，扣叫人无 3 张红桃但有扣叫花色挡张：3NT"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "H", lastBidLevel: "3", cueSuitStopper: true }
+    action: "3NT"
+    priority: 94
+
+  - id: cue_follow_3s_3nt
+    description: "扣叫后开叫人 3S，扣叫人无 3 张黑桃但有扣叫花色挡张：3NT"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "S", lastBidLevel: "3", cueSuitStopper: true }
+    action: "3NT"
+    priority: 94
+
+  - id: cue_follow_3h_4h_fallback
+    description: "扣叫后开叫人 3H，扣叫人无挡张：4H 进局"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "H", lastBidLevel: "3" }
+    action: "4H"
+    priority: 90
+
+  - id: cue_follow_3s_4s_fallback
+    description: "扣叫后开叫人 3S，扣叫人无挡张：4S 进局"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "S", lastBidLevel: "3" }
+    action: "4S"
+    priority: 90
+
+  - id: slam_4nt_3h
+    description: "扣叫后开叫人 3H，扣叫人 18+ 且 3+ 红桃：4NT 满贯试探"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "H", lastBidLevel: "3", hearts: "3+", hcp: "18+" }
+    action: "4NT"
+    priority: 99
+
+  - id: slam_4nt_3s
+    description: "扣叫后开叫人 3S，扣叫人 18+ 且 3+ 黑桃：4NT 满贯试探"
+    sequence: ".*"
+    when: { myCueBid: true, lastBidSuit: "S", lastBidLevel: "3", spades: "3+", hcp: "18+" }
+    action: "4NT"
+    priority: 99
+
+  - id: blackwood_5c_0
+    description: "4NT Blackwood 应答：0 A 叫 5C"
+    sequence: ".*"
+    when: { partnerBlackwood: true, aces: "0" }
+    action: "5C"
+    priority: 99
+
+  - id: blackwood_5c_4
+    description: "4NT Blackwood 应答：4 A 叫 5C"
+    sequence: ".*"
+    when: { partnerBlackwood: true, aces: "4" }
+    action: "5C"
+    priority: 99
+
+  - id: blackwood_5d_1
+    description: "4NT Blackwood 应答：1 A 叫 5D"
+    sequence: ".*"
+    when: { partnerBlackwood: true, aces: "1" }
+    action: "5D"
+    priority: 99
+
+  - id: blackwood_5h_2
+    description: "4NT Blackwood 应答：2 A 叫 5H"
+    sequence: ".*"
+    when: { partnerBlackwood: true, aces: "2" }
+    action: "5H"
+    priority: 99
+
+  - id: blackwood_5s_3
+    description: "4NT Blackwood 应答：3 A 叫 5S"
+    sequence: ".*"
+    when: { partnerBlackwood: true, aces: "3" }
+    action: "5S"
+    priority: 99
+
+  - id: slam_6h
+    description: "Blackwood 后联手 3+ A、约定红桃：6H"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "H", combinedAces: "3+" }
+    action: "6H"
+    priority: 99
+
+  - id: slam_5h_over_5c
+    description: "Blackwood 后联手不足 3 A、同伴 5C 应答：5H 止叫"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "H", lastBidSuit: "C" }
+    action: "5H"
+    priority: 98
+
+  - id: slam_5h_over_5d
+    description: "Blackwood 后联手不足 3 A、同伴 5D 应答：5H 止叫"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "H", lastBidSuit: "D" }
+    action: "5H"
+    priority: 98
+
+  - id: slam_6s
+    description: "Blackwood 后联手 3+ A、约定黑桃：6S"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "S", combinedAces: "3+" }
+    action: "6S"
+    priority: 99
+
+  - id: slam_5s_over_5c
+    description: "Blackwood 后联手不足 3 A、同伴 5C 应答：5S 止叫"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "S", lastBidSuit: "C" }
+    action: "5S"
+    priority: 98
+
+  - id: slam_5s_over_5d
+    description: "Blackwood 后联手不足 3 A、同伴 5D 应答：5S 止叫"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "S", lastBidSuit: "D" }
+    action: "5S"
+    priority: 98
+
+  - id: slam_5s_over_5h
+    description: "Blackwood 后联手不足 3 A、同伴 5H 应答：5S 止叫"
+    sequence: ".*"
+    when: { myBlackwood: true, agreedSuit: "S", lastBidSuit: "H" }
+    action: "5S"
+    priority: 98
+
+  - id: natreply_support_h
+    description: "同伴强自然新花为红桃且开叫人 3+ 支持：4H"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "H", hearts: "3+" }
+    action: "4H"
+    priority: 99
+
+  - id: natreply_support_s
+    description: "同伴强自然新花为黑桃且开叫人 3+ 支持：4S"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "S", spades: "3+" }
+    action: "4S"
+    priority: 99
+
+  - id: natreply_own_h
+    description: "同伴强自然新花后，开叫人 5+ 红桃：3H 显示长套"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, hearts: "5+", opponentSuitNot: "H" }
+    action: "3H"
+    priority: 98
+
+  - id: natreply_own_s
+    description: "同伴强自然新花后，开叫人 5+ 黑桃：3S 显示长套"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, spades: "5+", opponentSuitNot: "S" }
+    action: "3S"
+    priority: 98
+
+  - id: natreply_h4_c
+    description: "同伴强自然新花为梅花、开叫人 4+ 红桃：3H 显示四张高花"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "C", hearts: "4+", opponentSuitNot: "H" }
+    action: "3H"
+    priority: 97
+
+  - id: natreply_h4_d
+    description: "同伴强自然新花为方块、开叫人 4+ 红桃：3H 显示四张高花"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "D", hearts: "4+", opponentSuitNot: "H" }
+    action: "3H"
+    priority: 97
+
+  - id: natreply_s4_c
+    description: "同伴强自然新花为梅花、开叫人 4+ 黑桃：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "C", spades: "4+", opponentSuitNot: "S" }
+    action: "3S"
+    priority: 97
+
+  - id: natreply_s4_d
+    description: "同伴强自然新花为方块、开叫人 4+ 黑桃：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "D", spades: "4+", opponentSuitNot: "S" }
+    action: "3S"
+    priority: 97
+
+  - id: natreply_s4_h
+    description: "同伴强自然新花为红桃、开叫人 4+ 黑桃：3S 显示四张高花"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "H", spades: "4+", opponentSuitNot: "S" }
+    action: "3S"
+    priority: 97
+
+  - id: natreply_h4_s
+    description: "同伴强自然新花为黑桃、开叫人 4+ 红桃：3H 显示四张高花"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "S", hearts: "4+", opponentSuitNot: "H" }
+    action: "3H"
+    priority: 97
+
+  - id: natreply_3nt_stopper
+    description: "同伴强自然新花后，开叫人敌方花色有挡张：3NT"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, opponentSuitStopper: true }
+    action: "3NT"
+    priority: 96
+
+  - id: natreply_support_c
+    description: "同伴强自然新花为梅花且开叫人 3+ 支持：5C"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "C", clubs: "3+" }
+    action: "5C"
+    priority: 95
+
+  - id: natreply_support_d
+    description: "同伴强自然新花为方块且开叫人 3+ 支持：5D"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, partnerSuit: "D", diamonds: "3+" }
+    action: "5D"
+    priority: 95
+
+  - id: natreply_own_c
+    description: "同伴强自然新花后，开叫人 5+ 梅花：3C 显示长套"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, clubs: "5+", opponentSuitNot: "C" }
+    action: "3C"
+    priority: 94
+
+  - id: natreply_own_d
+    description: "同伴强自然新花后，开叫人 5+ 方块：3D 显示长套"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, diamonds: "5+", opponentSuitNot: "D" }
+    action: "3D"
+    priority: 94
+
+  - id: natreply_3nt_balanced
+    description: "同伴强自然新花后，开叫人均型：3NT 兜底"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true, balanced: true }
+    action: "3NT"
+    priority: 93
+
+  - id: natreply_3nt_fallback
+    description: "同伴强自然新花后，开叫人无其他合适叫品：3NT 兜底"
+    sequence: ".*"
+    when: { partnerForcingNewSuit: true }
+    action: "3NT"
+    priority: 90
+
+  - id: natfollow_3nt_h
+    description: "同伴强自然新花后开叫人 3NT，应叫人 6+ 红桃：4H"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "NT", lastBidLevel: "3", mySuit: "H", hearts: "6+" }
+    action: "4H"
+    priority: 95
+
+  - id: natfollow_3nt_s
+    description: "同伴强自然新花后开叫人 3NT，应叫人 6+ 黑桃：4S"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "NT", lastBidLevel: "3", mySuit: "S", spades: "6+" }
+    action: "4S"
+    priority: 95
+
+  - id: natfollow_3h_4h
+    description: "同伴强自然新花后开叫人 3H，应叫人 3+ 红桃：4H"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "H", lastBidLevel: "3", hearts: "3+" }
+    action: "4H"
+    priority: 95
+
+  - id: natfollow_3s_4s
+    description: "同伴强自然新花后开叫人 3S，应叫人 3+ 黑桃：4S"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "S", lastBidLevel: "3", spades: "3+" }
+    action: "4S"
+    priority: 95
+
+  - id: natfollow_3h_3nt
+    description: "同伴强自然新花后开叫人 3H，应叫人无 3 张红桃但有敌方花色挡张：3NT"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "H", lastBidLevel: "3", opponentSuitStopper: true }
+    action: "3NT"
+    priority: 94
+
+  - id: natfollow_3s_3nt
+    description: "同伴强自然新花后开叫人 3S，应叫人无 3 张黑桃但有敌方花色挡张：3NT"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "S", lastBidLevel: "3", opponentSuitStopper: true }
+    action: "3NT"
+    priority: 94
+
+  - id: natfollow_3h_4h_fallback
+    description: "同伴强自然新花后开叫人 3H，应叫人无挡张：4H 进局"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "H", lastBidLevel: "3" }
+    action: "4H"
+    priority: 90
+
+  - id: natfollow_3s_4s_fallback
+    description: "同伴强自然新花后开叫人 3S，应叫人无挡张：4S 进局"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "S", lastBidLevel: "3" }
+    action: "4S"
+    priority: 90
+
+  - id: natfollow_3c_3nt
+    description: "同伴强自然新花后开叫人 3C，应叫人有敌方花色挡张：3NT"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "C", lastBidLevel: "3", opponentSuitStopper: true }
+    action: "3NT"
+    priority: 94
+
+  - id: natfollow_3d_3nt
+    description: "同伴强自然新花后开叫人 3D，应叫人有敌方花色挡张：3NT"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "D", lastBidLevel: "3", opponentSuitStopper: true }
+    action: "3NT"
+    priority: 94
+
+  - id: natfollow_3c_5c
+    description: "同伴强自然新花后开叫人 3C，应叫人 3+ 梅花：5C"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "C", lastBidLevel: "3", clubs: "3+" }
+    action: "5C"
+    priority: 93
+
+  - id: natfollow_3d_5d
+    description: "同伴强自然新花后开叫人 3D，应叫人 3+ 方块：5D"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "D", lastBidLevel: "3", diamonds: "3+" }
+    action: "5D"
+    priority: 93
+
+  - id: natfollow_3c_3nt_fallback
+    description: "同伴强自然新花后开叫人 3C，应叫人无更好叫品：3NT"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "C", lastBidLevel: "3" }
+    action: "3NT"
+    priority: 90
+
+  - id: natfollow_3d_3nt_fallback
+    description: "同伴强自然新花后开叫人 3D，应叫人无更好叫品：3NT"
+    sequence: ".*"
+    when: { myForcingNewSuit: true, lastBidSuit: "D", lastBidLevel: "3" }
+    action: "3NT"
+    priority: 90
 
   # ------------------------------------------------------------------
   # 兜底规则（写在末尾；多个兜底应对不同情景）

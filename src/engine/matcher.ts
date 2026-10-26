@@ -1,12 +1,13 @@
 import type { Hand } from '../models/hand';
-import type { BidRecord, Position, StyleLevel } from '../models/gameState';
-import { getPartner, ORDER } from '../models/gameState';
+import type { BidRecord, BidSuit, Position, StyleLevel } from '../models/gameState';
+import { bidSuitToIndex, getPartner, ORDER } from '../models/gameState';
+import type { SuitIndex } from '../models/card';
 import { callToString, isCallLegal, parseAction } from '../core/bidding/validator';
 import type { BidCandidate, BiddingRule, StyleParams } from './types';
 import { STYLE_PARAMS } from './types';
 import { checkConditions, conditionSpecificity, type ConditionContext } from './conditions';
 import { inferPartnerHcpMin } from './partnerInference';
-import { hcp } from '../core/evaluate';
+import { hcp, type AdjustmentContext } from '../core/evaluate';
 
 export { callToString };
 
@@ -23,6 +24,165 @@ function splitToken(tok: string): [string | null, string] {
   const i = tok.indexOf(':');
   if (i === -1) return [null, tok];
   return [tok.slice(0, i).toUpperCase(), tok.slice(i + 1)];
+}
+
+/**
+ * 从叫牌历史推断调整点上下文：
+ * - 将牌花色：搭档双方第一次叫到同一门花色，视为已显示配合；
+ * - 敌方花色：对手最后一次实质性花色叫牌。
+ * 这是规则引擎的近似推断，不追求完整约定卡语义。
+ */
+export function buildAdjustmentContext(
+  history: BidRecord[],
+  currentPos: Position,
+): AdjustmentContext {
+  const partnerPos = getPartner(currentPos);
+  const mine = new Set<SuitIndex>();
+  const partner = new Set<SuitIndex>();
+  let trumpSuit: SuitIndex | undefined;
+
+  for (const record of history) {
+    if (record.call.type !== 'bid' || record.call.suit === 'NT') continue;
+    const suit = bidSuitToIndex(record.call.suit);
+    if (record.position === currentPos) {
+      if (partner.has(suit)) {
+        trumpSuit = suit;
+        break;
+      }
+      mine.add(suit);
+    } else if (record.position === partnerPos) {
+      if (mine.has(suit)) {
+        trumpSuit = suit;
+        break;
+      }
+      partner.add(suit);
+    }
+  }
+
+  let opponentSuit: SuitIndex | undefined;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const record = history[i];
+    if (record.position === currentPos || record.position === partnerPos) continue;
+    if (record.call.type === 'bid' && record.call.suit !== 'NT') {
+      opponentSuit = bidSuitToIndex(record.call.suit);
+      break;
+    }
+  }
+
+  return {
+    trumpSuit,
+    partnerSupported: trumpSuit !== undefined,
+    opponentSuit,
+  };
+}
+
+/**
+ * 从叫牌历史推断“进程上下文”：
+ * - 扣叫：叫了敌方此前已经叫过的花色；
+ * - 自然新花：规则 id 以 nat_ 开头的强自然叫品；
+ * - Blackwood：4NT 及同伴的 5C/5D/5H/5S 应答。
+ *
+ * 这些信息只服务于规则条件，不参与计分或调整点。
+ */
+export function buildAuctionContext(
+  history: BidRecord[],
+  currentPos: Position,
+): Partial<ConditionContext> {
+  const partnerPos = getPartner(currentPos);
+  const opponentSuits = new Set<SuitIndex>();
+
+  let myLastBidWasCue = false;
+  let partnerLastBidWasCue = false;
+  let myLastBidWasNaturalSuit = false;
+  let partnerLastBidWasNaturalSuit = false;
+  let myLastBidRuleId: string | undefined;
+  let partnerLastBidRuleId: string | undefined;
+  let mySuit: string | undefined;
+  let partnerSuit: string | undefined;
+  let lastBid: { level: number; suit: BidSuit; position: Position } | undefined;
+  let cueBid: { suit: string; level: number } | undefined;
+  let cueBidActive = false;
+  let myBlackwood = false;
+  let partnerBlackwood = false;
+  let myBlackwoodAgreedSuit: string | undefined;
+  let partnerBlackwoodAgreedSuit: string | undefined;
+
+  for (const record of history) {
+    if (record.call.type !== 'bid') continue;
+    const { level, suit } = record.call;
+    lastBid = { level, suit, position: record.position };
+    const isSuit = suit !== 'NT';
+    const suitIndex = isSuit ? bidSuitToIndex(suit) : undefined;
+    const isCue = isSuit && opponentSuits.has(suitIndex!);
+
+    if (record.position === currentPos) {
+      myLastBidWasCue = isCue;
+      myLastBidWasNaturalSuit = isSuit && !isCue;
+      myLastBidRuleId = record.ruleId;
+      if (isSuit && !isCue) mySuit = suit;
+      if (isCue) {
+        cueBid = { suit, level };
+        cueBidActive = true;
+      }
+      myBlackwood = suit === 'NT' && level === 4;
+      if (myBlackwood) myBlackwoodAgreedSuit = partnerSuit;
+    } else if (record.position === partnerPos) {
+      partnerLastBidWasCue = isCue;
+      partnerLastBidWasNaturalSuit = isSuit && !isCue;
+      partnerLastBidRuleId = record.ruleId;
+      if (isSuit && !isCue) partnerSuit = suit;
+      if (isCue) {
+        cueBid = { suit, level };
+        cueBidActive = true;
+      }
+      partnerBlackwood = suit === 'NT' && level === 4;
+      if (partnerBlackwood) partnerBlackwoodAgreedSuit = mySuit;
+    } else if (isSuit) {
+      opponentSuits.add(suitIndex!);
+    }
+  }
+
+  let partnerAcesShown: number | undefined;
+  let partnerAcesAmbiguous = false;
+  if (
+    myBlackwood &&
+    lastBid?.position === partnerPos &&
+    lastBid.level === 5 &&
+    lastBid.suit !== 'NT'
+  ) {
+    if (lastBid.suit === 'C') {
+      partnerAcesShown = 0;
+      partnerAcesAmbiguous = true;
+    } else if (lastBid.suit === 'D') {
+      partnerAcesShown = 1;
+    } else if (lastBid.suit === 'H') {
+      partnerAcesShown = 2;
+    } else if (lastBid.suit === 'S') {
+      partnerAcesShown = 3;
+    }
+  }
+
+  return {
+    partnerCueBid: partnerLastBidWasCue,
+    myCueBid: myLastBidWasCue,
+    cueBidActive,
+    cueBidSuit: cueBid?.suit,
+    cueBidLevel: cueBid?.level,
+    partnerSuit,
+    mySuit,
+    partnerNaturalSuit: partnerLastBidWasNaturalSuit,
+    myNaturalSuit: myLastBidWasNaturalSuit,
+    partnerForcingNewSuit:
+      partnerLastBidWasNaturalSuit && partnerLastBidRuleId?.startsWith('nat_') === true,
+    myForcingNewSuit: myLastBidWasNaturalSuit && myLastBidRuleId?.startsWith('nat_') === true,
+    lastBidSuit: lastBid?.suit,
+    lastBidLevel: lastBid?.level,
+    partnerBlackwood: partnerBlackwood && cueBidActive,
+    myBlackwood: myBlackwood && cueBidActive,
+    agreedSuit: myBlackwood ? myBlackwoodAgreedSuit : partnerBlackwood ? partnerBlackwoodAgreedSuit : undefined,
+    partnerAcesShown,
+    partnerAcesAmbiguous,
+  };
 }
 
 /**
@@ -74,7 +234,16 @@ export function findBidCandidates(
   const partnerPos = getPartner(currentPos);
   const partnerHcpMin = inferPartnerHcpMin(history, partnerPos);
   const combinedHcpMin = partnerHcpMin === undefined ? undefined : hcp(hand) + partnerHcpMin;
-  const context: ConditionContext = { openingSeat, partnerOpened, partnerHcpMin, combinedHcpMin };
+  const adjustment = buildAdjustmentContext(history, currentPos);
+  const auctionContext = buildAuctionContext(history, currentPos);
+  const context: ConditionContext = {
+    openingSeat,
+    partnerOpened,
+    partnerHcpMin,
+    combinedHcpMin,
+    adjustment,
+    ...auctionContext,
+  };
   const out: BidCandidate[] = [];
   const partnerFirstBid = history.find((r) => r.position === partnerPos && r.call.type === 'bid');
   for (const rule of rules) {

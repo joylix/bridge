@@ -92,6 +92,407 @@ describe('叫牌 AI（bidAI）', () => {
     expect(call).toEqual({ type: 'bid', level: 1, suit: 'NT' });
   });
 
+  it('精确制：赌博 3NT 开叫（7 张坚固低花）', () => {
+    const clubs = parseHand('S32 H32 D32 CAKQJ432'); // 10 HCP, 7 张坚固梅花
+    expect(
+      bidAI(clubs, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) }),
+    ).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+
+    const diamonds = parseHand('S32 H32 DAKQJ432 C32'); // 10 HCP, 7 张坚固方块
+    expect(
+      bidAI(diamonds, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) }),
+    ).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：破低花不构成赌博 3NT，仍按阻击叫', () => {
+    const hand = parseHand('S32 H32 D32 CAKJ5432'); // 8 HCP, 7 张梅花缺 Q
+    const call = bidAI(hand, [], 'S', null, precision, { style: 1, randomness: 0, rng: makeRng(1) });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'C' });
+  });
+
+  it('精确制：1S-3S 后按调整点进局（11 点 6 张黑桃单张 → AP 15）', () => {
+    const hand = parseHand('SAKQJ32 H2 D543 CJ98'); // 11 HCP, 6-1-3-3
+    const h = history(['N', '1S'], ['E', 'Pass'], ['S', '3S'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 3, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 4, suit: 'S' });
+  });
+
+  it('精确制：1H-(1S) 强牌扣叫 2S（16+、黑桃单张，有红桃支持）', () => {
+    const hand = parseHand('SA HAKQ2 DQJ32 C5432'); // 16 HCP, 1-4-4-4
+    const h = history(['N', '1H'], ['E', '1S']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 2, suit: 'S' });
+  });
+
+  it('精确制：1H-(1S) 有 5 张梅花时先叫自然长套 2C，不扣叫', () => {
+    const hand = parseHand('SA2 HQ2 DKQJ3 CAQ432'); // 17 HCP, 2-2-4-5
+    const h = history(['N', '1H'], ['E', '1S']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 2, suit: 'C' });
+  });
+
+  it('精确制：1H-(1S) 无长旁套、Ax 黑桃时仍扣叫 2S', () => {
+    const hand = parseHand('SA2 HQ32 DKQJ3 CAQ43'); // 17 HCP, 2-3-4-4
+    const h = history(['N', '1H'], ['E', '1S']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 2, suit: 'S' });
+  });
+
+  it('精确制：1H-(1S) 有 Kx 黑桃但无第一控制时不扣叫，直接 4H', () => {
+    const hand = parseHand('SK2 HAKQ2 DQJT CJ432'); // 16 HCP, 2-4-3-4
+    const h = history(['N', '1H'], ['E', '1S']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 4, suit: 'H' });
+  });
+
+  it('精确制：1S-(2H) 强牌扣叫 3H（Ax 红桃）', () => {
+    const hand = parseHand('SAKQ2 H2 DAJ32 CQ432'); // 16 HCP, 4-1-4-4
+    const h = history(['N', '1S'], ['E', '2H']);
+    const call = bidAI(hand, h, 'S', { level: 2, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'H' });
+  });
+
+  it('精确制：强牌扣叫后开叫人 5 张红桃再叫 3H', () => {
+    const hand = parseHand('S32 HKJ543 DAJ2 CQ32'); // 11 HCP, 2-5-3-3
+    const h = history(['N', '1H'], ['E', '1S'], ['S', '2S'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'H' });
+  });
+
+  it('精确制：强牌扣叫后开叫人 5 张黑桃再叫 3S', () => {
+    const hand = parseHand('SAKJ43 H32 DQ32 CQ32'); // 12 HCP, 5-2-3-3
+    const h = history(['N', '1S'], ['E', '2H'], ['S', '3H'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 3, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'S' });
+  });
+
+  it('精确制：强牌扣叫后扣叫人 3 张以上红桃支持进局 4H', () => {
+    const hand = parseHand('SA HAKQ2 DQJ32 C5432'); // 16 HCP, 1-4-4-4
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2S'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 4, suit: 'H' });
+  });
+
+  it('精确制：强牌扣叫后扣叫人无支持但有黑桃挡张叫 3NT', () => {
+    const hand = parseHand('SA2 HQ2 DKQJ3 CAQ432'); // 17 HCP, 2-2-4-5
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2S'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：1D-(1H)-2H 后开叫人 5 张红桃不能把敌方花色当自然套，改叫 3NT', () => {
+    const hand = parseHand('SA2 HKQJ32 DKQJ2 C2'); // 14 HCP, 2-5-5-1
+    const h = history(['N', '1D'], ['E', '1H'], ['S', '2H'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：1C-(1D)-2D 后开叫人 5 张方块不能把敌方花色当自然套，改叫 3NT', () => {
+    const hand = parseHand('SAK2 HQ32 DKQJ32 C32'); // 14 HCP, 3-3-5-2
+    const h = history(['N', '1C'], ['E', '1D'], ['S', '2D'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'D' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：同伴自然 1S 后开叫人 5 张红桃是敌方花色，不能自然叫 3H', () => {
+    const hand = parseHand('SA2 HKQJ32 DKQJ2 C2'); // 14 HCP, 2-5-5-1
+    const h = history(['N', '1D'], ['E', '1H'], ['S', '1S'], ['W', 'Pass']);
+    h[2].ruleId = 'nat_1d_over_1h_1s';
+    const call = bidAI(hand, h, 'N', { level: 1, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：同伴自然 2D 后开叫人 5 张梅花是敌方花色，不能自然叫 3C', () => {
+    const hand = parseHand('SA2 HK2 DQ32 CKQJ32'); // 13 HCP, 2-2-3-6
+    const h = history(['N', '1C'], ['E', '2C'], ['S', '2D'], ['W', 'Pass']);
+    h[2].ruleId = 'nat_1c_over_2c_2d';
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'D' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：1D-(1H) 强牌扣叫 2H（红桃单张、无长旁套）', () => {
+    const hand = parseHand('SAKQ2 H2 DAJ32 CQ432'); // 16 HCP, 4-1-4-4
+    const h = history(['N', '1D'], ['E', '1H']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 2, suit: 'H' });
+  });
+
+  it('精确制：1D-(1H) 有 5 张黑桃时先叫自然 1S', () => {
+    const hand = parseHand('SAKQ32 H2 DAJ3 CQ432'); // 16 HCP, 5-1-3-4
+    const h = history(['N', '1D'], ['E', '1H']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'S' });
+  });
+
+  it('精确制：1C-(1D) 强牌扣叫 2D（方块单张、无 5+ 长套）', () => {
+    const hand = parseHand('SAKQ2 HAKQ2 D2 C5432'); // 18 HCP, 4-4-1-4
+    const h = history(['N', '1C'], ['E', '1D']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'D' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 2, suit: 'D' });
+  });
+
+  it('精确制：1C-(1D) 有 5 张红桃时先叫自然 1H', () => {
+    const hand = parseHand('SAKQ2 HAKQJ2 D2 C543'); // 19 HCP, 4-5-1-3
+    const h = history(['N', '1C'], ['E', '1D']);
+    const call = bidAI(hand, h, 'S', { level: 1, suit: 'D' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 1, suit: 'H' });
+  });
+
+  it('精确制：1D-(1H)-2H 后开叫人 5 张黑桃再叫 3S', () => {
+    const hand = parseHand('SAKQJ2 H32 DQ32 CQ32'); // 14 HCP, 5-2-3-3
+    const h = history(['N', '1D'], ['E', '1H'], ['S', '2H'], ['W', 'Pass']);
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'S' });
+  });
+
+  it('精确制：1D-(1H)-2H-3S 后扣叫人 3 张黑桃进局 4S', () => {
+    const hand = parseHand('SQ32 HA2 DKQJ2 CA432'); // 16 HCP, 3-2-4-4
+    const h = history(
+      ['N', '1D'],
+      ['E', '1H'],
+      ['S', '2H'],
+      ['W', 'Pass'],
+      ['N', '3S'],
+      ['E', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 4, suit: 'S' });
+  });
+
+  it('精确制：1D-(1H)-2H-3S 后扣叫人无支持但有红桃挡张叫 3NT', () => {
+    const hand = parseHand('SQ2 HA2 DKQJ32 CA432'); // 16 HCP, 2-2-5-4
+    const h = history(
+      ['N', '1D'],
+      ['E', '1H'],
+      ['S', '2H'],
+      ['W', 'Pass'],
+      ['N', '3S'],
+      ['E', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'S' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
+  it('精确制：扣叫后 18+ 且 3+ 支持叫 4NT 满贯试探', () => {
+    const hand = parseHand('SA HKQJ2 DKQJ2 CKQJ2'); // 19 HCP, 1-4-4-4
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2S'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 4, suit: 'NT' });
+  });
+
+  it('精确制：4NT 后开叫人按 A 数应答 5H（2 A）', () => {
+    const hand = parseHand('S32 HKJ543 DAJ2 CA32'); // 13 HCP, 2-5-3-3, 2 A
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2S'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+      ['S', '4NT'],
+      ['W', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'N', { level: 4, suit: 'NT' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 5, suit: 'H' });
+  });
+
+  it('精确制：Blackwood 后联手 3 A 叫 6H', () => {
+    const hand = parseHand('SA HKQJ2 DKQJ2 CKQJ2'); // 19 HCP, 1 A
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2S'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+      ['S', '4NT'],
+      ['W', 'Pass'],
+      ['N', '5H'],
+      ['E', 'Pass'],
+    );
+    const call = bidAI(hand, h, 'S', { level: 5, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 6, suit: 'H' });
+  });
+
+  it('精确制：同伴自然强新花 2C 后开叫人 5 张红桃再叫 3H', () => {
+    const hand = parseHand('S32 HKJ543 DAJ2 CQ32'); // 11 HCP, 2-5-3-3
+    const h = history(['N', '1H'], ['E', '1S'], ['S', '2C'], ['W', 'Pass']);
+    h[2].ruleId = 'nat_1h_over_1s_2c';
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'C' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'H' });
+  });
+
+  it('精确制：同伴自然强新花 2C 后开叫人 3 张梅花支持叫 5C', () => {
+    const hand = parseHand('S32 HQJ5 DAQJ32 C432'); // 10 HCP, 2-3-5-3
+    const h = history(['N', '1D'], ['E', '1S'], ['S', '2C'], ['W', 'Pass']);
+    h[2].ruleId = 'nat_1d_over_1s_2c';
+    const call = bidAI(hand, h, 'N', { level: 2, suit: 'C' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 5, suit: 'C' });
+  });
+
+  it('精确制：自然强新花 2C 后开叫人 3H，应叫人 3+ 红桃进局 4H', () => {
+    const hand = parseHand('S2 HAKQ2 DQJ3 CK5432'); // 15 HCP, 1-4-3-5
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2C'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+    );
+    h[2].ruleId = 'nat_1h_over_1s_2c';
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 4, suit: 'H' });
+  });
+
+  it('精确制：自然强新花 2C 后开叫人 3H，应叫人无支持但有黑桃挡张叫 3NT', () => {
+    const hand = parseHand('SA2 HQ2 DQJ3 CAK5432'); // 16 HCP, 2-2-4-5
+    const h = history(
+      ['N', '1H'],
+      ['E', '1S'],
+      ['S', '2C'],
+      ['W', 'Pass'],
+      ['N', '3H'],
+      ['E', 'Pass'],
+    );
+    h[2].ruleId = 'nat_1h_over_1s_2c';
+    const call = bidAI(hand, h, 'S', { level: 3, suit: 'H' }, precision, {
+      style: 1,
+      randomness: 0,
+      rng: makeRng(1),
+    });
+    expect(call).toEqual({ type: 'bid', level: 3, suit: 'NT' });
+  });
+
   it('精确制：15 点均型对 1C 不争叫 1NT（争叫下限 16）', () => {
     const hand = parseHand('SAKJ HAK3 D5432 C876'); // 15 HCP
     const h = history(['E', '1C']);

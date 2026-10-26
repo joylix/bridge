@@ -60,6 +60,13 @@ import {
   type RuleValidationResult,
 } from '../engine/loader';
 import { canEditRules as canEditRulesFor, type UserRole } from '../permissions';
+import {
+  HINTS_TRIAL_DEALS,
+  HINTS_TRIAL_ENDED_STORAGE_KEY,
+  HINTS_TRIAL_STORAGE_KEY,
+  canEnableHints as canEnableHintsFor,
+  hintsTrialRemaining as hintsTrialRemainingFor,
+} from '../membership';
 
 /** AI 叫牌前的思考延迟（出牌节奏由 PLAY_DISPLAY_MS 控制） */
 export const AI_DELAY_MS = 800;
@@ -192,6 +199,9 @@ export const useGameStore = defineStore('game', () => {
   // —— 规则编辑权限（当前所有用户可改；后续切换为仅系统管理员）——
   const currentUserRole = ref<UserRole>('user');
   const canEditRules = computed(() => canEditRulesFor(currentUserRole.value));
+
+  // —— 会员状态（当前无账号体系，默认非会员；后续由登录态注入）——
+  const isMember = ref(false);
   /** 规则覆盖版本号：保存/恢复/切换后自增，用于驱动 UI 重新读取 */
   const ruleRevision = ref(0);
 
@@ -208,8 +218,9 @@ export const useGameStore = defineStore('game', () => {
   const autoPilot = ref(false);
 
   /**
-   * 是否显示提示与推荐（叫牌含义 / 推荐叫品 / 推荐出牌）。
-   * 默认开启；用户可在设置中关闭。存储在 localStorage，刷新后保留。
+   * “推荐 + 浮动层解释”开关（推荐叫品 / 叫牌含义 / 推荐出牌）。
+   * 默认开启；会员可自由开关。非会员可试用前 HINTS_TRIAL_DEALS 副，
+   * 用完后自动关闭且不能再次开启。开关状态和试用进度都保存在 localStorage。
    */
   const SHOW_HINTS_KEY = 'bridge.showHints.v1';
   function readShowHints(): boolean {
@@ -220,7 +231,55 @@ export const useGameStore = defineStore('game', () => {
       return true;
     }
   }
-  const showHints = ref(readShowHints());
+  function readHintsTrialDeals(): number {
+    try {
+      const raw = globalThis.localStorage?.getItem(HINTS_TRIAL_STORAGE_KEY);
+      const value = Number.parseInt(raw ?? '0', 10);
+      if (!Number.isFinite(value)) return 0;
+      return Math.min(HINTS_TRIAL_DEALS, Math.max(0, value));
+    } catch {
+      return 0;
+    }
+  }
+  function readHintsTrialEnded(): boolean {
+    try {
+      return globalThis.localStorage?.getItem(HINTS_TRIAL_ENDED_STORAGE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+  const hintsTrialDealsUsed = ref(readHintsTrialDeals());
+  const hintsTrialEnded = ref(readHintsTrialEnded());
+  const showHints = ref(
+    readShowHints() &&
+      (isMember.value ||
+        (!hintsTrialEnded.value && hintsTrialDealsUsed.value <= HINTS_TRIAL_DEALS)),
+  );
+  const hintsTrialRemaining = computed(() =>
+    hintsTrialRemainingFor(isMember.value, hintsTrialDealsUsed.value),
+  );
+  const hintsTrialExhausted = computed(() => !isMember.value && hintsTrialEnded.value);
+  const canEnableHints = computed(
+    () =>
+      isMember.value ||
+      (!hintsTrialEnded.value && canEnableHintsFor(false, hintsTrialDealsUsed.value)),
+  );
+
+  function persistHintsTrialDeals(): void {
+    try {
+      globalThis.localStorage?.setItem(HINTS_TRIAL_STORAGE_KEY, String(hintsTrialDealsUsed.value));
+    } catch {
+      // 无 localStorage 环境（测试/隐私模式）下仅保留内存状态
+    }
+  }
+
+  function persistHintsTrialEnded(): void {
+    try {
+      globalThis.localStorage?.setItem(HINTS_TRIAL_ENDED_STORAGE_KEY, hintsTrialEnded.value ? '1' : '0');
+    } catch {
+      // 无 localStorage 环境（测试/隐私模式）下仅保留内存状态
+    }
+  }
 
   /** 人类当前选择/推荐叫品的实时含义（供牌桌浮窗预览，叫牌结束或关闭提示时清空） */
   const bidPreview = ref<BidPreview | null>(null);
@@ -698,6 +757,7 @@ export const useGameStore = defineStore('game', () => {
     loopToken++; // 取消进行中的 AI 循环
     archiveCurrentDeal(); // 归档上一局
     gamesPlayed.value += 1;
+    consumeHintsTrialDeal();
     const seed = opts.seed ?? ((Date.now() >>> 0) ^ (Math.floor(Math.random() * 0xffffffff) >>> 0)) >>> 0;
     state.rngSeed = seed >>> 0;
     rng = makeRng(state.rngSeed);
@@ -745,6 +805,7 @@ export const useGameStore = defineStore('game', () => {
     loopToken++;
     archiveCurrentDeal();
     gamesPlayed.value += 1;
+    consumeHintsTrialDeal();
     const vulnerability = opts.vulnerability ?? state.vulnerability;
     beginAuction(
       parsed.hands,
@@ -828,8 +889,15 @@ export const useGameStore = defineStore('game', () => {
     signalRuleSet.settings = loaded.settings;
   }
 
-  /** 显示/隐藏所有提示与推荐；关闭时立即清空叫牌预览 */
+  /**
+   * 显示/隐藏“推荐 + 浮动层解释”；关闭时立即清空叫牌预览。
+   * 非会员试用用完后只能关闭，不能再次开启。
+   */
   function setShowHints(value: boolean): void {
+    if (value && !canEnableHints.value) {
+      state.message = `非会员推荐 + 浮动层解释试用已结束（前 ${HINTS_TRIAL_DEALS} 副）`;
+      return;
+    }
     showHints.value = value;
     if (!value) bidPreview.value = null;
     try {
@@ -837,6 +905,24 @@ export const useGameStore = defineStore('game', () => {
     } catch {
       // 无 localStorage 环境（测试/隐私模式）下仅保留内存状态
     }
+  }
+
+  /**
+   * 每开始一副新牌时累计非会员试用进度。
+   * 前 HINTS_TRIAL_DEALS 副仍可用；开始第 51 副时置为结束并自动关闭。
+   */
+  function consumeHintsTrialDeal(): void {
+    if (isMember.value) return;
+    if (hintsTrialEnded.value || hintsTrialDealsUsed.value >= HINTS_TRIAL_DEALS) {
+      if (!hintsTrialEnded.value) {
+        hintsTrialEnded.value = true;
+        persistHintsTrialEnded();
+      }
+      if (showHints.value) setShowHints(false);
+      return;
+    }
+    hintsTrialDealsUsed.value += 1;
+    persistHintsTrialDeals();
   }
 
   /** 叫牌卡更新选择/推荐时同步到牌桌浮窗 */
@@ -918,6 +1004,11 @@ export const useGameStore = defineStore('game', () => {
     currentUserRole.value = role;
   }
 
+  /** 设置会员状态（接入后台登录态后由系统注入） */
+  function setMembership(value: boolean): void {
+    isMember.value = value;
+  }
+
   /** 设置计点循环长度（8 或 16 副） */
   function setRoundSize(size: RoundSize): void {
     roundSize.value = size === 16 ? 16 : 8;
@@ -945,7 +1036,12 @@ export const useGameStore = defineStore('game', () => {
     ...toRefs(state),
     autoPilot,
     useDdsPlayAI,
+    isMember,
     showHints,
+    hintsTrialDealsUsed,
+    hintsTrialRemaining,
+    hintsTrialExhausted,
+    canEnableHints,
     bidPreview,
     dealHistory,
     gamesPlayed,
@@ -1003,6 +1099,7 @@ export const useGameStore = defineStore('game', () => {
     resetRuleSource,
     resetAllRuleOverrides,
     setCurrentUserRole,
+    setMembership,
     setAutoPilot,
     setDdsPlayEnabled,
     setRoundSize,

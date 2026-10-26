@@ -1,5 +1,15 @@
 import type { Hand } from '../models/hand';
-import { controls, distribution, hcp, isBalanced, losers, suitLength } from '../core/evaluate';
+import {
+  adjustedHcp,
+  controls,
+  distribution,
+  hasSolidSuit,
+  hcp,
+  isBalanced,
+  losers,
+  suitLength,
+  type AdjustmentContext,
+} from '../core/evaluate';
 import { getRank, getSuit } from '../models/card';
 import type { ConditionSpec, StyleParams } from './types';
 
@@ -12,6 +22,30 @@ export interface ConditionContext {
   partnerHcpMin?: number;
   /** 联手 HCP 估计下限（自己 HCP + 同伴下限） */
   combinedHcpMin?: number;
+  /** 调整点上下文（将牌配合 / 敌方花色）；由 matcher 根据叫牌历史推断 */
+  adjustment?: AdjustmentContext;
+
+  // —— 叫牌进程上下文（由 matcher 推断）——
+  partnerCueBid?: boolean;
+  myCueBid?: boolean;
+  cueBidActive?: boolean;
+  cueBidSuit?: string;
+  cueBidLevel?: number;
+  partnerSuit?: string;
+  mySuit?: string;
+  partnerNaturalSuit?: boolean;
+  myNaturalSuit?: boolean;
+  partnerForcingNewSuit?: boolean;
+  myForcingNewSuit?: boolean;
+  lastBidSuit?: string;
+  lastBidLevel?: number;
+  partnerBlackwood?: boolean;
+  myBlackwood?: boolean;
+  /** Blackwood 约定将牌（4NT 前同伴最后自然花色） */
+  agreedSuit?: string;
+  /** 同伴 Blackwood 应答显示的 A 数；5C 时用 ambiguous 标记 0/4 */
+  partnerAcesShown?: number;
+  partnerAcesAmbiguous?: boolean;
 }
 
 /**
@@ -26,6 +60,9 @@ export function checkConditions(
   context?: ConditionContext,
 ): boolean {
   if (spec.hcp !== undefined && !inRange(hcp(hand), spec.hcp, vars)) return false;
+  if (spec.adjustedHcp !== undefined && !inRange(adjustedHcp(hand, context?.adjustment), spec.adjustedHcp, vars)) {
+    return false;
+  }
   if (spec.controls !== undefined && !inRange(controls(hand), spec.controls, vars)) return false;
   if (spec.spades !== undefined && !inRange(suitLength(hand, 3), spec.spades, vars)) return false;
   if (spec.hearts !== undefined && !inRange(suitLength(hand, 2), spec.hearts, vars)) return false;
@@ -45,6 +82,84 @@ export function checkConditions(
   if (spec.aces !== undefined && !inRange(countRank(hand, 12), spec.aces, vars)) return false;
   if (spec.kings !== undefined && !inRange(countRank(hand, 11), spec.kings, vars)) return false;
   if (spec.stoppers !== undefined && !hasStoppers(hand, spec.stoppers)) return false;
+  if (spec.solidSuit !== undefined && !hasSolidSuit(hand, spec.solidSuit)) return false;
+  if (spec.noLongSuit !== undefined && hasLongSuit(hand) === spec.noLongSuit) return false;
+  if (spec.noLongSuitExcept !== undefined && !hasNoLongSuitExcept(hand, spec.noLongSuitExcept)) return false;
+  if (spec.opponentSuitFirstControl !== undefined) {
+    const opponentSuit = context?.adjustment?.opponentSuit;
+    if (opponentSuit === undefined) return false;
+    if (hasFirstRoundControl(hand, opponentSuit) !== spec.opponentSuitFirstControl) return false;
+  }
+  if (spec.opponentSuitStopper !== undefined) {
+    const opponentSuit = context?.adjustment?.opponentSuit;
+    if (opponentSuit === undefined) return false;
+    if (hasStopper(hand, opponentSuit) !== spec.opponentSuitStopper) return false;
+  }
+  if (spec.opponentSuitNot !== undefined) {
+    const opponentSuit = context?.adjustment?.opponentSuit;
+    const excludedSuit = suitLetterToIndex(spec.opponentSuitNot);
+    if (opponentSuit === undefined || excludedSuit === undefined) return false;
+    if (opponentSuit === excludedSuit) return false;
+  }
+  if (spec.cueSuitStopper !== undefined) {
+    const cueSuit = suitLetterToIndex(context?.cueBidSuit);
+    if (cueSuit === undefined) return false;
+    if (hasStopper(hand, cueSuit) !== spec.cueSuitStopper) return false;
+  }
+  if (spec.partnerCueBid !== undefined && contextBool(context?.partnerCueBid) !== spec.partnerCueBid) return false;
+  if (spec.myCueBid !== undefined && contextBool(context?.myCueBid) !== spec.myCueBid) return false;
+  if (spec.cueBidActive !== undefined && contextBool(context?.cueBidActive) !== spec.cueBidActive) return false;
+  if (spec.cueBidSuit !== undefined && normalizeSuit(context?.cueBidSuit) !== normalizeSuit(spec.cueBidSuit)) {
+    return false;
+  }
+  if (spec.cueBidSuitNot !== undefined) {
+    if (context?.cueBidSuit === undefined) return false;
+    if (normalizeSuit(context.cueBidSuit) === normalizeSuit(spec.cueBidSuitNot)) return false;
+  }
+  if (spec.cueBidLevel !== undefined) {
+    if (context?.cueBidLevel === undefined) return false;
+    if (!inRange(context.cueBidLevel, spec.cueBidLevel, vars)) return false;
+  }
+  if (spec.partnerSuit !== undefined && normalizeSuit(context?.partnerSuit) !== normalizeSuit(spec.partnerSuit)) {
+    return false;
+  }
+  if (spec.mySuit !== undefined && normalizeSuit(context?.mySuit) !== normalizeSuit(spec.mySuit)) {
+    return false;
+  }
+  if (spec.partnerNaturalSuit !== undefined && contextBool(context?.partnerNaturalSuit) !== spec.partnerNaturalSuit) {
+    return false;
+  }
+  if (spec.myNaturalSuit !== undefined && contextBool(context?.myNaturalSuit) !== spec.myNaturalSuit) return false;
+  if (
+    spec.partnerForcingNewSuit !== undefined &&
+    contextBool(context?.partnerForcingNewSuit) !== spec.partnerForcingNewSuit
+  ) {
+    return false;
+  }
+  if (spec.myForcingNewSuit !== undefined && contextBool(context?.myForcingNewSuit) !== spec.myForcingNewSuit) {
+    return false;
+  }
+  if (spec.lastBidSuit !== undefined && normalizeSuit(context?.lastBidSuit) !== normalizeSuit(spec.lastBidSuit)) {
+    return false;
+  }
+  if (spec.lastBidLevel !== undefined) {
+    if (context?.lastBidLevel === undefined) return false;
+    if (!inRange(context.lastBidLevel, spec.lastBidLevel, vars)) return false;
+  }
+  if (spec.partnerBlackwood !== undefined && contextBool(context?.partnerBlackwood) !== spec.partnerBlackwood) {
+    return false;
+  }
+  if (spec.myBlackwood !== undefined && contextBool(context?.myBlackwood) !== spec.myBlackwood) return false;
+  if (spec.agreedSuit !== undefined && normalizeSuit(context?.agreedSuit) !== normalizeSuit(spec.agreedSuit)) {
+    return false;
+  }
+  if (spec.combinedAces !== undefined) {
+    if (context?.partnerAcesShown === undefined) return false;
+    const ownAces = countRank(hand, 12);
+    const shownAces =
+      context.partnerAcesAmbiguous === true && ownAces === 0 ? 4 : context.partnerAcesShown;
+    if (!inRange(ownAces + shownAces, spec.combinedAces, vars)) return false;
+  }
   if (spec.partnerOpened !== undefined) {
     if (context?.partnerOpened === undefined) return false;
     if (context.partnerOpened !== spec.partnerOpened) return false;
@@ -69,6 +184,37 @@ function hasMajor(hand: Hand, minLength: number): boolean {
   return suitLength(hand, 2) >= minLength || suitLength(hand, 3) >= minLength;
 }
 
+/** 是否至少有一门 5+ 张花色 */
+function hasLongSuit(hand: Hand): boolean {
+  return ([0, 1, 2, 3] as const).some((suit) => suitLength(hand, suit) >= 5);
+}
+
+/** 除指定花色外，其余花色均不超过 4 张 */
+function hasNoLongSuitExcept(hand: Hand, except: string): boolean {
+  const allowed = new Set(
+    except
+      .toUpperCase()
+      .split('')
+      .map((ch) => suitLetterToIndex(ch))
+      .filter((suit): suit is 0 | 1 | 2 | 3 => suit !== undefined),
+  );
+  return ([0, 1, 2, 3] as const).every((suit) => allowed.has(suit) || suitLength(hand, suit) <= 4);
+}
+
+function suitLetterToIndex(letter: string | undefined): 0 | 1 | 2 | 3 | undefined {
+  if (letter === undefined) return undefined;
+  const map: Record<string, 0 | 1 | 2 | 3> = { C: 0, D: 1, H: 2, S: 3 };
+  return map[letter.trim().toUpperCase()];
+}
+
+function normalizeSuit(letter: string | undefined): string | undefined {
+  return letter?.trim().toUpperCase();
+}
+
+function contextBool(value: boolean | undefined): boolean {
+  return value === true;
+}
+
 function countRank(hand: Hand, rank: number): number {
   return hand.filter((card) => getRank(card) === rank).length;
 }
@@ -82,6 +228,14 @@ function hasStopper(hand: Hand, suit: 0 | 1 | 2 | 3): boolean {
   if (cards.some((card) => getRank(card) >= 10)) return true; // Q/K/A
   if (cards.some((card) => getRank(card) === 9) && cards.length >= 2) return true; // Jx
   if (cards.some((card) => getRank(card) === 8) && cards.length >= 3) return true; // Txx
+  return false;
+}
+
+/** 第一轮控制：缺门 / 单张，或 Ax（双张且含 A）。 */
+function hasFirstRoundControl(hand: Hand, suit: 0 | 1 | 2 | 3): boolean {
+  const cards = hand.filter((card) => getSuit(card) === suit);
+  if (cards.length <= 1) return true;
+  if (cards.length === 2 && cards.some((card) => getRank(card) === 12)) return true; // Ax
   return false;
 }
 

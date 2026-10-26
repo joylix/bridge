@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { controls, distribution, hcp, isBalanced, suitLength } from './evaluate';
+import {
+  adjustedHcp,
+  controls,
+  distribution,
+  hasSolidSuit,
+  hcp,
+  isBalanced,
+  isSolidSuit,
+  suitLength,
+} from './evaluate';
 import { parseHand } from '../testing/testUtils';
 
 describe('手牌评估', () => {
@@ -44,5 +53,43 @@ describe('手牌评估', () => {
         expect(isBalanced(distribution(parseHand(spec)))).toBe(false);
       });
     }
+  });
+
+  describe('调整点 AP（叫牌估值，不参与计分）', () => {
+    it('无配合时只加长套点，不加短套点', () => {
+      const hand = parseHand('SAKQJ2 H2 D5432 C876'); // 10 HCP, 5-1-4-3
+      expect(adjustedHcp(hand)).toBe(11); // +1 第五张黑桃
+      expect(adjustedHcp(hand, { trumpSuit: 3 })).toBe(11); // 未显示配合
+    });
+
+    it('同伴显示支持后，旁门单张按 +2 计入', () => {
+      const hand = parseHand('SAKQJ2 H2 D5432 C876'); // 10 HCP, 5-1-4-3
+      expect(adjustedHcp(hand, { trumpSuit: 3, partnerSupported: true })).toBe(13);
+    });
+
+    it('敌方花色单张 K/Q/J 作为废点扣 1', () => {
+      const hand = parseHand('SAKQJ2 HQ D5432 C876'); // 12 HCP, 5-1-4-3
+      expect(adjustedHcp(hand, { trumpSuit: 3, partnerSupported: true })).toBe(15);
+      expect(
+        adjustedHcp(hand, { trumpSuit: 3, partnerSupported: true, opponentSuit: 2 }),
+      ).toBe(14);
+    });
+
+    it('敌方花色中的长度不计长套点', () => {
+      const hand = parseHand('S32 H2 DAKQJ432 C432'); // 10 HCP, 7 张方块
+      expect(adjustedHcp(hand)).toBe(14); // +3 长套 +1 坚固套
+      expect(adjustedHcp(hand, { opponentSuit: 1 })).toBe(10); // 方块是敌方花色
+    });
+
+    it('坚固长套奖励 +1，破套不奖励', () => {
+      const solid = parseHand('SAKQJ432 H32 D32 C32'); // 7 张黑桃，A/K/Q/J
+      expect(isSolidSuit(solid, 3)).toBe(true);
+      expect(hasSolidSuit(solid, 'S')).toBe(true);
+      expect(adjustedHcp(solid)).toBe(14); // 10 HCP +3 长套 +1 坚固套
+
+      const broken = parseHand('SAKJ5432 H32 D32 C32'); // 缺 Q
+      expect(isSolidSuit(broken, 3)).toBe(false);
+      expect(hasSolidSuit(broken, 'S')).toBe(false);
+    });
   });
 });

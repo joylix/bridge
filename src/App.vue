@@ -7,6 +7,7 @@ import DealResultDialog from './components/DealResultDialog.vue';
 import GameHistory from './components/GameHistory.vue';
 import PbnDialog from './components/PbnDialog.vue';
 import RuleEditor from './components/RuleEditor.vue';
+import { HINTS_TRIAL_DEALS } from './membership';
 import type { Position, StyleLevel } from './models/gameState';
 
 const store = useGameStore();
@@ -39,6 +40,18 @@ const phaseLabel = computed(
 const showBiddingPopup = computed(
   () => store.phase === 'bidding' && store.isHumanControlled(store.currentBidder),
 );
+
+/** “推荐 + 浮动层解释”的会员/试用状态说明 */
+const hintsStatus = computed(() => {
+  if (store.isMember) return '会员：可自由开启或关闭';
+  if (store.hintsTrialExhausted) {
+    return `非会员试用已结束（前 ${HINTS_TRIAL_DEALS} 副），已自动关闭`;
+  }
+  if (store.hintsTrialDealsUsed >= HINTS_TRIAL_DEALS) {
+    return `非会员试用：已使用 ${HINTS_TRIAL_DEALS} / ${HINTS_TRIAL_DEALS} 副，下一副起自动关闭`;
+  }
+  return `非会员试用：剩余 ${store.hintsTrialRemaining} / ${HINTS_TRIAL_DEALS} 副`;
+});
 
 onMounted(() => store.startNewGame());
 
@@ -201,9 +214,14 @@ function onRoundSize(value: number): void {
 
       <div class="game-options">
         <label class="switch-row">
-          <el-switch :model-value="store.showHints" @update:model-value="store.setShowHints" />
-          <span>显示提示与推荐（叫牌含义 / 推荐叫品 / 推荐出牌）</span>
+          <el-switch
+            :model-value="store.showHints"
+            :disabled="store.hintsTrialExhausted"
+            @update:model-value="store.setShowHints"
+          />
+          <span>推荐 + 浮动层解释（推荐叫品 / 叫牌含义 / 推荐出牌）</span>
         </label>
+        <p class="setting-note" :class="{ exhausted: store.hintsTrialExhausted }">{{ hintsStatus }}</p>
         <label class="switch-row">
           <el-switch :model-value="store.autoPilot" @update:model-value="toggleAutoPilot" />
           <span>自动托管南家（全机器演示）</span>
@@ -249,6 +267,15 @@ function onRoundSize(value: number): void {
   gap: 8px;
   font-size: 13px;
   color: #3a4a40;
+}
+.setting-note {
+  margin: -6px 0 0 48px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7a8a80;
+}
+.setting-note.exhausted {
+  color: #c45656;
 }
 .seat-setting {
   margin-bottom: 12px;

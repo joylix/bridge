@@ -15,7 +15,7 @@ import { getPartner } from '../../models/gameState';
 import type { BiddingRule, StyleParams } from '../../engine/types';
 import { STYLE_PARAMS } from '../../engine/types';
 import { checkConditions, conditionSpecificity, type ConditionContext } from '../../engine/conditions';
-import { matchSequence } from '../../engine/matcher';
+import { buildAdjustmentContext, matchSequence } from '../../engine/matcher';
 import { isCallLegal, parseAction } from '../../core/bidding/validator';
 import type { BidCall } from '../../models/gameState';
 
@@ -65,6 +65,7 @@ function conditionContext(prefix: BidRecord[], position: Position): ConditionCon
   return {
     openingSeat,
     partnerOpened: firstBid ? firstBid.position === getPartner(position) : false,
+    adjustment: buildAdjustmentContext(prefix, position),
   };
 }
 
