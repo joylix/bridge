@@ -1,0 +1,165 @@
+(*
+ * BRULES v0.5 — 桥牌叫牌规则交换格式
+ * 规范文法（ISO/IEC 14977 EBNF 风格）
+ *
+ * 词法约定：
+ *   - 文件 UTF-8，无 BOM，换行 LF 或 CRLF。
+ *   - 关键字、叫品、花色、座位、标签令牌大小写不敏感；解析后规范化为大写。
+ *   - 标识符（rule id、cond id、条件键、标签）保存原样，区分大小写；
+ *     同一文件内 id 查重按大小写不敏感处理。
+ *   - 行是基本单位；Newline 是有效分隔符，不能像空白一样完全忽略。
+ *   - `#` 到行尾为注释；字符串内的 `#` 不是注释。
+ *   - 本文法只覆盖叫牌规则；DEAL/HAND/BIDSEQ 由 v0.4 解析器处理，
+ *     v0.5 不再承担牌局记录职责。
+ *)
+
+File            = VersionLine , Newline ,
+                  { BlankLine | Comment | HeaderLine | CondDef | RuleDef } ;
+
+VersionLine     = "VERSION:" , Space , "BRULES/" , Version ;
+Version         = Digit , { Digit } , "." , Digit , { Digit } ;
+
+BlankLine       = { Space } , Newline ;
+Comment         = { Space } , "#" , { Character - Newline } , Newline ;
+
+(* ------------------------------------------------------------------ *)
+(* 文件头                                                              *)
+(* ------------------------------------------------------------------ *)
+
+HeaderLine      = FormatLine | KindLine | SystemLine | SystemVersionLine
+                | LocaleLine | AuthorLine | SourceLine
+                | DefaultPriorityLine | StyleParamsLine ;
+
+FormatLine      = "FORMAT:" , Space , "bridge-rules" , Newline ;
+KindLine        = "KIND:" , Space , "bidding" , Newline ;
+SystemLine      = "SYSTEM:" , Space , Identifier , Newline ;
+SystemVersionLine = "SYSTEM_VERSION:" , Space , VersionToken , Newline ;
+LocaleLine      = "LOCALE:" , Space , QuotedText , Newline ;
+AuthorLine      = "AUTHOR:" , Space , QuotedText , Newline ;
+SourceLine      = "SOURCE:" , Space , QuotedText , Newline ;
+DefaultPriorityLine = "DEFAULT_PRIORITY:" , Space , Integer , Newline ;
+StyleParamsLine = "STYLE_PARAMS:" , Space , Identifier ,
+                  { "," , Space , Identifier } , Newline ;
+
+VersionToken    = Digit , { Digit } , { "." , Digit , { Digit } } ;
+
+(* ------------------------------------------------------------------ *)
+(* 可复用条件定义                                                      *)
+(* ------------------------------------------------------------------ *)
+
+CondDef         = "COND:" , Space , Identifier , Newline ,
+                  { UseLine | WhenLine } ,
+                  "END" , Newline ;
+
+(* ------------------------------------------------------------------ *)
+(* 规则                                                                *)
+(* ------------------------------------------------------------------ *)
+
+RuleDef         = "RULE:" , Space , Identifier , Newline ,
+                  SeqLine ,
+                  { UseLine | WhenLine } ,
+                  ActionLine ,
+                  [ PriorityLine ] ,
+                  [ DescLine ] ,
+                  [ TagsLine ] ,
+                  [ EnabledLine ] ,
+                  "END" , Newline ;
+
+UseLine         = "USE:" , Space , Identifier , Newline ;
+WhenLine        = "WHEN:" , Space , ConditionTerm , Newline ;
+SeqLine         = "SEQ:" , Space , SequencePattern , Newline ;
+ActionLine      = "BID:" , Space , CallToken , Newline ;
+PriorityLine    = "PRIO:" , Space , Integer , Newline ;
+DescLine        = "DESC:" , Space , QuotedText , Newline ;
+TagsLine        = "TAGS:" , Space , Identifier ,
+                  { "," , Space , Identifier } , Newline ;
+EnabledLine     = "ENABLED:" , Space , Boolean , Newline ;
+
+(* ------------------------------------------------------------------ *)
+(* 序列模式：从叫牌历史末尾对齐                                      *)
+(* ------------------------------------------------------------------ *)
+
+SequencePattern = "^$" | ".*" | SeqToken , { Space , SeqToken } ;
+SeqToken        = RelSeat , ":" , SeqCall ;
+RelSeat         = "M" | "P" | "L" | "R" ;
+SeqCall         = CallToken ;
+
+(* ------------------------------------------------------------------ *)
+(* 条件：一行一个条件项；同一 RULE/COND 内全部为 AND                   *)
+(* ------------------------------------------------------------------ *)
+
+ConditionTerm   = SimpleCondition | QuantifiedCondition ;
+
+SimpleCondition = ConditionKey , Space , ConditionValue ;
+ConditionKey    = Identifier ;
+
+ConditionValue  = NumRange | Boolean | SuitLetters | SuitOrNT | ShapeClass | StyleVar ;
+
+NumRange        = RangeAtom , [ "-" , RangeAtom ] , [ "+" ] ;
+RangeAtom       = Integer | StyleVar ;
+StyleVar        = "${" , Identifier , "}" ;
+
+SuitLetters     = SuitLetter , { SuitLetter } ;
+SuitLetter      = "C" | "D" | "H" | "S" ;
+SuitOrNT        = "NT" ;   (* 只允许用于 lastBidSuit；其他条件键使用为语义错误 *)
+
+ShapeClass      = "BAL_ANY" | "BAL_NO_5M" | "SEMIBAL" | "UNBAL" ;
+
+QuantifiedCondition = ( "ALL" | "ANY" ) , "(" , SuitSet , "," ,
+                       [ Space ] , Predicate , ")" ;
+SuitSet         = "U" | "L" | "C" | "D" | "H" | "S" ;
+Predicate       = PredicateName , CompareOp , Integer ;
+PredicateName   = "LEN" | "HCP" | "CTL" ;
+CompareOp       = ">=" | "<=" | "=" | ">" | "<" ;
+
+(* ------------------------------------------------------------------ *)
+(* 叫品                                                                *)
+(* ------------------------------------------------------------------ *)
+
+CallToken       = "-" | "X" | "XX" | Level , Strain ;
+Level           = "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
+Strain          = "C" | "D" | "H" | "S" | "NT" ;
+
+(* ------------------------------------------------------------------ *)
+(* 基础词法                                                            *)
+(* ------------------------------------------------------------------ *)
+
+QuotedText      = '"' , { QuotedChar } , '"' ;
+QuotedChar      = Character - ( '"' | Newline ) | EscapedQuote ;
+EscapedQuote    = "\\" , '"' ;
+
+Identifier      = Letter , { Letter | Digit | "_" | "." | "-" } ;
+Integer         = Digit , { Digit } ;
+Boolean         = "true" | "false" ;
+
+Letter          = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I"
+                | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R"
+                | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+                | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i"
+                | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r"
+                | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+Digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+Space           = " " | "\t" ;
+Newline         = "\n" | "\r\n" ;
+Character       = ? any Unicode scalar value ? ;
+
+(*
+ * 语义约束（不由 EBNF 表达，由导入器校验）：
+ *
+ * 1. VERSION 、FORMAT、KIND、SYSTEM 必须出现；每个 RULE 必须有 SEQ 和 BID。
+ * 2. RULE 缺少 PRIO 时，必须能从 DEFAULT_PRIORITY 取得；二者皆无是错误。
+ * 3. USE 引用的 COND 必须存在；同一文件内 RULE/COND 的 id 不得重复。
+ * 4. 条件键必须在 conditions.md 中登记；`shapeClass` 是唯一非 ConditionSpec
+ *    的 IR 条件键。
+ * 5. StyleVar 必须出现在文件头 STYLE_PARAMS 中；未声明的变量是
+ *    UNRESOLVED_STYLE_VAR。
+ * 6. ANY/ALL 的谓词只能是 LEN/HCP/CTL；嵌套 ANY/ALL 是 UNSUPPORTED_FEATURE。
+ * 7. `P` 不是 Pass；Pass 在 DSL 中写 `-`。`X`/`XX` 只能出现在 BID/SEQ 的
+ *    叫品位置，不能出现在条件值中。
+ * 8. v0.5 不接受小写 `x`、`*` 或 `[]` 牌张集合；这些只由 v0.4 解析器读取。
+ * 9. 同一文件内规则顺序是声明顺序；解析器排序后必须保留原始声明序号，
+ *    供 specificity 平局裁决和 rulesetId 使用。
+ * 10. AP/ALL/ANY 的展开规则见 migration.md 与 README.md，不由文法决定。
+ * 11. SuitOrNT("NT") 只允许作为 lastBidSuit 的值；用于 stoppers/solidSuit/
+ *     partnerSuit 等单花色键时是语义错误 INVALID_CONDITION_VALUE。
+ *)

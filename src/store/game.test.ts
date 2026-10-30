@@ -502,6 +502,27 @@ describe('规则文件可替换（用例 19）', () => {  it('切换叫牌体系
     expect(store.biddingRules.rules.some((r) => r.id === 'open_2c_precision')).toBe(false);
     expect(store.biddingRules.rules.some((r) => r.id === 'open_2c_strong')).toBe(true);
   });
+
+  it('开局冻结规则快照，局中切换只影响后续牌局', () => {
+    const precisionId =
+      'sha256:4aae938c5141298c8fea714d03092cbed504f7a97cb7351a709f4d814365a55a';
+    const store = newStore();
+    store.startNewGame({ autoStart: false, seed: 3 });
+    expect(store.activeRulesetId).toBe(precisionId);
+    expect(store.activeBiddingRules.some((r) => r.id === 'open_2c_precision')).toBe(true);
+
+    store.setBiddingRuleFile('natural');
+    // 当前副仍使用开局快照
+    expect(store.biddingRuleFile.name).toBe('natural');
+    expect(store.activeRulesetId).toBe(precisionId);
+    expect(store.activeBiddingRules.some((r) => r.id === 'open_2c_precision')).toBe(true);
+    expect(store.activeBiddingRules.some((r) => r.id === 'open_2c_strong')).toBe(false);
+
+    // 下一副才切换
+    store.startNewGame({ autoStart: false, seed: 4 });
+    expect(store.activeRulesetId).not.toBe(precisionId);
+    expect(store.activeBiddingRules.some((r) => r.id === 'open_2c_strong')).toBe(true);
+  });
 });
 
 describe('人类叫牌自由度（用例 3）', () => {

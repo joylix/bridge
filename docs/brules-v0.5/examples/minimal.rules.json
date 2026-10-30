@@ -1,0 +1,52 @@
+{
+  "format": "bridge-rules-ir",
+  "formatVersion": "0.5",
+  "kind": "bidding",
+  "system": "precision",
+  "systemVersion": "0.5.0",
+  "defaults": {
+    "priority": 50
+  },
+  "styleParams": [
+    "open1ntMin",
+    "open1ntMax"
+  ],
+  "rules": [
+    {
+      "id": "open_1nt",
+      "sequence": "^$",
+      "when": {
+        "hcp": "${open1ntMin}-${open1ntMax}",
+        "shapeClass": "BAL_NO_5M"
+      },
+      "action": "1NT",
+      "priority": 80,
+      "description": "1NT opening: 15-17, no 5-card major",
+      "tags": [
+        "natural"
+      ],
+      "enabled": true,
+      "specificity": 2
+    },
+    {
+      "id": "open_1c",
+      "sequence": "^$",
+      "when": {
+        "hcp": "16+",
+        "shapeClass": "BAL_ANY"
+      },
+      "action": "1C",
+      "priority": 70,
+      "description": "Strong 1C opening",
+      "tags": [
+        "natural",
+        "forcing"
+      ],
+      "enabled": true,
+      "specificity": 2
+    }
+  ],
+  "ext": {
+    "ext.source": "docs/brules-v0.5/examples/minimal.brules"
+  }
+}

@@ -31,8 +31,13 @@ function isPosition(value: string): value is Position {
   return (ORDER as string[]).includes(value);
 }
 
-/** 单手牌 → PBN 的四个花色段（如 `AKQ2.KJ3.AKQ4.A2`） */
-export function handToPbn(hand: Hand): string {
+/**
+ * 单手牌 → PBN 的四个花色段（如 `AKQ2.KJ3.AKQ4.A2`）。
+ *
+ * 默认空花色输出空段（DDS 残局格式）；`voidAsDash=true` 时输出规范对局
+ * PBN 的缺门写法 `-`（.pbn 导出使用）。
+ */
+export function handToPbn(hand: Hand, voidAsDash = false): string {
   const bySuit: string[][] = [[], [], [], []];
   const seen = new Set<number>();
   for (const card of hand) {
@@ -43,7 +48,10 @@ export function handToPbn(hand: Hand): string {
     seen.add(card);
     bySuit[getSuit(card)][getRank(card)] = PBN_RANK_CHARS[getRank(card)];
   }
-  return PBN_SUIT_ORDER.map((suit) => bySuit[suit].slice().reverse().join('')).join('.');
+  return PBN_SUIT_ORDER.map((suit) => {
+    const ranks = bySuit[suit].slice().reverse().join('');
+    return ranks.length === 0 && voidAsDash ? '-' : ranks;
+  }).join('.');
 }
 
 /**
@@ -80,7 +88,7 @@ export function toPbnDeal(
 ): string {
   const start = ORDER.indexOf(dealer);
   const seats = ORDER.map((_, offset) => ORDER[(start + offset) % 4]);
-  return `${dealer}:${seats.map((seat) => handToPbn(hands[seat])).join(' ')}`;
+  return `${dealer}:${seats.map((seat) => handToPbn(hands[seat], true)).join(' ')}`;
 }
 
 function parseHandPbn(text: string): Hand {
@@ -91,6 +99,11 @@ function parseHandPbn(text: string): Hand {
   const hand: Hand = [];
   suits.forEach((ranks, suitIndex) => {
     const suit = PBN_SUIT_ORDER[suitIndex];
+    if (ranks === '') return; // 兼容空段；完整 PBN 解析器会给出 EMPTY_SUIT_SEGMENT 警告
+    if (ranks === '-') return; // 规范缺门
+    if (ranks.includes('-')) {
+      throw new Error(`非法缺门写法: "${ranks}"；缺门必须单独写作 "-"`);
+    }
     let lastRank = 13;
     for (const raw of ranks) {
       const ch = raw.toUpperCase();

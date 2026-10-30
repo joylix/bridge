@@ -1,53 +1,26 @@
 /**
  * 国际比赛分（IMP / 点数）换算。
  *
- * 把某一副的分数差换算成“点数”，采用 WBF 标准换算表。
+ * 把某一副的分数差换算成“点数”，采用 WBF 2017 标准换算表。
  * 返回带符号点数：正数表示 NS 赢，负数表示 EW 赢。
+ *
+ * 表数据与纯函数见 `impTable.ts` / `wbf-2017.json`；本文件只保留
+ * 单机贴点制等上层便捷封装。
  */
 
-/** 标准 IMP 换算表：[分数差上界, 点数]（按升序排列） */
-const IMP_TABLE: ReadonlyArray<readonly [limit: number, imp: number]> = [
-  [10, 0],
-  [40, 1],
-  [80, 2],
-  [120, 3],
-  [160, 4],
-  [210, 5],
-  [260, 6],
-  [310, 7],
-  [360, 8],
-  [420, 9],
-  [490, 10],
-  [590, 11],
-  [740, 12],
-  [890, 13],
-  [1090, 14],
-  [1290, 15],
-  [1490, 16],
-  [1740, 17],
-  [1990, 18],
-  [2240, 19],
-  [2490, 20],
-  [2990, 21],
-  [3490, 22],
-  [3990, 23],
-  [Infinity, 24],
-];
+import { WBF_2017, impFromDiff, signedImpFromDiff } from './impTable';
+
+export { WBF_2017, WBF_2017_VERSION, WBF_LAWS_VERSION, impFromDiff, signedImpFromDiff } from './impTable';
+export type { ImpBand, ImpTable } from './impTable';
 
 /** 分数差 → 点数绝对值（0..24） */
-export function impAbsFromDiff(diff: number): number {
-  const abs = Math.abs(diff);
-  for (const [limit, imp] of IMP_TABLE) {
-    if (abs <= limit) return imp;
-  }
-  return 24;
+export function impAbsFromDiff(diff: number, table = WBF_2017): number {
+  return impFromDiff(diff, table);
 }
 
 /** 分数差（NS − EW）→ 带符号点数（正=NS，负=EW） */
-export function impsFromScoreDiff(diff: number): number {
-  if (diff === 0) return 0;
-  const imp = impAbsFromDiff(diff);
-  return diff > 0 ? imp : -imp;
+export function impsFromScoreDiff(diff: number, table = WBF_2017): number {
+  return signedImpFromDiff(diff, table);
 }
 
 /** 一方联手大牌点（合计 40） */
@@ -69,8 +42,13 @@ export interface SideHcp {
  *
  * 返回带符号点数（正=NS，负=EW）。
  */
-export function hcpAdjustedPoints(diff: number, hcpNS: number, hcpEW: number): number {
-  const imp = impsFromScoreDiff(diff);
+export function hcpAdjustedPoints(
+  diff: number,
+  hcpNS: number,
+  hcpEW: number,
+  table = WBF_2017,
+): number {
+  const imp = impsFromScoreDiff(diff, table);
   if (imp === 0) {
     // 流局：无得分方，仅按大牌点贴点（20 为平均点力）
     return 20 - hcpNS;

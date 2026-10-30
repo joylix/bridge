@@ -1,0 +1,1220 @@
+openapi: 3.1.0
+info:
+  title: Bridge Server API
+  version: 0.1.0
+  description: |
+    M5 平台契约 + M6 第一切片（账号 / 会话 / 牌室）的 HTTP 部分。
+    实时命令与事件走 WebSocket `/ws`，契约见 `src/shared/protocol.ts`。
+
+    约定：
+    - 错误统一使用 `ErrorEnvelope`，客户端只依赖 `error.code`；
+    - 登录态同时支持 `HttpOnly` 会话 Cookie 与 `Authorization: Bearer <token>`；
+    - 响应不得回显密码哈希、房间密码等未授权字段；
+    - 私有牌室对非室主 / 非管理员统一返回 `404 NOT_FOUND`，不暴露存在性。
+servers:
+  - url: http://127.0.0.1:3000
+    description: 本机开发
+paths:
+  /healthz:
+    get:
+      summary: 存活检查
+      operationId: getHealth
+      responses:
+        '200':
+          description: 服务存活
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      summary: 就绪检查
+      operationId: getReady
+      responses:
+        '200':
+          description: 依赖就绪
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: 依赖未就绪
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+  /api/v1/meta:
+    get:
+      summary: 协议与规则版本
+      operationId: getMeta
+      responses:
+        '200':
+          description: 版本元数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meta'
+  /api/v1/auth/register:
+    post:
+      summary: 注册账号并建立会话
+      description: |
+        注册成功即创建 7 天会话，并通过 `Set-Cookie` 下发 `bridge_session`；
+        同时返回账号投影与过期时间，便于 Bearer 客户端使用。
+      operationId: registerAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 注册成功
+          headers:
+            Set-Cookie:
+              description: HttpOnly + SameSite=Lax 会话 Cookie（生产环境加 Secure）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/auth/login:
+    post:
+      summary: 登录
+      description: |
+        用户名大小写不敏感。用户不存在与密码错误统一返回 `401 INVALID_CREDENTIALS`，
+        不区分具体原因。`rememberMe=true` 时会话有效期 30 天，否则 7 天。
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          headers:
+            Set-Cookie:
+              description: HttpOnly + SameSite=Lax 会话 Cookie（生产环境加 Secure）
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/auth/logout:
+    post:
+      summary: 登出并撤销当前会话
+      description: 撤销当前令牌并清除 Cookie；未登录时也返回 204，避免暴露会话状态。
+      operationId: logout
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '204':
+          description: 已登出
+          headers:
+            Set-Cookie:
+              description: 清除会话 Cookie（Max-Age=0）
+              schema:
+                type: string
+  /api/v1/auth/me:
+    get:
+      summary: 读取当前账号
+      operationId: getCurrentAccount
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 当前账号资料
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [account]
+                properties:
+                  account:
+                    $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/v1/rooms:
+    post:
+      summary: 创建牌室
+      description: |
+        `roomNature` 创建时固化，当前无修改入口。提供 `password` 即视为私有牌室，
+        私有牌室不出现在大厅列表。响应只暴露 `hasPassword`，不回显密码或其哈希。
+      operationId: createRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoomRequest'
+      responses:
+        '201':
+          description: 创建成功；室主自动进入等候区
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [room]
+                properties:
+                  room:
+                    $ref: '#/components/schemas/RoomDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    get:
+      summary: 列出公开牌室
+      description: 只返回公开牌室；私有牌室需通过详情接口并由室主 / 管理员访问。
+      operationId: listRooms
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - name: roomNature
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/RoomNature'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: 公开牌室列表（按创建时间倒序）
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [rooms]
+                properties:
+                  rooms:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Room'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/rooms/{roomId}:
+    get:
+      summary: 读取牌室详情
+      description: 返回等候区成员与座位。私有牌室对非室主 / 非管理员 / 非成员统一返回 `404 NOT_FOUND`。
+      operationId: getRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '200':
+          description: 牌室详情
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [room]
+                properties:
+                  room:
+                    $ref: '#/components/schemas/RoomDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/rooms/{roomId}/join:
+    post:
+      summary: 加入牌室等候区
+      description: |
+        公开牌室可直接加入；私有牌室需 `password`（室主 / 管理员可绕过）。
+        已是成员时幂等返回详情。等候区达到上限返回 `409 ROOM_FULL`。
+      operationId: joinRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinRoomRequest'
+      responses:
+        '200':
+          description: 已加入（或已是成员）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/rooms/{roomId}/leave:
+    post:
+      summary: 离开牌室
+      description: 释放成员记录与座位；非成员也返回 204，保持幂等。仅 `waiting` 状态可离开。
+      operationId: leaveRoom
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '204':
+          description: 已离开
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/rooms/{roomId}/seat:
+    post:
+      summary: 落座 / 换座
+      description: |
+        默认给自己落座；室主或管理员可传 `userId` 拖拽他人。同一成员换座会释放旧座位。
+        座位已被占用返回 `409 SEAT_TAKEN`。
+      operationId: takeSeat
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TakeSeatRequest'
+      responses:
+        '200':
+          description: 落座后的牌室详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/rooms/{roomId}/stand:
+    post:
+      summary: 离座
+      description: 清除座位与举手状态。默认给自己离座；室主或管理员可传 `userId` 拽起他人。
+      operationId: standUp
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StandRequest'
+      responses:
+        '200':
+          description: 离座后的牌室详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/rooms/{roomId}/ready:
+    post:
+      summary: 举手 / 取消举手
+      description: 必须已落座；离座自动取消举手。
+      operationId: setReady
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadyRequest'
+      responses:
+        '200':
+          description: 举手状态更新后的牌室详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/rooms/{roomId}/sessions:
+    post:
+      summary: 创建或复用准备中的 Session
+      description: |
+        仅室主 / 管理员可调用；牌室必须处于 `waiting`。
+        创建时固化 `roomNature` 与房间配置快照，并按房间性质写入
+        `scoringEligibility` 初始值（practice / casual = `ineligible`，
+        competitive = `pending`）。重复调用幂等返回同一活动 Session。
+      operationId: createSession
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '201':
+          description: Session 已创建或已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+    get:
+      summary: 列出牌室的 Session 历史
+      description: 仅室主 / 管理员；按创建时间倒序。
+      operationId: listSessions
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      responses:
+        '200':
+          description: Session 列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/sessions/{sessionId}:
+    get:
+      summary: 读取 Session
+      description: 私有牌室对非成员 / 非室主 / 非管理员统一返回 `404 NOT_FOUND`。
+      operationId: getSession
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session 详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/sessions/{sessionId}/precheck:
+    get:
+      summary: 开局前置校验
+      description: |
+        只读校验，不改变状态。硬门槛：牌室仍为 `waiting`、四席齐全、
+        已落座真人数 ≥ `minHumans`；队式赛开局尚未实现时返回
+        `GAMEPLAY_UNSUPPORTED`。真正的开局仍须在原子事务中重新校验。
+      operationId: precheckSession
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 前置报告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreStartReportResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+  /api/v1/sessions/{sessionId}/abort:
+    post:
+      summary: 取消准备中的 Session
+      description: |
+        `preparing → aborted`；重复取消幂等。仅室主 / 管理员。
+        已进入 starting / playing 等状态返回 `409 SESSION_NOT_PREPARING`。
+      operationId: abortSession
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: 已取消
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+components:
+  parameters:
+    RoomId:
+      name: roomId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: bridge_session
+      description: 不透明会话令牌；HttpOnly + SameSite=Lax，生产环境加 Secure
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 与 Cookie 使用同一令牌；客户端可二选一
+  responses:
+    ValidationError:
+      description: 请求参数不合法
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    UnauthorizedError:
+      description: 未登录、会话失效或凭据错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ForbiddenError:
+      description: 账号被封禁或无权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFoundError:
+      description: 资源不存在或不可见
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ConflictError:
+      description: 用户名 / 昵称 / 邮箱已被占用
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, server, serverTime]
+      properties:
+        status:
+          type: string
+          const: ok
+        server:
+          type: string
+          const: bridge-server
+        serverTime:
+          type: string
+          format: date-time
+    Readiness:
+      type: object
+      additionalProperties: false
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+    Meta:
+      type: object
+      additionalProperties: false
+      required:
+        - server
+        - version
+        - protocolVersion
+        - recordSchemaVersion
+        - eventSchemaVersion
+        - rulesVersion
+        - impTableVersion
+        - serverTime
+      properties:
+        server:
+          type: string
+        version:
+          type: string
+        protocolVersion:
+          type: string
+          const: '1.0'
+        recordSchemaVersion:
+          type: string
+          const: '1.1'
+        eventSchemaVersion:
+          type: string
+          const: '1.0'
+        rulesVersion:
+          type: string
+          const: wbf-laws-2017
+        impTableVersion:
+          type: string
+          const: wbf-2017
+        serverTime:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, username, nickname, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        username:
+          type: string
+          description: 登录标识，公开不可见；3–12 位，字母开头，仅字母 / 数字 / 下划线
+          pattern: '^[A-Za-z][A-Za-z0-9_]{2,11}$'
+        nickname:
+          type: string
+          description: 公开显示名；显示宽度 2–12（ASCII=1，汉字 / 全角=2）
+          minLength: 2
+          maxLength: 24
+        password:
+          type: string
+          description: 8–128 位；不得与用户名或昵称相同
+          minLength: 8
+          maxLength: 128
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        rememberMe:
+          type: boolean
+          default: false
+          description: true 时会话有效期 30 天，否则 7 天
+    AuthResponse:
+      type: object
+      additionalProperties: false
+      required: [account, expiresAt]
+      properties:
+        account:
+          $ref: '#/components/schemas/Account'
+        expiresAt:
+          type: string
+          format: date-time
+    Account:
+      type: object
+      additionalProperties: false
+      required: [userId, username, nickname, email, role, status, createdAt, lastLoginAt]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        nickname:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [user, admin]
+        status:
+          type: string
+          enum: [active, suspended, deleted]
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+    RoomNature:
+      type: string
+      enum: [practice, casual, competitive]
+      description: 房间性质，创建时固化，Session 内不可切换
+    RoomStatus:
+      type: string
+      enum: [waiting, playing, frozen]
+    RoomConfig:
+      type: object
+      additionalProperties: false
+      required:
+        - gameplay
+        - totalBoards
+        - minHumans
+        - aiDifficulty
+        - disconnectPolicy
+        - spectatorsEnabled
+        - chatEnabled
+        - waitingLimit
+      properties:
+        gameplay:
+          type: string
+          enum: [single, teams]
+          description: 单桌 4 人 / 队式赛
+        totalBoards:
+          type: integer
+          minimum: 1
+          maximum: 200
+          nullable: true
+          description: null 表示不限副数、手动结束
+        minHumans:
+          type: integer
+          minimum: 1
+          maximum: 4
+        aiDifficulty:
+          type: string
+          enum: [easy, normal, expert]
+        disconnectPolicy:
+          type: string
+          enum: [auto_ai, wait_owner]
+        spectatorsEnabled:
+          type: boolean
+        chatEnabled:
+          type: boolean
+        waitingLimit:
+          type: integer
+          minimum: 1
+          maximum: 100
+    CreateRoomRequest:
+      type: object
+      additionalProperties: false
+      required: [name, roomNature, gameplay]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        roomNature:
+          $ref: '#/components/schemas/RoomNature'
+        gameplay:
+          type: string
+          enum: [single, teams]
+        totalBoards:
+          type: integer
+          minimum: 1
+          maximum: 200
+          nullable: true
+        minHumans:
+          type: integer
+          minimum: 1
+          maximum: 4
+        aiDifficulty:
+          type: string
+          enum: [easy, normal, expert]
+        disconnectPolicy:
+          type: string
+          enum: [auto_ai, wait_owner]
+        spectatorsEnabled:
+          type: boolean
+        chatEnabled:
+          type: boolean
+        waitingLimit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        isPrivate:
+          type: boolean
+          description: 缺省时由是否提供密码决定
+        password:
+          type: string
+          minLength: 4
+          maxLength: 64
+          description: 房间密码；提供即视为私有牌室
+    Room:
+      type: object
+      additionalProperties: false
+      required:
+        - roomId
+        - name
+        - roomNature
+        - ownerId
+        - status
+        - config
+        - isPrivate
+        - hasPassword
+        - memberCount
+        - seatedCount
+        - createdAt
+        - updatedAt
+      properties:
+        roomId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        roomNature:
+          $ref: '#/components/schemas/RoomNature'
+        ownerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RoomStatus'
+        config:
+          $ref: '#/components/schemas/RoomConfig'
+        isPrivate:
+          type: boolean
+        hasPassword:
+          type: boolean
+          description: 只暴露是否存在密码，绝不返回密码或其哈希
+        memberCount:
+          type: integer
+          minimum: 0
+          description: 等候区 + 已落座成员总数
+        seatedCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RoomMember:
+      type: object
+      additionalProperties: false
+      required: [userId, nickname, seat, ready, isOwner, joinedAt]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        nickname:
+          type: string
+          description: 加入时的昵称快照
+        seat:
+          type: [string, 'null']
+          enum: [N, E, S, W, null]
+        ready:
+          type: boolean
+        isOwner:
+          type: boolean
+        joinedAt:
+          type: string
+          format: date-time
+    SeatPosition:
+      type: string
+      enum: [N, E, S, W]
+    RoomDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - roomId
+        - name
+        - roomNature
+        - ownerId
+        - status
+        - config
+        - isPrivate
+        - hasPassword
+        - memberCount
+        - seatedCount
+        - createdAt
+        - updatedAt
+        - members
+      properties:
+        roomId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        roomNature:
+          $ref: '#/components/schemas/RoomNature'
+        ownerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RoomStatus'
+        config:
+          $ref: '#/components/schemas/RoomConfig'
+        isPrivate:
+          type: boolean
+        hasPassword:
+          type: boolean
+        memberCount:
+          type: integer
+          minimum: 0
+        seatedCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomMember'
+    RoomResponse:
+      type: object
+      additionalProperties: false
+      required: [room]
+      properties:
+        room:
+          $ref: '#/components/schemas/RoomDetail'
+    JoinRoomRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: 私有牌室密码；公开牌室可省略
+    TakeSeatRequest:
+      type: object
+      additionalProperties: false
+      required: [position]
+      properties:
+        position:
+          $ref: '#/components/schemas/SeatPosition'
+        userId:
+          type: string
+          format: uuid
+          description: 室主 / 管理员拖拽他人时使用；缺省为自己落座
+    StandRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: 室主 / 管理员拽起他人时使用；缺省为自己离座
+    ReadyRequest:
+      type: object
+      additionalProperties: false
+      required: [ready]
+      properties:
+        ready:
+          type: boolean
+    SessionStatus:
+      type: string
+      enum: [preparing, starting, playing, paused, completed, aborted]
+    ScoringEligibility:
+      type: string
+      enum: [pending, eligible, ineligible]
+    SessionGameplay:
+      type: string
+      enum: [single, teams]
+    ScoringEligibilitySnapshot:
+      type: object
+      additionalProperties: false
+      required: [roomNature, initial, decision, decidedAt, reason]
+      properties:
+        roomNature:
+          $ref: '#/components/schemas/RoomNature'
+        initial:
+          $ref: '#/components/schemas/ScoringEligibility'
+        decision:
+          type: [string, 'null']
+          enum: [pending, eligible, ineligible, null]
+          description: 最终判定值；Session 未完成时为 null
+        decidedAt:
+          type: [string, 'null']
+          format: date-time
+          description: 判定时点；未判定时为 null
+        reason:
+          type: string
+          enum: [session_created, session_completed, session_aborted]
+        humanActionCount:
+          type: integer
+          minimum: 0
+          description: competitive 完成时的真人有效动作计数（后续切片填充）
+    Session:
+      type: object
+      additionalProperties: false
+      required:
+        - sessionId
+        - roomId
+        - roomNature
+        - gameplay
+        - config
+        - sessionStatus
+        - scoringEligibility
+        - scoringEligibilitySnapshot
+        - teamTableMapping
+        - startedAt
+        - endedAt
+        - createdAt
+        - updatedAt
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        roomId:
+          type: string
+          format: uuid
+        roomNature:
+          $ref: '#/components/schemas/RoomNature'
+        gameplay:
+          $ref: '#/components/schemas/SessionGameplay'
+        config:
+          $ref: '#/components/schemas/RoomConfig'
+        sessionStatus:
+          $ref: '#/components/schemas/SessionStatus'
+        scoringEligibility:
+          $ref: '#/components/schemas/ScoringEligibility'
+        scoringEligibilitySnapshot:
+          $ref: '#/components/schemas/ScoringEligibilitySnapshot'
+        teamTableMapping:
+          type: [object, 'null']
+          additionalProperties: true
+          description: 队式赛固定对位表；单桌为 null
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+        endedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [session]
+      properties:
+        session:
+          $ref: '#/components/schemas/Session'
+    SessionListResponse:
+      type: object
+      additionalProperties: false
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+    PreStartCheck:
+      type: object
+      additionalProperties: false
+      required: [code, ok, message]
+      properties:
+        code:
+          type: string
+          enum: [ROOM_NOT_WAITING, SEATS_INCOMPLETE, MIN_HUMANS_NOT_MET, GAMEPLAY_UNSUPPORTED]
+        ok:
+          type: boolean
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    PreStartSeat:
+      type: object
+      additionalProperties: false
+      required: [seat, userId, nickname, ready]
+      properties:
+        seat:
+          $ref: '#/components/schemas/SeatPosition'
+        userId:
+          type: [string, 'null']
+          format: uuid
+        nickname:
+          type: [string, 'null']
+        ready:
+          type: boolean
+    PreStartReport:
+      type: object
+      additionalProperties: false
+      required:
+        - sessionId
+        - roomId
+        - sessionStatus
+        - roomStatus
+        - roomNature
+        - gameplay
+        - scoringEligibility
+        - ready
+        - occupiedSeats
+        - humanSeatedCount
+        - readyHumanCount
+        - minHumans
+        - seats
+        - checks
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        roomId:
+          type: string
+          format: uuid
+        sessionStatus:
+          $ref: '#/components/schemas/SessionStatus'
+        roomStatus:
+          $ref: '#/components/schemas/RoomStatus'
+        roomNature:
+          $ref: '#/components/schemas/RoomNature'
+        gameplay:
+          $ref: '#/components/schemas/SessionGameplay'
+        scoringEligibility:
+          $ref: '#/components/schemas/ScoringEligibility'
+        ready:
+          type: boolean
+          description: 当前硬门槛是否全部通过；开局事务会重新校验
+        occupiedSeats:
+          type: integer
+          minimum: 0
+          maximum: 4
+        humanSeatedCount:
+          type: integer
+          minimum: 0
+          maximum: 4
+        readyHumanCount:
+          type: integer
+          minimum: 0
+          maximum: 4
+        minHumans:
+          type: integer
+          minimum: 1
+          maximum: 4
+        seats:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/PreStartSeat'
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreStartCheck'
+    PreStartReportResponse:
+      type: object
+      additionalProperties: false
+      required: [report]
+      properties:
+        report:
+          $ref: '#/components/schemas/PreStartReport'
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: SRS 附录 B 错误码或协议层错误码
+              examples:
+                - AUTH_REQUIRED
+                - INVALID_CREDENTIALS
+                - USERNAME_TAKEN
+                - NOT_FOUND
+                - VALIDATION_FAILED
+            message:
+              type: string
+              description: 安全文案，不含未授权字段
+            requestId:
+              type: string

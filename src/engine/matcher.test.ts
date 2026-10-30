@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findBidCandidates, matchSequence, relSeat } from './matcher';
+import { buildAuctionContext, findBidCandidates, matchSequence, relSeat } from './matcher';
 import { loadBiddingRules } from './loader';
 import type { BiddingRule } from './types';
 import type { BidSuit } from '../models/gameState';
@@ -11,6 +11,71 @@ describe('相对座位 relSeat', () => {
     expect(relSeat('N', 'S')).toBe('P');
     expect(relSeat('E', 'S')).toBe('R'); // 上家
     expect(relSeat('W', 'S')).toBe('L'); // 下家
+  });
+});
+
+describe('强自然新花 tags 语义', () => {
+  type TaggedBiddingRule = BiddingRule & { tags?: string[] };
+
+  function naturalRule(id: string, tags?: string[]): TaggedBiddingRule {
+    return {
+      id,
+      description: id,
+      sequence: '^$',
+      when: {},
+      action: '1H',
+      priority: 50,
+      ...(tags !== undefined ? { tags } : {}),
+    };
+  }
+
+  it('tags 同时含 natural 与 forcing 时成立，不依赖 nat_ 前缀', () => {
+    const partnerRule = naturalRule('custom_natural_1h', ['natural', 'forcing']);
+    const auction = history(['N', '1H'], ['E', 'Pass']);
+    auction[0].ruleId = partnerRule.id;
+    const context = buildAuctionContext(auction, 'S', [partnerRule]);
+    expect(context.partnerForcingNewSuit).toBe(true);
+  });
+
+  it('显式 tags 优先于 id 前缀：nat_ 规则无 forcing 标签时不成立', () => {
+    const partnerRule = naturalRule('nat_but_not_forcing', ['natural']);
+    const auction = history(['N', '1H'], ['E', 'Pass']);
+    auction[0].ruleId = partnerRule.id;
+    const context = buildAuctionContext(auction, 'S', [partnerRule]);
+    expect(context.partnerForcingNewSuit).toBe(false);
+  });
+
+  it('没有 tags 字段的 legacy 手写规则回退到 nat_ 前缀', () => {
+    const partnerRule = naturalRule('nat_legacy_1h');
+    const auction = history(['N', '1H'], ['E', 'Pass']);
+    auction[0].ruleId = partnerRule.id;
+    const context = buildAuctionContext(auction, 'S', [partnerRule]);
+    expect(context.partnerForcingNewSuit).toBe(true);
+  });
+
+  it('myForcingNewSuit 同样按 tags 判定', () => {
+    const myRule = naturalRule('custom_natural_1h', ['natural', 'forcing']);
+    const auction = history(['S', '1H'], ['W', 'Pass']);
+    auction[0].ruleId = myRule.id;
+    const context = buildAuctionContext(auction, 'S', [myRule]);
+    expect(context.myForcingNewSuit).toBe(true);
+  });
+
+  it('候选裁决读取当前规则集的 tags，而不是历史记录里的 id 前缀', () => {
+    const partnerRule = naturalRule('custom_natural_1h', ['natural', 'forcing']);
+    const candidateRule: BiddingRule = {
+      id: 'respond_forcing_2c',
+      description: '强自然新花后 2C',
+      sequence: 'P:1H R:Pass',
+      when: { partnerForcingNewSuit: true },
+      action: '2C',
+      priority: 80,
+    };
+    const auction = history(['N', '1H'], ['E', 'Pass']);
+    auction[0].ruleId = partnerRule.id;
+    const hand = parseHand('SAKQ HJT9 D543 C87');
+    const candidates = findBidCandidates(hand, auction, 'S', null, 1, [partnerRule, candidateRule]);
+    expect(candidates.map((candidate) => candidate.rule.id)).toContain('respond_forcing_2c');
   });
 });
 

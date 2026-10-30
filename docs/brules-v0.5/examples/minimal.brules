@@ -1,0 +1,31 @@
+VERSION: BRULES/0.5
+FORMAT: bridge-rules
+KIND: bidding
+SYSTEM: precision
+SYSTEM_VERSION: 0.5.0
+DEFAULT_PRIORITY: 50
+STYLE_PARAMS: open1ntMin, open1ntMax
+
+COND: balanced_open
+WHEN: hcp ${open1ntMin}-${open1ntMax}
+WHEN: shapeClass BAL_NO_5M
+END
+
+RULE: open_1nt
+SEQ: ^$
+USE: balanced_open
+BID: 1NT
+PRIO: 80
+DESC: "1NT opening: 15-17, no 5-card major"
+TAGS: natural
+END
+
+RULE: open_1c
+SEQ: ^$
+WHEN: hcp 16+
+WHEN: shapeClass BAL_ANY
+BID: 1C
+PRIO: 70
+DESC: "Strong 1C opening"
+TAGS: natural, forcing
+END

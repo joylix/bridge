@@ -1,0 +1,1020 @@
+{
+  "source": "src/rules/bidding/natural.yml",
+  "sourceVersion": "legacy-yaml",
+  "targetVersion": "0.5",
+  "generatedAt": "2026-10-27T00:00:00Z",
+  "summary": {
+    "rules": 23,
+    "autoMigrated": 23,
+    "manualReview": 0,
+    "unsupported": 0,
+    "executableSourceRules": 23,
+    "executableIrRules": 23,
+    "executableRate": 1,
+    "entries": 25,
+    "bySeverity": {
+      "error": 0,
+      "warning": 0,
+      "info": 25
+    },
+    "byCode": {
+      "LEGACY_BAL_MIGRATED": 2,
+      "MIGRATED_RULE": 23
+    }
+  },
+  "entries": [
+    {
+      "ruleId": "open_2c_strong",
+      "line": 7,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 2C | {\"hcp\":\"22-40\"}",
+      "after": "open_2c_strong ^$ 2C",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_2nt",
+      "line": 14,
+      "code": "LEGACY_BAL_MIGRATED",
+      "severity": "info",
+      "action": "report",
+      "reason": "v0.4 BAL（排除 5 张高花的 5332）改写为 shapeClass: BAL_NO_5M",
+      "details": {
+        "before": "balanced: true",
+        "after": "shapeClass: BAL_NO_5M"
+      }
+    },
+    {
+      "ruleId": "open_2nt",
+      "line": 14,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "^$ | 2NT | {\"hcp\":\"20-21\",\"balanced\":true}",
+      "after": "open_2nt ^$ 2NT",
+      "reason": "已迁移；变更：balanced:true -> shapeClass:BAL_NO_5M",
+      "changes": [
+        "balanced:true -> shapeClass:BAL_NO_5M"
+      ]
+    },
+    {
+      "ruleId": "open_1nt",
+      "line": 21,
+      "code": "LEGACY_BAL_MIGRATED",
+      "severity": "info",
+      "action": "report",
+      "reason": "v0.4 BAL（排除 5 张高花的 5332）改写为 shapeClass: BAL_NO_5M",
+      "details": {
+        "before": "balanced: true",
+        "after": "shapeClass: BAL_NO_5M"
+      }
+    },
+    {
+      "ruleId": "open_1nt",
+      "line": 21,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "^$ | 1NT | {\"hcp\":\"${open1ntMin}-${open1ntMax}\",\"balanced\":true,\"spades\":\"0-4\",\"hearts\":\"0-4\"}",
+      "after": "open_1nt ^$ 1NT",
+      "reason": "已迁移；变更：balanced:true -> shapeClass:BAL_NO_5M",
+      "changes": [
+        "balanced:true -> shapeClass:BAL_NO_5M"
+      ]
+    },
+    {
+      "ruleId": "open_1h",
+      "line": 28,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 1H | {\"hcp\":\"12-40\",\"hearts\":\"5+\"}",
+      "after": "open_1h ^$ 1H",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_1s",
+      "line": 35,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 1S | {\"hcp\":\"12-40\",\"spades\":\"5+\"}",
+      "after": "open_1s ^$ 1S",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_1d",
+      "line": 42,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 1D | {\"hcp\":\"12-40\",\"diamonds\":\"4+\"}",
+      "after": "open_1d ^$ 1D",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_1c",
+      "line": 49,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 1C | {\"hcp\":\"12-21\",\"clubs\":\"4+\"}",
+      "after": "open_1c ^$ 1C",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_weak2_h",
+      "line": 56,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 2H | {\"hcp\":\"6-10\",\"hearts\":\"6+\"}",
+      "after": "open_weak2_h ^$ 2H",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_weak2_s",
+      "line": 63,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 2S | {\"hcp\":\"6-10\",\"spades\":\"6+\"}",
+      "after": "open_weak2_s ^$ 2S",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_weak2_d",
+      "line": 70,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 2D | {\"hcp\":\"6-10\",\"diamonds\":\"6+\"}",
+      "after": "open_weak2_d ^$ 2D",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "open_weak2_c",
+      "line": 77,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "^$ | 2C | {\"hcp\":\"6-10\",\"clubs\":\"6+\"}",
+      "after": "open_weak2_c ^$ 2C",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "resp_1nt_3nt",
+      "line": 84,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1NT R:Pass | 3NT | {\"hcp\":\"10+\"}",
+      "after": "resp_1nt_3nt P:1NT R:PASS 3NT",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_1nt_2c_stayman",
+      "line": 91,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1NT R:Pass | 2C | {\"hcp\":\"8+\",\"spades\":\"4+\"}",
+      "after": "resp_1nt_2c_stayman P:1NT R:PASS 2C",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_1nt_2d_transfer",
+      "line": 98,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1NT R:Pass | 2D | {\"hcp\":\"8+\",\"hearts\":\"5+\"}",
+      "after": "resp_1nt_2d_transfer P:1NT R:PASS 2D",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_major_raise_weak",
+      "line": 105,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1H R:Pass | 2H | {\"hcp\":\"6-9\",\"hearts\":\"3+\"}",
+      "after": "resp_major_raise_weak P:1H R:PASS 2H",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_major_raise_limit",
+      "line": 112,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1H R:Pass | 3H | {\"hcp\":\"10-12\",\"hearts\":\"3+\"}",
+      "after": "resp_major_raise_limit P:1H R:PASS 3H",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_1s_raise",
+      "line": 119,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1S R:Pass | 2S | {\"hcp\":\"6-10\",\"spades\":\"3+\"}",
+      "after": "resp_1s_raise P:1S R:PASS 2S",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_1s_1nt",
+      "line": 126,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1S R:Pass | 1NT | {\"hcp\":\"6-10\"}",
+      "after": "resp_1s_1nt P:1S R:PASS 1NT",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "resp_1h_1nt",
+      "line": 133,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": "P:1H R:Pass | 1NT | {\"hcp\":\"6-10\"}",
+      "after": "resp_1h_1nt P:1H R:PASS 1NT",
+      "reason": "已迁移；变更：Pass -> PASS；序列 token 规范化",
+      "changes": [
+        "Pass -> PASS",
+        "序列 token 规范化"
+      ]
+    },
+    {
+      "ruleId": "overcall_1s",
+      "line": 140,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "R:1D | 1S | {\"hcp\":\"${overcallMinHcp}-18\",\"spades\":\"5+\"}",
+      "after": "overcall_1s R:1D 1S",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "overcall_1h",
+      "line": 147,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "R:1D | 1H | {\"hcp\":\"${overcallMinHcp}-18\",\"hearts\":\"5+\"}",
+      "after": "overcall_1h R:1D 1H",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "overcall_1s_over_1h",
+      "line": 154,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "unchanged",
+      "before": "R:1H | 1S | {\"hcp\":\"${overcallMinHcp}-18\",\"spades\":\"5+\"}",
+      "after": "overcall_1s_over_1h R:1H 1S",
+      "reason": "字段已逐项等价映射，无需改写"
+    },
+    {
+      "ruleId": "natural_fallback_pass",
+      "line": 161,
+      "code": "MIGRATED_RULE",
+      "severity": "info",
+      "action": "transform",
+      "before": ".* | Pass | {}",
+      "after": "natural_fallback_pass .* PASS",
+      "reason": "已迁移；变更：Pass -> PASS",
+      "changes": [
+        "Pass -> PASS"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "open_2c_strong",
+      "line": 7,
+      "order": 0,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_2c_strong"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_2nt",
+      "line": 14,
+      "order": 1,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_2nt"
+      ],
+      "codes": [
+        "LEGACY_BAL_MIGRATED",
+        "MIGRATED_RULE"
+      ],
+      "reason": "balanced:true -> shapeClass:BAL_NO_5M"
+    },
+    {
+      "ruleId": "open_1nt",
+      "line": 21,
+      "order": 2,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_1nt"
+      ],
+      "codes": [
+        "LEGACY_BAL_MIGRATED",
+        "MIGRATED_RULE"
+      ],
+      "reason": "balanced:true -> shapeClass:BAL_NO_5M"
+    },
+    {
+      "ruleId": "open_1h",
+      "line": 28,
+      "order": 3,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_1h"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_1s",
+      "line": 35,
+      "order": 4,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_1s"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_1d",
+      "line": 42,
+      "order": 5,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_1d"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_1c",
+      "line": 49,
+      "order": 6,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_1c"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_weak2_h",
+      "line": 56,
+      "order": 7,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_weak2_h"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_weak2_s",
+      "line": 63,
+      "order": 8,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_weak2_s"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_weak2_d",
+      "line": 70,
+      "order": 9,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_weak2_d"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "open_weak2_c",
+      "line": 77,
+      "order": 10,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "open_weak2_c"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "resp_1nt_3nt",
+      "line": 84,
+      "order": 11,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_1nt_3nt"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_1nt_2c_stayman",
+      "line": 91,
+      "order": 12,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_1nt_2c_stayman"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_1nt_2d_transfer",
+      "line": 98,
+      "order": 13,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_1nt_2d_transfer"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_major_raise_weak",
+      "line": 105,
+      "order": 14,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_major_raise_weak"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_major_raise_limit",
+      "line": 112,
+      "order": 15,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_major_raise_limit"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_1s_raise",
+      "line": 119,
+      "order": 16,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_1s_raise"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_1s_1nt",
+      "line": 126,
+      "order": 17,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_1s_1nt"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "resp_1h_1nt",
+      "line": 133,
+      "order": 18,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "resp_1h_1nt"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS；序列 token 规范化"
+    },
+    {
+      "ruleId": "overcall_1s",
+      "line": 140,
+      "order": 19,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "overcall_1s"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "overcall_1h",
+      "line": 147,
+      "order": 20,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "overcall_1h"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "overcall_1s_over_1h",
+      "line": 154,
+      "order": 21,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "overcall_1s_over_1h"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "未改写"
+    },
+    {
+      "ruleId": "natural_fallback_pass",
+      "line": 161,
+      "order": 22,
+      "status": "executable",
+      "executable": true,
+      "exported": true,
+      "irRuleIds": [
+        "natural_fallback_pass"
+      ],
+      "codes": [
+        "MIGRATED_RULE"
+      ],
+      "reason": "Pass -> PASS"
+    }
+  ],
+  "unsupportedRules": [],
+  "coverage": {
+    "usedKeys": 6,
+    "unknownKeys": [],
+    "styleVars": [
+      "open1ntMin",
+      "open1ntMax",
+      "overcallMinHcp"
+    ],
+    "keys": [
+      {
+        "key": "aces",
+        "count": 0,
+        "v04": "P",
+        "disposition": "unused"
+      },
+      {
+        "key": "adjustedHcp",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "agreedSuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "balanced",
+        "count": 2,
+        "v04": "D",
+        "disposition": "shapeClass"
+      },
+      {
+        "key": "clubs",
+        "count": 2,
+        "v04": "D",
+        "disposition": "direct"
+      },
+      {
+        "key": "combinedAces",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "combinedHcp",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "controls",
+        "count": 0,
+        "v04": "D",
+        "disposition": "unused"
+      },
+      {
+        "key": "cueBidActive",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "cueBidLevel",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "cueBidSuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "cueBidSuitNot",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "cueSuitStopper",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "diamonds",
+        "count": 2,
+        "v04": "D",
+        "disposition": "direct"
+      },
+      {
+        "key": "doubletons",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "fiveCardMajor",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "fourCardMajor",
+        "count": 0,
+        "v04": "D",
+        "disposition": "unused"
+      },
+      {
+        "key": "hcp",
+        "count": 22,
+        "v04": "D",
+        "disposition": "direct"
+      },
+      {
+        "key": "hearts",
+        "count": 7,
+        "v04": "D",
+        "disposition": "direct"
+      },
+      {
+        "key": "kings",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "lastBidLevel",
+        "count": 0,
+        "v04": "P",
+        "disposition": "unused"
+      },
+      {
+        "key": "lastBidSuit",
+        "count": 0,
+        "v04": "P",
+        "disposition": "unused"
+      },
+      {
+        "key": "losers",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "myBlackwood",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "myCueBid",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "myForcingNewSuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "myNaturalSuit",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "mySuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "noLongSuit",
+        "count": 0,
+        "v04": "D",
+        "disposition": "unused"
+      },
+      {
+        "key": "noLongSuitExcept",
+        "count": 0,
+        "v04": "D",
+        "disposition": "unused"
+      },
+      {
+        "key": "openingSeat",
+        "count": 0,
+        "v04": "P",
+        "disposition": "unused"
+      },
+      {
+        "key": "opponentSuitFirstControl",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "opponentSuitNot",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "opponentSuitStopper",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerBlackwood",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerCueBid",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerForcingNewSuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerHcp",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerNaturalSuit",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerOpened",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "partnerSuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "singletons",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      },
+      {
+        "key": "solidSuit",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "spades",
+        "count": 7,
+        "v04": "D",
+        "disposition": "direct"
+      },
+      {
+        "key": "stoppers",
+        "count": 0,
+        "v04": "U",
+        "disposition": "unused"
+      },
+      {
+        "key": "voids",
+        "count": 0,
+        "v04": "—",
+        "disposition": "unused"
+      }
+    ],
+    "shapeClass": {
+      "count": 2,
+      "disposition": "ir-only"
+    },
+    "v04": {
+      "direct": [
+        "hcp",
+        "controls",
+        "spades",
+        "hearts",
+        "diamonds",
+        "clubs",
+        "balanced",
+        "fourCardMajor",
+        "noLongSuit",
+        "noLongSuitExcept"
+      ],
+      "partial": [
+        "openingSeat",
+        "aces",
+        "lastBidSuit",
+        "lastBidLevel"
+      ],
+      "unsupported": [
+        "adjustedHcp",
+        "stoppers",
+        "solidSuit",
+        "partnerOpened",
+        "partnerCueBid",
+        "myCueBid",
+        "cueBidSuit",
+        "cueBidSuitNot",
+        "cueBidLevel",
+        "partnerSuit",
+        "mySuit",
+        "partnerForcingNewSuit",
+        "myForcingNewSuit",
+        "partnerBlackwood",
+        "myBlackwood",
+        "agreedSuit",
+        "opponentSuitFirstControl",
+        "opponentSuitStopper",
+        "opponentSuitNot",
+        "cueSuitStopper",
+        "combinedHcp",
+        "combinedAces"
+      ],
+      "unused": [
+        "cueBidActive",
+        "doubletons",
+        "fiveCardMajor",
+        "kings",
+        "losers",
+        "myNaturalSuit",
+        "partnerHcp",
+        "partnerNaturalSuit",
+        "singletons",
+        "voids"
+      ]
+    }
+  },
+  "rulesetId": "sha256:5cb5c98da9dcc86120f5b4861346002571fce5344b372bc63d1b29e7c6570314"
+}

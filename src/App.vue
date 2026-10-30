@@ -110,7 +110,7 @@ function onRoundSize(value: number): void {
       <el-button type="primary" @click="onNewGame">新一局</el-button>
       <el-button :disabled="store.phase !== 'scoring'" @click="resultVisible = true">本局结果</el-button>
       <el-button @click="historyVisible = true">对局记录</el-button>
-      <el-button @click="pbnVisible = true">PBN 导入/导出</el-button>
+      <el-button @click="pbnVisible = true">导入 / 导出</el-button>
       <el-button @click="rulesVisible = true">规则管理</el-button>
       <el-button @click="settingsVisible = true">风格 / 规则设置</el-button>
     </header>

@@ -20,7 +20,7 @@ import { auctionOutcome, contractFromAuction } from '../core/auction';
 import { parsePbnDeal, toPbnDeal } from '../core/pbn';
 import { sortHand } from '../models/hand';
 import { getSuit } from '../models/card';
-import { isCallLegal } from '../core/bidding/validator';
+import { isCallLegal, lastBidOf } from '../core/bidding/validator';
 import { getLegalCards, isCardLegal } from '../core/playing';
 import { determineTrickWinner } from '../core/trick';
 import { computeScore, type ScoreResult } from '../core/scoring';
@@ -44,7 +44,7 @@ import {
   listBiddingRuleFiles,
   listLeadRuleFiles,
   listSignalRuleFiles,
-  loadBiddingRules,
+  loadBiddingRuleSet,
   loadLeadRules,
   loadSignalRules,
   resetBiddingRuleText,
@@ -56,6 +56,7 @@ import {
   validateBiddingRuleText,
   validateLeadRuleText,
   validateSignalRuleText,
+  type BiddingRuleSet,
   type RuleKind,
   type RuleValidationResult,
 } from '../engine/loader';
@@ -67,6 +68,44 @@ import {
   canEnableHints as canEnableHintsFor,
   hintsTrialRemaining as hintsTrialRemainingFor,
 } from '../membership';
+import { jcs } from '../brules/jcs';
+import { sha256Hex } from '../brules/sha256';
+import { EventLog } from '../domain/events/log';
+import type {
+  BridgeEventPayloads,
+  BridgeEventType,
+  EventActor,
+} from '../domain/events/types';
+import {
+  ENGINE_VERSION,
+  buildTableBoardRecord,
+  callFromCode,
+  contractFromRecord,
+  createDealId,
+  createRecordId,
+  deriveImportedSeeds,
+  deriveStreamSeeds,
+  parseTableBoardRecordDetailed,
+  randomSeed,
+  tableBoardFromPbn,
+  tableBoardToPbn,
+  toTableBoardCsv,
+  toInternalVulnerability,
+  toRecordVulnerability,
+  toPbnRecordText,
+  tokenToCard,
+  toTableBoardJson,
+  type DealSource,
+  type EngineSnapshot,
+  type EngineStreamSeeds,
+  type ExchangeIssue,
+  type LossReport,
+  type RecordAdjustment,
+  type RecordStatus,
+  type RecordVulnerability,
+  type SeatEngine,
+  type TableBoardRecord,
+} from '../exchange';
 
 /** AI 叫牌前的思考延迟（出牌节奏由 PLAY_DISPLAY_MS 控制） */
 export const AI_DELAY_MS = 800;
@@ -94,6 +133,13 @@ export interface DealRecord {
   hands?: Record<Position, Hand>;
   score: { NS: number; EW: number };
   phase: GamePhase;
+  /** 开局冻结的引擎快照；旧归档记录可能没有。 */
+  engine?: EngineSnapshot;
+  recordId?: string;
+  createdAt?: string;
+  dealId?: string;
+  boardNumber?: number;
+  scoreSource?: 'computed' | 'director';
 }
 
 /** 当前人类正在选择/被推荐的叫品含义（供牌桌浮窗实时预览） */
@@ -192,7 +238,89 @@ export const useGameStore = defineStore('game', () => {
   const biddingRuleFile = reactive({ name: defaultBiddingFile });
   const leadRuleFile = reactive({ name: defaultLeadFile });
   const signalRuleFile = reactive({ name: defaultSignalFile });
-  const biddingRules = reactive<{ rules: BiddingRule[] }>({ rules: loadBiddingRules(biddingRuleFile.name) });
+  /**
+   * 当前生效的叫牌规则集（内置 + 本地覆盖合并后的编译结果）。
+   * `rules` 保持 IR 声明顺序；额外字段供诊断与复现快照使用。
+   */
+  const biddingRules = reactive<BiddingRuleSet>({
+    source: '',
+    format: 'unsupported',
+    system: 'unknown',
+    rules: [],
+    diagnostics: [],
+    rulesetId: null,
+    ir: null,
+  });
+
+  function reloadBiddingRuleSet(name: string): void {
+    const loaded = loadBiddingRuleSet(name);
+    biddingRules.source = loaded.source;
+    biddingRules.format = loaded.format;
+    biddingRules.system = loaded.system;
+    biddingRules.systemVersion = loaded.systemVersion;
+    biddingRules.rules = loaded.rules;
+    biddingRules.diagnostics = loaded.diagnostics;
+    biddingRules.rulesetId = loaded.rulesetId;
+    biddingRules.ir = loaded.ir;
+  }
+  reloadBiddingRuleSet(biddingRuleFile.name);
+
+  /**
+   * 开局时冻结的叫牌规则快照。
+   * 局中修改/切换规则只影响后续牌局，不改变当前副的裁决与 rulesetId。
+   */
+  const dealBiddingRules = ref<readonly BiddingRule[]>([]);
+  const dealRulesetId = ref<string | null>(null);
+  const activeBiddingRules = computed<BiddingRule[]>(() =>
+    dealBiddingRules.value.length > 0 ? [...dealBiddingRules.value] : biddingRules.rules,
+  );
+  const activeRulesetId = computed(() => dealRulesetId.value ?? biddingRules.rulesetId);
+
+  function freezeBiddingRulesForDeal(): void {
+    dealBiddingRules.value = Object.freeze([...biddingRules.rules]);
+    dealRulesetId.value = biddingRules.rulesetId;
+  }
+
+  /* ---------------------------------------------------------------- *
+   * 当前副的复现快照（beginAuction 时冻结）
+   * ---------------------------------------------------------------- */
+
+  const dealEngine = ref<EngineSnapshot | null>(null);
+  const dealPbnText = ref('');
+  const dealRecordId = ref('');
+  const dealCreatedAt = ref('');
+  const dealDealId = ref('');
+  const dealBoardNumber = ref(0);
+  const dealScoreSource = ref<'computed' | 'director'>('computed');
+  /** 导入记录时保留的异常状态与审计；正常对局为 null，由牌局推导。 */
+  const dealStatus = ref<RecordStatus | null>(null);
+  const dealAdjustment = ref<RecordAdjustment | undefined>(undefined);
+  const dealAdjustHistory = ref<RecordAdjustment[] | undefined>(undefined);
+  const dealUpdatedAt = ref<string | undefined>(undefined);
+
+  function clearImportedRecordState(): void {
+    dealStatus.value = null;
+    dealAdjustment.value = undefined;
+    dealAdjustHistory.value = undefined;
+    dealUpdatedAt.value = undefined;
+  }
+
+  /** 只保留能通过 1.1 校验的导入状态；1.0 缺审计的取消/调整记录退回牌局推导。 */
+  function preservedRecordStatus(record: TableBoardRecord): RecordStatus | undefined {
+    if (record.status === 'CANCELLED') {
+      return record.adjustment?.kind === 'CANCEL' ? record.status : undefined;
+    }
+    if (record.status === 'REOPENED') {
+      return record.adjustment?.kind === 'REOPEN' ? record.status : undefined;
+    }
+    if (record.status === 'ADJUSTED') {
+      return record.adjustment?.kind === 'ADJUST' && record.adjustHistory?.length
+        ? record.status
+        : undefined;
+    }
+    return record.status;
+  }
+
   const leadRules = reactive<{ rules: LeadRule[] }>({ rules: loadLeadRules(leadRuleFile.name) });
   const signalRuleSet = reactive<SignalRuleSet>(loadSignalRules(signalRuleFile.name));
 
@@ -206,8 +334,44 @@ export const useGameStore = defineStore('game', () => {
   const ruleRevision = ref(0);
 
   // —— 非响应式内部变量 ——
-  let rng: () => number = makeRng(state.rngSeed);
+  // 四条独立随机流（reproducibility.md §3）；不得再用一个共享 rng。
+  let dealRng: () => number = makeRng(state.rngSeed);
+  let biddingRng: () => number = makeRng(state.rngSeed);
+  let playRng: () => number = makeRng(state.rngSeed);
+  let ddsRng: () => number = makeRng(state.rngSeed);
   const gamesPlayed = ref(0);
+  /** 单机阶段的本地事件流；服务端接入后由 session/table id 替换。 */
+  const LOCAL_SESSION_ID = 'session-local';
+  const LOCAL_TABLE_ID = 'table-1';
+  let currentEventLog: EventLog | null = null;
+  let boardCompletedEventEmitted = false;
+
+  function appendEvent<T extends BridgeEventType>(
+    type: T,
+    payload: BridgeEventPayloads[T],
+    actor: EventActor,
+  ): void {
+    currentEventLog?.append(type, payload, { actor });
+  }
+
+  function emitBoardCompleted(status: 'PLAYED' | 'PASSED_OUT', nsRaw: number, tricksTaken: number): void {
+    if (!currentEventLog || boardCompletedEventEmitted) return;
+    boardCompletedEventEmitted = true;
+    currentEventLog.append(
+      'board.completed',
+      { status, nsRaw, tricksTaken },
+      { actor: { kind: 'system' } },
+    );
+    currentEventLog.append(
+      'score.computed',
+      {
+        nsRaw,
+        singleTableImp: impsFromScoreDiff(nsRaw),
+        tableVersion: 'wbf-2017',
+      },
+      { actor: { kind: 'system' } },
+    );
+  }
   let loopToken = 0; // 用于取消进行中的 AI 循环
   /** 最近一次出牌的时间戳，用于保证每张牌至少展示 PLAY_DISPLAY_MS */
   let lastPlayAt = 0;
@@ -359,6 +523,77 @@ export const useGameStore = defineStore('game', () => {
     };
   });
 
+  /** 对 JSON 数据做 JCS 语义哈希；用于首攻/信号规则集身份。 */
+  function semanticHash(value: unknown): string {
+    const clean = JSON.parse(JSON.stringify(value)) as unknown;
+    return `sha256:${sha256Hex(jcs(clean))}`;
+  }
+
+  /** 开局时冻结引擎配置（规则、座位、推断开关、随机流）。 */
+  function buildEngineSnapshot(input: {
+    dealSource: DealSource;
+    streams: EngineStreamSeeds;
+  }): EngineSnapshot {
+    const rulesetId = biddingRules.rulesetId ?? semanticHash(biddingRules.rules);
+    const system =
+      biddingRules.system && biddingRules.system !== 'unknown'
+        ? biddingRules.system
+        : biddingRuleFile.name;
+    const systemVersion = biddingRules.systemVersion || '0.5.0';
+    const seats = {} as Record<Position, SeatEngine>;
+    for (const seat of ['N', 'E', 'S', 'W'] as Position[]) {
+      const style = state.styles[seat];
+      seats[seat] = {
+        controller: autoPilot.value
+          ? 'auto-ai'
+          : state.humanSeats.includes(seat)
+            ? 'human'
+            : 'ai',
+        bidStyle: style.bid,
+        playStyle: style.play,
+        randomness: style.randomness,
+        ddsPlay: useDdsPlayAI.value,
+        ddsSamples: 12,
+        objective: 'contract',
+      };
+    }
+    const snapshotAt = new Date().toISOString();
+    return {
+      dealSource: input.dealSource,
+      ...(input.dealSource.kind === 'seeded' && input.streams.deal !== undefined
+        ? { rngSeed: input.streams.deal }
+        : {}),
+      streams: { ...input.streams },
+      ruleset: {
+        system,
+        systemVersion,
+        rulesetId,
+        overlay: isBiddingRuleOverridden(biddingRuleFile.name),
+      },
+      playRulesets: {
+        lead: {
+          name: leadRuleFile.name,
+          rulesetId: semanticHash(leadRules.rules),
+          overlay: isLeadRuleOverridden(leadRuleFile.name),
+        },
+        signal: {
+          name: signalRuleFile.name,
+          rulesetId: semanticHash({
+            rules: signalRuleSet.rules,
+            settings: signalRuleSet.settings,
+          }),
+          overlay: isSignalRuleOverridden(signalRuleFile.name),
+          settings: { ...signalRuleSet.settings },
+        },
+      },
+      seats,
+      inference: { auctionConstraints: true, leadInference: true },
+      engineVersion: ENGINE_VERSION,
+      snapshotAt,
+      rngMode: 'streams',
+    };
+  }
+
   /** 将当前对局快照存入历史（仅当本局已有动作时） */
   function archiveCurrentDeal(): void {
     const hasActivity =
@@ -376,6 +611,12 @@ export const useGameStore = defineStore('game', () => {
       hands: deepCopy(dealHands.value),
       score: { ...state.score },
       phase: state.phase,
+      ...(dealEngine.value ? { engine: deepCopy(dealEngine.value) } : {}),
+      ...(dealRecordId.value ? { recordId: dealRecordId.value } : {}),
+      ...(dealCreatedAt.value ? { createdAt: dealCreatedAt.value } : {}),
+      ...(dealDealId.value ? { dealId: dealDealId.value } : {}),
+      ...(dealBoardNumber.value ? { boardNumber: dealBoardNumber.value } : {}),
+      scoreSource: dealScoreSource.value,
     });
   }
 
@@ -401,6 +642,7 @@ export const useGameStore = defineStore('game', () => {
     call: BidCall,
     meta?: { alerted?: boolean; alertText?: string; ruleId?: string },
   ): void {
+    clearImportedRecordState();
     state.biddingHistory.push({
       position: pos,
       call,
@@ -417,6 +659,16 @@ export const useGameStore = defineStore('game', () => {
     }
     state.currentBidder = nextPosition(pos);
     state.message = `${pos} ${describeCall(call)}`;
+    appendEvent(
+      'auction.call',
+      {
+        position: pos,
+        call,
+        ...(meta?.ruleId ? { ruleId: meta.ruleId } : {}),
+        ...(meta?.alerted ? { alerted: true, alertText: meta.alertText } : {}),
+      },
+      { kind: 'player', seat: pos },
+    );
   }
 
   /** 判定叫牌是否结束（规则见 core/auction.ts） */
@@ -426,12 +678,14 @@ export const useGameStore = defineStore('game', () => {
       state.phase = 'scoring';
       state.score = { NS: 0, EW: 0 };
       state.message = '四家不叫，本局流局';
+      emitBoardCompleted('PASSED_OUT', 0, 0);
     }
     return outcome;
   }
 
   /** 叫牌结束、确立定约并进入首攻等待 */
   function setContractAndStartPlay(): void {
+    clearImportedRecordState();
     bidPreview.value = null;
     const contract = contractFromAuction(
       state.biddingHistory,
@@ -445,11 +699,18 @@ export const useGameStore = defineStore('game', () => {
     state.nextPlayer = state.trickLeader;
     state.currentTrick = [];
     state.message = `定约 ${describeContract(contract)}，等待首攻`;
+    appendEvent(
+      'contract.set',
+      { contract, declarer: contract.declarer, tricksTaken: 0 },
+      { kind: 'system' },
+    );
   }
 
   function applyPlay(pos: Position, card: number): void {
+    clearImportedRecordState();
     state.hands[pos] = state.hands[pos].filter((c) => c !== card);
     state.currentTrick.push({ position: pos, card });
+    appendEvent('play.card', { position: pos, card }, { kind: 'player', seat: pos });
     // 首攻落地后立刻翻开明手（验收用例 13）
     if (!state.dummyOpen && state.contract) {
       state.dummyOpen = true;
@@ -468,7 +729,13 @@ export const useGameStore = defineStore('game', () => {
     const trump = trumpSuitOf(contract);
     const leader = state.trickLeader!;
     const winner = determineTrickWinner(state.currentTrick, trump);
-    state.tricks.push({ plays: [...state.currentTrick], leader, winner });
+    const plays = [...state.currentTrick];
+    state.tricks.push({ plays, leader, winner });
+    appendEvent(
+      'trick.completed',
+      { index: state.tricks.length, leader, winner, cards: plays },
+      { kind: 'system' },
+    );
     lastTrickCompletedAt = Date.now();
     state.currentTrick = [];
     state.trickLeader = winner;
@@ -498,6 +765,7 @@ export const useGameStore = defineStore('game', () => {
     const result: ScoreResult = computeScore(state.contract, won, state.vulnerability);
     state.score = result;
     state.message = `定约方赢得 ${won} 墩；得分 NS ${result.NS} / EW ${result.EW}`;
+    emitBoardCompleted('PLAYED', result.NS - result.EW, won);
   }
 
   /* ---------------------------------------------------------------- *
@@ -511,11 +779,11 @@ export const useGameStore = defineStore('game', () => {
       state.biddingHistory,
       pos,
       state.currentBid,
-      biddingRules.rules,
+      activeBiddingRules.value,
       {
         style: cfg.bid,
         randomness: cfg.randomness,
-        rng,
+        rng: biddingRng,
       },
     );
     return { call: result.call, ruleId: result.candidate?.rule.id };
@@ -534,7 +802,7 @@ export const useGameStore = defineStore('game', () => {
       declarerTricksWon(),
       leadRules.rules,
       state.styles[pos].play,
-      { rng, biddingHistory: state.biddingHistory, signalSettings: signalRuleSet.settings },
+      { rng: playRng, biddingHistory: state.biddingHistory, signalSettings: signalRuleSet.settings },
     );
 
     if (!useDdsPlayAI.value || !isDdsAvailable()) return fallback;
@@ -549,7 +817,7 @@ export const useGameStore = defineStore('game', () => {
         // 残局候选分布更少、单次求解更快，增加样本数以降低抽样方差。
         samples: state.tricks.length >= 9 ? 24 : state.tricks.length >= 6 ? 16 : 12,
         biddingHistory: state.biddingHistory,
-        biddingRules: biddingRules.rules,
+        biddingRules: activeBiddingRules.value,
         styles: {
           N: state.styles.N.bid,
           E: state.styles.E.bid,
@@ -559,7 +827,7 @@ export const useGameStore = defineStore('game', () => {
         trustedBiddingSeats: (['N', 'E', 'S', 'W'] as Position[]).filter(
           (seat) => !state.humanSeats.includes(seat),
         ),
-        rng,
+        rng: ddsRng,
         preferred: fallback,
         legalCards: legalCardsFor(pos),
       });
@@ -711,9 +979,25 @@ export const useGameStore = defineStore('game', () => {
 
   interface StartOptions {
     seed?: number;
+    /** 副序号（默认 0；与 seed 一起参与四条随机流派生） */
+    index?: number;
     dealer?: Position;
     /** 是否自动启动 AI 循环（测试可置 false 以手动驱动） */
     autoStart?: boolean;
+  }
+
+  interface BeginAuctionOptions {
+    engine: EngineSnapshot;
+    pbn: string;
+    recordId: string;
+    createdAt: string;
+    dealId: string;
+    boardNumber: number;
+    scoreSource?: 'computed' | 'director';
+    status?: RecordStatus;
+    adjustment?: RecordAdjustment;
+    adjustHistory?: RecordAdjustment[];
+    updatedAt?: string;
   }
 
   /** 把一手完整的 52 张牌装载为待叫牌的新对局（新一局/导入 PBN 共用）。 */
@@ -722,7 +1006,47 @@ export const useGameStore = defineStore('game', () => {
     dealer: Position,
     vulnerability: GameState['vulnerability'],
     message: string,
+    opts?: BeginAuctionOptions,
   ): void {
+    const engine =
+      opts?.engine ??
+      buildEngineSnapshot({
+        dealSource: { kind: 'imported-pbn' },
+        streams: deriveImportedSeeds(state.rngSeed),
+      });
+    const boardNumber = opts?.boardNumber ?? Math.max(1, gamesPlayed.value);
+    const createdAt = opts?.createdAt ?? engine.snapshotAt ?? new Date().toISOString();
+
+    dealPbnText.value = opts?.pbn ?? toPbnDeal(hands, dealer);
+    dealEngine.value = deepCopy(engine);
+    dealRecordId.value = opts?.recordId ?? createRecordId();
+    dealCreatedAt.value = createdAt;
+    dealDealId.value = opts?.dealId ?? createDealId(boardNumber);
+    dealBoardNumber.value = boardNumber;
+    dealScoreSource.value = opts?.scoreSource ?? 'computed';
+    dealStatus.value = opts?.status ?? null;
+    dealAdjustment.value = opts?.adjustment;
+    dealAdjustHistory.value = opts?.adjustHistory;
+    dealUpdatedAt.value = opts?.updatedAt;
+
+    currentEventLog = new EventLog({
+      sessionId: LOCAL_SESSION_ID,
+      tableId: LOCAL_TABLE_ID,
+      tableBoardId: dealRecordId.value,
+    });
+    boardCompletedEventEmitted = false;
+    currentEventLog.append(
+      'deal.created',
+      {
+        dealId: dealDealId.value,
+        boardNumber,
+        dealer,
+        vulnerability: toRecordVulnerability(vulnerability),
+        pbn: dealPbnText.value,
+      },
+      { actor: { kind: 'system' } },
+    );
+
     (['N', 'E', 'S', 'W'] as Position[]).forEach((p) => {
       state.hands[p] = sortHand(hands[p]);
     });
@@ -751,6 +1075,7 @@ export const useGameStore = defineStore('game', () => {
     state.isAiThinking = false;
     state.message = message;
     bidPreview.value = null;
+    freezeBiddingRulesForDeal();
   }
 
   function startNewGame(opts: StartOptions = {}): void {
@@ -758,25 +1083,44 @@ export const useGameStore = defineStore('game', () => {
     archiveCurrentDeal(); // 归档上一局
     gamesPlayed.value += 1;
     consumeHintsTrialDeal();
-    const seed = opts.seed ?? ((Date.now() >>> 0) ^ (Math.floor(Math.random() * 0xffffffff) >>> 0)) >>> 0;
-    state.rngSeed = seed >>> 0;
-    rng = makeRng(state.rngSeed);
 
-    // 发牌
-    const deck = shuffle(createDeck(), rng);
+    const baseSeed = opts.seed !== undefined ? opts.seed >>> 0 : randomSeed();
+    const index = opts.index ?? 0;
+    const streams = deriveStreamSeeds(baseSeed, index);
+    state.rngSeed = streams.deal;
+    dealRng = makeRng(streams.deal);
+    biddingRng = makeRng(streams.bidding);
+    playRng = makeRng(streams.play);
+    ddsRng = makeRng(streams.dds);
+
+    // 发牌（deal 流消费顺序固定：洗牌 → 局况 → 后续只能追加）
+    const deck = shuffle(createDeck(), dealRng);
     const dealt = deal(deck);
 
     // 局况：等概率随机（验收要求）
-    const vulnerability = VULNERABILITIES[Math.floor(rng() * VULNERABILITIES.length)];
+    const vulnerability = VULNERABILITIES[Math.floor(dealRng() * VULNERABILITIES.length)];
 
     // 庄家轮转：首局 N，其后顺时针推进
     const dealer = opts.dealer ?? (gamesPlayed.value === 1 ? 'N' : nextPosition(state.dealer));
 
+    const boardNumber = gamesPlayed.value;
+    const engine = buildEngineSnapshot({
+      dealSource: { kind: 'seeded', baseSeed, index },
+      streams,
+    });
     beginAuction(
       dealt,
       dealer,
       vulnerability,
-      `第 ${gamesPlayed.value} 局开始，庄家 ${dealer}，局况 ${vulName(vulnerability)}`,
+      `第 ${boardNumber} 局开始，庄家 ${dealer}，局况 ${vulName(vulnerability)}`,
+      {
+        engine,
+        pbn: toPbnDeal(dealt, dealer),
+        recordId: createRecordId(),
+        createdAt: engine.snapshotAt ?? new Date().toISOString(),
+        dealId: createDealId(boardNumber),
+        boardNumber,
+      },
     );
 
     if (opts.autoStart !== false) void runAILoop();
@@ -796,6 +1140,9 @@ export const useGameStore = defineStore('game', () => {
   interface ImportDealOptions {
     /** PBN 不含局况，导入时可指定；默认沿用当前局况 */
     vulnerability?: GameState['vulnerability'];
+    /** 可选基础种子，使导入后的 bidding/play/dds 流可复现 */
+    seed?: number;
+    index?: number;
     autoStart?: boolean;
   }
 
@@ -806,14 +1153,331 @@ export const useGameStore = defineStore('game', () => {
     archiveCurrentDeal();
     gamesPlayed.value += 1;
     consumeHintsTrialDeal();
+
+    const baseSeed = opts.seed !== undefined ? opts.seed >>> 0 : randomSeed();
+    const index = opts.index ?? 0;
+    const streams = deriveImportedSeeds(baseSeed, index);
+    state.rngSeed = streams.bidding;
+    dealRng = makeRng(streams.bidding);
+    biddingRng = makeRng(streams.bidding);
+    playRng = makeRng(streams.play);
+    ddsRng = makeRng(streams.dds);
+
     const vulnerability = opts.vulnerability ?? state.vulnerability;
+    const boardNumber = gamesPlayed.value;
+    const engine = buildEngineSnapshot({
+      dealSource: { kind: 'imported-pbn' },
+      streams,
+    });
     beginAuction(
       parsed.hands,
       parsed.dealer,
       vulnerability,
-      `导入 PBN：第 ${gamesPlayed.value} 局，庄家 ${parsed.dealer}，局况 ${vulName(vulnerability)}`,
+      `导入 PBN：第 ${boardNumber} 局，庄家 ${parsed.dealer}，局况 ${vulName(vulnerability)}`,
+      {
+        engine,
+        pbn: toPbnDeal(parsed.hands, parsed.dealer),
+        recordId: createRecordId(),
+        createdAt: engine.snapshotAt ?? new Date().toISOString(),
+        dealId: createDealId(boardNumber),
+        boardNumber,
+      },
     );
     if (opts.autoStart !== false) void runAILoop();
+  }
+
+  /* ---------------------------------------------------------------- *
+   * TableBoard / PBN / CSV 数据交换
+   * ---------------------------------------------------------------- */
+
+  function fallbackEngine(): EngineSnapshot {
+    return buildEngineSnapshot({
+      dealSource: { kind: 'imported-pbn' },
+      streams: deriveImportedSeeds(state.rngSeed),
+    });
+  }
+
+  /** 当前副 → Profile S 记录（使用开局快照，而非打牌后的残局）。 */
+  function currentTableBoardRecord(): TableBoardRecord {
+    const total = (['N', 'E', 'S', 'W'] as Position[]).reduce(
+      (sum, seat) => sum + (dealHands.value[seat]?.length ?? 0),
+      0,
+    );
+    if (total !== 52) throw new Error('当前没有可导出的完整牌局');
+    const boardNumber = dealBoardNumber.value || Math.max(1, gamesPlayed.value);
+    return buildTableBoardRecord({
+      ...(dealRecordId.value ? { recordId: dealRecordId.value } : {}),
+      ...(dealCreatedAt.value ? { createdAt: dealCreatedAt.value } : {}),
+      ...(dealDealId.value ? { dealId: dealDealId.value } : {}),
+      boardNumber,
+      dealer: state.dealer,
+      vulnerability: state.vulnerability,
+      hands: dealHands.value,
+      pbn: dealPbnText.value || toPbnDeal(dealHands.value, state.dealer),
+      biddingHistory: state.biddingHistory,
+      contract: state.contract,
+      tricks: state.tricks,
+      score: state.score,
+      scoreSource: dealScoreSource.value,
+      ...(dealStatus.value ? { status: dealStatus.value } : {}),
+      ...(dealAdjustment.value ? { adjustment: dealAdjustment.value } : {}),
+      ...(dealAdjustHistory.value ? { adjustHistory: dealAdjustHistory.value } : {}),
+      ...(dealUpdatedAt.value ? { updatedAt: dealUpdatedAt.value } : {}),
+      hcp: { NS: dealHcp.value.NS, EW: dealHcp.value.EW },
+      engine: dealEngine.value ?? fallbackEngine(),
+    });
+  }
+
+  function archivedTableBoardRecord(record: DealRecord): TableBoardRecord {
+    const hands = record.hands;
+    if (!hands || (['N', 'E', 'S', 'W'] as Position[]).some((seat) => hands[seat]?.length !== 13)) {
+      throw new Error(`第 ${record.index} 局缺少完整发牌快照，无法导出`);
+    }
+    return buildTableBoardRecord({
+      ...(record.recordId ? { recordId: record.recordId } : {}),
+      ...(record.createdAt ? { createdAt: record.createdAt } : {}),
+      ...(record.dealId ? { dealId: record.dealId } : {}),
+      boardNumber: record.boardNumber ?? Math.max(1, record.index),
+      dealer: record.dealer,
+      vulnerability: record.vulnerability,
+      hands,
+      biddingHistory: record.biddingHistory,
+      contract: record.contract,
+      tricks: record.tricks,
+      score: record.score,
+      scoreSource: record.scoreSource ?? 'computed',
+      hcp: { NS: record.hcp.NS, EW: record.hcp.EW },
+      engine: record.engine ?? fallbackEngine(),
+      auctionCompleted:
+        record.contract !== null ||
+        auctionOutcome(record.biddingHistory, lastBidOf(record.biddingHistory)) !== 'none',
+    });
+  }
+
+  /** 历史记录 + 当前副（按时间顺序）。 */
+  function tableBoardRecords(): TableBoardRecord[] {
+    const records = dealHistory.value.map(archivedTableBoardRecord);
+    const total = (['N', 'E', 'S', 'W'] as Position[]).reduce(
+      (sum, seat) => sum + (dealHands.value[seat]?.length ?? 0),
+      0,
+    );
+    if (total === 52) records.push(currentTableBoardRecord());
+    return records;
+  }
+
+  /** 当前副的事件流（JSONL）；导出当前副的审计/回放事件。 */
+  function exportEventJsonl(): string {
+    return currentEventLog?.toJsonl() ?? '';
+  }
+
+  /** 当前副的 Profile S JSON。 */
+  function exportTableBoardJson(): string {
+    return toTableBoardJson(currentTableBoardRecord());
+  }
+
+  /** 当前副的完整 PBN（含 Auction / Contract / Result / Play / Score）。 */
+  function exportTableBoardPbn(): { text: string; losses: LossReport[] } {
+    return tableBoardToPbn(currentTableBoardRecord());
+  }
+
+  /** 历史 + 当前副的 CSV（UTF-8 BOM）。 */
+  function exportTableBoardCsv(): string {
+    return toTableBoardCsv(tableBoardRecords());
+  }
+
+  /** 兼容便捷入口：只导出完整 PBN 文本。 */
+  function exportTableBoardPbnText(): string {
+    return toPbnRecordText(currentTableBoardRecord());
+  }
+
+  interface ImportRecordOptions {
+    autoStart?: boolean;
+  }
+
+  interface ImportBoardPbnOptions extends ImportRecordOptions {
+    vulnerability?: RecordVulnerability;
+    seed?: number;
+    index?: number;
+  }
+
+  /** 把一条 TableBoard 记录装载为当前副（不运行 AI，除非显式要求）。 */
+  function importTableBoardRecord(record: TableBoardRecord, opts: ImportRecordOptions = {}): void {
+    const parsed = parsePbnDeal(record.deal.pbn);
+    loopToken++;
+    archiveCurrentDeal();
+    gamesPlayed.value += 1;
+    consumeHintsTrialDeal();
+
+    const streams = record.engine.streams ?? {};
+    const fallbackSeed =
+      record.engine.dealSource.kind === 'seeded'
+        ? record.engine.dealSource.baseSeed
+        : (record.engine.rngSeed ?? randomSeed());
+    const effectiveSeed = streams.deal ?? streams.bidding ?? fallbackSeed;
+    state.rngSeed = effectiveSeed >>> 0;
+    dealRng = makeRng(state.rngSeed);
+    biddingRng = makeRng((streams.bidding ?? effectiveSeed) >>> 0);
+    playRng = makeRng((streams.play ?? effectiveSeed) >>> 0);
+    ddsRng = makeRng((streams.dds ?? effectiveSeed) >>> 0);
+
+    const boardNumber = record.deal.boardNumber;
+    const status = preservedRecordStatus(record);
+    beginAuction(
+      parsed.hands,
+      record.deal.dealer,
+      toInternalVulnerability(record.deal.vulnerability),
+      `导入记录：第 ${boardNumber} 局，庄家 ${record.deal.dealer}`,
+      {
+        engine: deepCopy(record.engine),
+        pbn: record.deal.pbn,
+        recordId: record.recordId,
+        createdAt: record.createdAt,
+        dealId: record.deal.dealId,
+        boardNumber,
+        scoreSource: record.score.source,
+        ...(status ? { status } : {}),
+        ...(record.adjustment ? { adjustment: record.adjustment } : {}),
+        ...(record.adjustHistory ? { adjustHistory: record.adjustHistory } : {}),
+        ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
+      },
+    );
+
+    // 叫牌历史
+    let position = record.deal.dealer;
+    let currentBid: GameState['currentBid'] = null;
+    let doubleState: GameState['doubleState'] = 'none';
+    const history: BidRecord[] = [];
+    for (const code of record.auction.calls) {
+      const call = callFromCode(code);
+      history.push({ position, call });
+      if (call.type === 'bid') {
+        currentBid = { level: call.level, suit: call.suit };
+        doubleState = 'none';
+      } else if (call.type === 'double') {
+        doubleState = 'double';
+      } else if (call.type === 'redouble') {
+        doubleState = 'redouble';
+      }
+      position = nextPosition(position);
+    }
+    state.biddingHistory = history;
+    state.currentBid = currentBid;
+    state.doubleState = doubleState;
+    state.currentBidder = position;
+
+    // 定约与出牌
+    if (
+      record.contract &&
+      record.declarer &&
+      record.status !== 'PASSED_OUT' &&
+      record.status !== 'CANCELLED' &&
+      record.status !== 'REOPENED' &&
+      record.status !== 'INCOMPLETE'
+    ) {
+      state.contract = contractFromRecord(record.contract, record.declarer);
+    }
+    const restoredTricks: Trick[] = [];
+    if (record.play && state.contract) {
+      for (const trick of record.play.tricks) {
+        restoredTricks.push({
+          leader: trick.leader,
+          winner: trick.winner,
+          plays: trick.cards.map((item) => ({
+            position: item.seat,
+            card: tokenToCard(item.card),
+          })),
+        });
+      }
+    }
+    state.tricks = restoredTricks;
+    state.currentTrick = [];
+    const played = new Set(
+      record.play?.tricks.flatMap((trick) =>
+        trick.cards.map((item) => tokenToCard(item.card)),
+      ) ?? [],
+    );
+    for (const seat of ['N', 'E', 'S', 'W'] as Position[]) {
+      state.hands[seat] = state.hands[seat].filter((card) => !played.has(card));
+    }
+
+    const rawScore = record.score.nsRaw ?? 0;
+    state.score = {
+      NS: Math.max(0, rawScore),
+      EW: Math.max(0, -rawScore),
+    };
+
+    if (
+      record.status === 'PASSED_OUT' ||
+      record.status === 'CANCELLED' ||
+      record.status === 'INCOMPLETE' ||
+      record.status === 'REOPENED'
+    ) {
+      state.contract = null;
+      state.tricks = [];
+      state.score = { NS: 0, EW: 0 };
+      state.phase = 'scoring';
+    } else if (record.status === 'PLAYED' || record.status === 'ADJUSTED') {
+      state.phase = 'scoring';
+      state.dummyOpen = restoredTricks.length > 0;
+    } else if (!record.auction.completed) {
+      state.phase = 'bidding';
+      state.currentBidder = position;
+    } else if (state.contract) {
+      const leader =
+        restoredTricks.length > 0
+          ? restoredTricks[restoredTricks.length - 1].winner
+          : nextPosition(state.contract.declarer);
+      state.phase = 'play_waiting_lead';
+      state.trickLeader = leader;
+      state.nextPlayer = leader;
+      state.dummyOpen = restoredTricks.length > 0;
+    } else {
+      state.phase = 'bidding';
+    }
+
+    state.isAiThinking = false;
+    state.message = `已导入第 ${boardNumber} 局记录（${record.status}）`;
+
+    if (
+      opts.autoStart !== false &&
+      (state.phase === 'bidding' || state.phase === 'play_waiting_lead')
+    ) {
+      void runAILoop();
+    }
+  }
+
+  /** JSON 文本 → 当前副；返回 warning / info 级诊断供 UI 展示。 */
+  function importTableBoardJson(text: string, opts: ImportRecordOptions = {}): ExchangeIssue[] {
+    const { record, issues } = parseTableBoardRecordDetailed(text);
+    importTableBoardRecord(record, opts);
+    return issues;
+  }
+
+  /** 完整 PBN 文本 → 当前副；返回警告/损失报告供 UI 展示。 */
+  function importTableBoardPbn(
+    text: string,
+    opts: ImportBoardPbnOptions = {},
+  ): ExchangeIssue[] {
+    const baseSeed = opts.seed !== undefined ? opts.seed >>> 0 : randomSeed();
+    const streams = deriveImportedSeeds(baseSeed, opts.index ?? 0);
+    const engine = buildEngineSnapshot({
+      dealSource: { kind: 'imported-pbn' },
+      streams,
+    });
+    const { record, issues, losses } = tableBoardFromPbn(text, {
+      engine,
+      ...(opts.vulnerability ? { vulnerability: opts.vulnerability } : {}),
+    });
+    importTableBoardRecord(record, { ...(opts.autoStart !== undefined ? { autoStart: opts.autoStart } : {}) });
+    return [
+      ...issues,
+      ...losses.map((loss) => ({
+        code: 'LOSS_REPORT',
+        severity: 'info' as const,
+        message: `${loss.field}: ${loss.reason}`,
+        field: loss.field,
+      })),
+    ];
   }
 
   /** 人类叫牌（仅受核心法律约束，可诈叫） */
@@ -832,7 +1496,7 @@ export const useGameStore = defineStore('game', () => {
       pos,
       state.currentBid,
       state.styles[pos].bid,
-      biddingRules.rules,
+      activeBiddingRules.value,
       call,
     );
     bidPreview.value = null;
@@ -874,7 +1538,7 @@ export const useGameStore = defineStore('game', () => {
 
   function setBiddingRuleFile(name: string): void {
     biddingRuleFile.name = name;
-    biddingRules.rules = loadBiddingRules(name);
+    reloadBiddingRuleSet(name);
   }
 
   function setLeadRuleFile(name: string): void {
@@ -962,7 +1626,7 @@ export const useGameStore = defineStore('game', () => {
     if (!canEditRules.value) throw new Error('当前账号无规则修改权限（仅系统管理员可修改）');
     if (kind === 'bidding') {
       saveBiddingRuleText(name, text);
-      if (biddingRuleFile.name === name) biddingRules.rules = loadBiddingRules(name);
+      if (biddingRuleFile.name === name) reloadBiddingRuleSet(name);
     } else if (kind === 'lead') {
       saveLeadRuleText(name, text);
       if (leadRuleFile.name === name) leadRules.rules = loadLeadRules(name);
@@ -978,7 +1642,7 @@ export const useGameStore = defineStore('game', () => {
     if (!canEditRules.value) throw new Error('当前账号无规则修改权限（仅系统管理员可修改）');
     if (kind === 'bidding') {
       resetBiddingRuleText(name);
-      if (biddingRuleFile.name === name) biddingRules.rules = loadBiddingRules(name);
+      if (biddingRuleFile.name === name) reloadBiddingRuleSet(name);
     } else if (kind === 'lead') {
       resetLeadRuleText(name);
       if (leadRuleFile.name === name) leadRules.rules = loadLeadRules(name);
@@ -993,7 +1657,7 @@ export const useGameStore = defineStore('game', () => {
   function resetAllRuleOverrides(): void {
     if (!canEditRules.value) throw new Error('当前账号无规则修改权限（仅系统管理员可修改）');
     clearRuleOverrides();
-    biddingRules.rules = loadBiddingRules(biddingRuleFile.name);
+    reloadBiddingRuleSet(biddingRuleFile.name);
     leadRules.rules = loadLeadRules(leadRuleFile.name);
     setSignalRuleFile(signalRuleFile.name);
     ruleRevision.value += 1;
@@ -1052,6 +1716,8 @@ export const useGameStore = defineStore('game', () => {
     dealHands,
     // 规则资产
     biddingRules,
+    activeBiddingRules,
+    activeRulesetId,
     leadRules,
     signalRuleSet,
     biddingRuleFile,
@@ -1072,6 +1738,17 @@ export const useGameStore = defineStore('game', () => {
     startNewGame,
     exportDealPbn,
     importDealPbn,
+    // 数据交换（Profile S）
+    dealEngine,
+    currentTableBoardRecord,
+    exportTableBoardJson,
+    exportTableBoardPbn,
+    exportTableBoardPbnText,
+    exportTableBoardCsv,
+    exportEventJsonl,
+    importTableBoardRecord,
+    importTableBoardJson,
+    importTableBoardPbn,
     humanBid,
     humanPlay,
     recommendPlay,

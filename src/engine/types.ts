@@ -85,9 +85,9 @@ export interface ConditionSpec {
   partnerNaturalSuit?: boolean;
   /** 自己最后叫牌是自然花色 */
   myNaturalSuit?: boolean;
-  /** 同伴最后叫牌是强自然新花（规则 id 以 nat_ 开头） */
+  /** 同伴最后叫牌是强自然新花（规则 tags 含 natural + forcing；无 tags 时回退 nat_ 前缀） */
   partnerForcingNewSuit?: boolean;
-  /** 自己最后叫牌是强自然新花（规则 id 以 nat_ 开头） */
+  /** 自己最后叫牌是强自然新花（规则 tags 含 natural + forcing；无 tags 时回退 nat_ 前缀） */
   myForcingNewSuit?: boolean;
   /** 最后实质叫牌的花色字母；"NT" 表示无将 */
   lastBidSuit?: string;

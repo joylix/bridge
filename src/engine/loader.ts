@@ -1,7 +1,14 @@
 import yaml from 'js-yaml';
+import {
+  compileBiddingRules,
+  hasBiddingRuleErrors,
+  type BiddingRuleSet,
+} from '../brules/runtime';
 import type { BiddingRule, LeadRule, SignalRule, SignalRuleSet, SignalSettings } from './types';
 
-/** 解析叫牌规则 YAML 文本（按 priority 降序稳定排序） */
+export type { BiddingRuleSet } from '../brules/runtime';
+
+/** 解析 legacy 叫牌规则 YAML 文本（按 priority 降序稳定排序；运行时请用 loadBiddingRuleSet） */
 export function parseBiddingRules(text: string): BiddingRule[] {
   const data = yaml.load(text) as { rules?: BiddingRule[] } | undefined;
   if (!data?.rules) throw new Error('叫牌规则文件缺少 rules 段');
@@ -192,22 +199,20 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** 校验叫牌规则文本：YAML 语法 + 必备字段 */
+/**
+ * 校验叫牌规则文本：语法 + 可执行性。
+ *
+ * Phase 3 起与运行时使用同一条编译管道，因此“能保存”等价于“能进入裁决”。
+ * warning（例如既有规则冲突 AMBIGUOUS_RULES）不阻止保存。
+ */
 export function validateBiddingRuleText(text: string): RuleValidationResult {
-  let rules: BiddingRule[];
-  try {
-    rules = parseBiddingRules(text);
-  } catch (error) {
-    return { ok: false, errors: [errorMessage(error)] };
+  const compiled = compileBiddingRules(text);
+  const errors = compiled.diagnostics
+    .filter((item) => item.severity === 'error')
+    .map((item) => `${item.code}: ${item.message}`);
+  if (!hasBiddingRuleErrors(compiled) && compiled.rules.length === 0) {
+    errors.push('规则文件没有可执行的叫牌规则');
   }
-  const errors: string[] = [];
-  rules.forEach((rule, index) => {
-    const label = rule.id ? `规则 ${rule.id}` : `第 ${index + 1} 条规则`;
-    if (!rule.id) errors.push(`${label}缺少 id`);
-    if (!rule.sequence) errors.push(`${label}缺少 sequence`);
-    if (!rule.action) errors.push(`${label}缺少 action`);
-    if (typeof rule.priority !== 'number') errors.push(`${label}的 priority 必须是数字`);
-  });
   return { ok: errors.length === 0, errors };
 }
 
@@ -308,9 +313,35 @@ export function resetSignalRuleText(name: string): void {
   writeOverrides(state);
 }
 
-/** 加载叫牌规则；name 省略时使用默认文件 */
-export function loadBiddingRules(name: string = DEFAULT_BIDDING_FILE): BiddingRule[] {
-  return parseBiddingRules(getBiddingRuleText(name));
+/**
+ * 加载叫牌规则集：legacy YAML / v0.5 DSL / v0.5 IR 统一编译。
+ *
+ * 返回的 `rules` 保持 IR 声明顺序，并携带编译器给出的 `specificity` 与
+ * `sourceIndex`；matcher 直接消费这两个字段，不再从扁平 `when` 重算。
+ */
+export function loadBiddingRuleSet(name: string = DEFAULT_BIDDING_FILE): BiddingRuleSet {
+  const set = compileBiddingRules(getBiddingRuleText(name), {
+    file: `src/rules/bidding/${name}.yml`,
+    source: name,
+  });
+  if (hasBiddingRuleErrors(set) || set.rules.length === 0) {
+    const reasons = set.diagnostics
+      .filter((item) => item.severity === 'error')
+      .map((item) => item.message);
+    throw new Error(
+      `叫牌规则 "${name}" 编译失败：${reasons.length > 0 ? reasons.join('；') : '没有可执行规则'}`,
+    );
+  }
+  return set;
+}
+
+/** 加载叫牌规则；name 省略时使用默认文件。返回按 priority 降序的兼容视图。 */
+export function loadBiddingRules(
+  name: string = DEFAULT_BIDDING_FILE,
+): BiddingRuleSet['rules'] {
+  return [...loadBiddingRuleSet(name).rules].sort(
+    (a, b) => b.priority - a.priority || a.sourceIndex - b.sourceIndex,
+  );
 }
 
 /** 加载首攻规则；name 省略时使用默认文件 */
@@ -327,11 +358,11 @@ export function loadSignalRules(name: string = DEFAULT_SIGNAL_FILE): SignalRuleS
  * 加载所有叫牌规则文件（键 = 逻辑名）。
  * 供规则配置面板枚举可选叫牌体系。
  */
-export function loadAllBiddingRuleSets(): Record<string, BiddingRule[]> {
-  const out: Record<string, BiddingRule[]> = {};
+export function loadAllBiddingRuleSets(): Record<string, BiddingRuleSet['rules']> {
+  const out: Record<string, BiddingRuleSet['rules']> = {};
   for (const [key] of Object.entries(biddingModules)) {
     const name = toName(key);
-    out[name] = parseBiddingRules(getBiddingRuleText(name));
+    out[name] = loadBiddingRules(name);
   }
   return out;
 }

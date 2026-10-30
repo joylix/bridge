@@ -35,6 +35,46 @@ npm test           # 运行全部单元 / 集成测试
 npm run typecheck  # 仅类型检查
 ```
 
+## 服务端（M5 骨架 + M6 账号 / 牌室 / Session）
+
+联网平台契约与工程骨架已落地，并提供账号注册登录、会话鉴权、牌室创建 / 列表 / 详情、加入 / 等候区 / 座位 / 举手、Session 创建 / 快照 / 开局前置校验；AI 补位、发牌、原子开局与实时对局随 M6 后续切片 / M7 接入。
+
+```bash
+npm run server:dev   # tsx watch 启动服务端（默认 127.0.0.1:3000）
+npm run server:start # 直接启动
+npm run db:migrate   # 执行 src/db/migrations（需 DATABASE_URL）
+```
+
+已实现 HTTP 端点：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/v1/auth/register` | 注册并建立 7 天会话 |
+| POST | `/api/v1/auth/login` | 登录；`rememberMe` 为 30 天 |
+| POST | `/api/v1/auth/logout` | 登出并撤销当前会话 |
+| GET | `/api/v1/auth/me` | 当前账号资料 |
+| POST | `/api/v1/rooms` | 创建牌室（`roomNature` 固化，室主自动入等候区） |
+| GET | `/api/v1/rooms` | 公开牌室列表 |
+| GET | `/api/v1/rooms/:roomId` | 牌室详情（成员与座位） |
+| POST | `/api/v1/rooms/:roomId/join` | 加入等候区（私有房校验密码） |
+| POST | `/api/v1/rooms/:roomId/leave` | 离开牌室并释放座位 |
+| POST | `/api/v1/rooms/:roomId/seat` | 落座 / 换座 |
+| POST | `/api/v1/rooms/:roomId/stand` | 离座并清除举手 |
+| POST | `/api/v1/rooms/:roomId/ready` | 举手 / 取消举手 |
+| POST | `/api/v1/rooms/:roomId/sessions` | 创建 / 复用准备中的 Session |
+| GET | `/api/v1/rooms/:roomId/sessions` | 牌室 Session 历史（室主 / 管理员） |
+| GET | `/api/v1/sessions/:sessionId` | Session 详情 |
+| GET | `/api/v1/sessions/:sessionId/precheck` | 开局前置校验 |
+| POST | `/api/v1/sessions/:sessionId/abort` | 取消准备中的 Session |
+
+登录态默认使用 `HttpOnly + SameSite=Lax` 的 `bridge_session` Cookie，也支持 `Authorization: Bearer`。生产环境设置 `COOKIE_SECURE=true`（`NODE_ENV=production` 时默认开启）。
+
+- M6 说明：`docs/m6-accounts-rooms.md`
+- 契约与运行说明：`docs/m5-platform-contracts.md`
+- ADR：`docs/adr/0004-room-nature-authorization.md`、`0006-transaction-boundaries.md`、`0007-projection.md`
+- 测试计划：`docs/test-plan.md`
+- HTTP 契约：`docs/openapi.yaml`
+
 ## 目录结构
 
 ```
@@ -109,7 +149,8 @@ scripts/
 叫牌进程条件由 `matcher` 从历史推断，不是手牌特征：
 `partnerCueBid` / `myCueBid` / `cueBidSuit` / `cueBidLevel`（扣叫上下文）/
 `partnerSuit` / `mySuit` / `partnerNaturalSuit` / `myNaturalSuit`（最后自然花色）/
-`partnerForcingNewSuit` / `myForcingNewSuit`（规则 id 以 `nat_` 开头的强自然新花）/
+`partnerForcingNewSuit` / `myForcingNewSuit`（该座位最后一次自然花色叫牌命中的规则
+同时带有 `natural` 与 `forcing` 标签；无 `tags` 的 legacy 手写规则回退 `nat_` 前缀）/
 `lastBidSuit` / `lastBidLevel` / `partnerBlackwood` / `myBlackwood` /
 `agreedSuit` / `combinedAces`（4NT 与 Blackwood 应答上下文）。
 

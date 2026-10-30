@@ -62,7 +62,7 @@ function toBidCell(rec: BidRecord | null, index: number, final = false): BidCell
           store.biddingHistory,
           store.hands[rec.position],
           store.styles[rec.position].bid,
-          store.biddingRules.rules,
+          store.activeBiddingRules,
         )
       : undefined;
 

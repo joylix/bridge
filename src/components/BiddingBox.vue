@@ -32,7 +32,7 @@ const turnCandidates = computed(() => {
     store.currentBidder,
     store.currentBid,
     store.styles[store.currentBidder].bid,
-    store.biddingRules.rules,
+    store.activeBiddingRules,
   );
 });
 

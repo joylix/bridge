@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bridge.local/schema/brules-ir-0.5.json",
+  "title": "BRULES v0.5 Rules IR",
+  "description": "叫牌规则的语义中间表示。YAML 与 BRULES DSL 都必须映射到本 Schema；语义分歧以本 IR 为准。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "kind", "system", "rules"],
+  "properties": {
+    "format": { "const": "bridge-rules-ir" },
+    "formatVersion": { "const": "0.5" },
+    "kind": { "const": "bidding" },
+    "system": { "$ref": "#/$defs/Identifier" },
+    "systemVersion": { "type": "string", "minLength": 1 },
+    "locale": { "type": "string" },
+    "author": { "type": "string" },
+    "source": { "type": "string" },
+    "defaults": { "$ref": "#/$defs/Defaults" },
+    "styleParams": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/StyleParam" }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Rule" }
+    },
+    "ext": { "$ref": "#/$defs/Ext" }
+  },
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+    },
+    "RuleId": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}(?:#[0-9]+)?$",
+      "description": "规则 id；ANY/ALL 展开产物可带 #1、#2 后缀，后缀不参与任何语义判断。"
+    },
+    "StyleParam": {
+      "type": "string",
+      "enum": [
+        "open1ntMin",
+        "open1ntMax",
+        "overcallMinHcp",
+        "preemptMinLen",
+        "inviteMinHcp",
+        "aggression"
+      ]
+    },
+    "Defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "priority": { "type": "integer" }
+      }
+    },
+    "Ext": {
+      "type": "object",
+      "propertyNames": { "pattern": "^ext\\.[A-Za-z][A-Za-z0-9_.-]*$" },
+      "additionalProperties": true
+    },
+    "Rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sequence", "when", "action", "priority"],
+      "properties": {
+        "id": { "$ref": "#/$defs/RuleId" },
+        "sequence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "从叫牌历史末尾对齐；^$ 表示尚无实质叫品，.* 表示任意历史。"
+        },
+        "when": { "$ref": "#/$defs/When" },
+        "action": { "$ref": "#/$defs/Call" },
+        "priority": { "type": "integer" },
+        "description": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Tag" }
+        },
+        "enabled": { "type": "boolean", "default": true },
+        "examples": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RuleExample" }
+        },
+        "specificity": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "源条件项数量，在 ALL / BAL_NO_5M 等展开前计算；缺省时按 when 的顶层键数计算。"
+        },
+        "source": { "$ref": "#/$defs/Source" },
+        "ext": { "$ref": "#/$defs/Ext" }
+      }
+    },
+    "When": {
+      "type": "object",
+      "description": "扁平 AND：每个属性是一个条件项。未登记的条件键必须使用 ext. 命名空间。",
+      "propertyNames": { "$ref": "#/$defs/ConditionKey" },
+      "additionalProperties": { "$ref": "#/$defs/ConditionValue" }
+    },
+    "ConditionKey": {
+      "type": "string",
+      "enum": [
+        "adjustedHcp",
+        "aces",
+        "agreedSuit",
+        "balanced",
+        "clubs",
+        "combinedAces",
+        "combinedHcp",
+        "controls",
+        "cueBidActive",
+        "cueBidLevel",
+        "cueBidSuit",
+        "cueBidSuitNot",
+        "cueSuitStopper",
+        "diamonds",
+        "doubletons",
+        "fiveCardMajor",
+        "fourCardMajor",
+        "hcp",
+        "hearts",
+        "kings",
+        "lastBidLevel",
+        "lastBidSuit",
+        "losers",
+        "myBlackwood",
+        "myCueBid",
+        "myForcingNewSuit",
+        "myNaturalSuit",
+        "mySuit",
+        "noLongSuit",
+        "noLongSuitExcept",
+        "openingSeat",
+        "opponentSuitFirstControl",
+        "opponentSuitNot",
+        "opponentSuitStopper",
+        "partnerBlackwood",
+        "partnerCueBid",
+        "partnerForcingNewSuit",
+        "partnerHcp",
+        "partnerNaturalSuit",
+        "partnerOpened",
+        "partnerSuit",
+        "shapeClass",
+        "singletons",
+        "solidSuit",
+        "spades",
+        "stoppers",
+        "voids"
+      ]
+    },
+    "ConditionValue": {
+      "anyOf": [
+        { "$ref": "#/$defs/NumRange" },
+        { "type": "boolean" },
+        { "$ref": "#/$defs/SuitLetters" },
+        { "$ref": "#/$defs/SuitOrNT" },
+        { "$ref": "#/$defs/ShapeClass" }
+      ]
+    },
+    "NumRange": {
+      "type": "string",
+      "description": "N、N-M、N+，端点含；允许 ${styleVar} 参与。语义校验拒绝 N-M+ 和 N<M。",
+      "pattern": "^(?:[0-9]+|\\$\\{[A-Za-z][A-Za-z0-9_]*\\})(?:-(?:[0-9]+|\\$\\{[A-Za-z][A-Za-z0-9_]*\\}))?\\+?$"
+    },
+    "SuitLetters": {
+      "type": "string",
+      "pattern": "^[CDHS]+$"
+    },
+    "SuitOrNT": {
+      "type": "string",
+      "enum": ["NT"],
+      "description": "只允许用于 lastBidSuit；其他单花色/花色集合键使用 NT 是语义错误。"
+    },
+    "ShapeClass": {
+      "type": "string",
+      "enum": ["BAL_ANY", "BAL_NO_5M", "SEMIBAL", "UNBAL"]
+    },
+    "Tag": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,31}$",
+      "description": "保留语义标签：natural、forcing。其他标签可自由使用，但不得改变条件语义。"
+    },
+    "Call": {
+      "type": "string",
+      "enum": [
+        "PASS", "X", "XX",
+        "1C", "1D", "1H", "1S", "1NT",
+        "2C", "2D", "2H", "2S", "2NT",
+        "3C", "3D", "3H", "3S", "3NT",
+        "4C", "4D", "4H", "4S", "4NT",
+        "5C", "5D", "5H", "5S", "5NT",
+        "6C", "6D", "6H", "6S", "6NT",
+        "7C", "7D", "7H", "7S", "7NT"
+      ]
+    },
+    "RuleExample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hand"],
+      "properties": {
+        "hand": {
+          "type": "string",
+          "minLength": 1,
+          "description": "紧凑手牌串或 PBN 单手牌；随规则携带的测试夹具。"
+        },
+        "auction": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Call" }
+        },
+        "expected": { "$ref": "#/$defs/Call" }
+      }
+    },
+    "Source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,378 @@
+{
+  "format": "bridge-rules-ir",
+  "formatVersion": "0.5",
+  "kind": "bidding",
+  "system": "natural",
+  "systemVersion": "0.5.0",
+  "styleParams": [
+    "open1ntMin",
+    "open1ntMax",
+    "overcallMinHcp"
+  ],
+  "source": "src/rules/bidding/natural.yml",
+  "rules": [
+    {
+      "sequence": "^$",
+      "action": "2C",
+      "priority": 100,
+      "description": "自然 2C 强开叫：22+ 或 9 赢张",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 7
+      },
+      "id": "open_2c_strong",
+      "when": {
+        "hcp": "22-40"
+      },
+      "specificity": 1
+    },
+    {
+      "sequence": "^$",
+      "action": "2NT",
+      "priority": 98,
+      "description": "2NT：20-21 均型",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 14
+      },
+      "id": "open_2nt",
+      "when": {
+        "hcp": "20-21",
+        "shapeClass": "BAL_NO_5M"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "1NT",
+      "priority": 95,
+      "description": "1NT：15-17 均型，区间随风格浮动",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 21
+      },
+      "id": "open_1nt",
+      "when": {
+        "hcp": "${open1ntMin}-${open1ntMax}",
+        "hearts": "0-4",
+        "shapeClass": "BAL_NO_5M",
+        "spades": "0-4"
+      },
+      "specificity": 4
+    },
+    {
+      "sequence": "^$",
+      "action": "1H",
+      "priority": 92,
+      "description": "1H：5+ 红桃，12+",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 28
+      },
+      "id": "open_1h",
+      "when": {
+        "hcp": "12-40",
+        "hearts": "5+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "1S",
+      "priority": 91,
+      "description": "1S：5+ 黑桃，12+",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 35
+      },
+      "id": "open_1s",
+      "when": {
+        "hcp": "12-40",
+        "spades": "5+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "1D",
+      "priority": 88,
+      "description": "1D：4+ 方块，12+",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 42
+      },
+      "id": "open_1d",
+      "when": {
+        "diamonds": "4+",
+        "hcp": "12-40"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "1C",
+      "priority": 85,
+      "description": "1C：4+ 梅花，12+（自然，非精确强开叫）",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 49
+      },
+      "id": "open_1c",
+      "when": {
+        "clubs": "4+",
+        "hcp": "12-21"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "2H",
+      "priority": 60,
+      "description": "弱二 2H：6-10，6 张红桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 56
+      },
+      "id": "open_weak2_h",
+      "when": {
+        "hcp": "6-10",
+        "hearts": "6+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "2S",
+      "priority": 59,
+      "description": "弱二 2S：6-10，6 张黑桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 63
+      },
+      "id": "open_weak2_s",
+      "when": {
+        "hcp": "6-10",
+        "spades": "6+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "2D",
+      "priority": 58,
+      "description": "弱二 2D：6-10，6 张方块",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 70
+      },
+      "id": "open_weak2_d",
+      "when": {
+        "diamonds": "6+",
+        "hcp": "6-10"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "^$",
+      "action": "2C",
+      "priority": 57,
+      "description": "弱二 2C 备选（当 2C 强开叫不适用时）",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 77
+      },
+      "id": "open_weak2_c",
+      "when": {
+        "clubs": "6+",
+        "hcp": "6-10"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "P:1NT R:PASS",
+      "action": "3NT",
+      "priority": 90,
+      "description": "1NT 后 3NT：10+",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 84
+      },
+      "id": "resp_1nt_3nt",
+      "when": {
+        "hcp": "10+"
+      },
+      "specificity": 1
+    },
+    {
+      "sequence": "P:1NT R:PASS",
+      "action": "2C",
+      "priority": 80,
+      "description": "1NT 后斯台曼 2C：8+，4+ 黑桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 91
+      },
+      "id": "resp_1nt_2c_stayman",
+      "when": {
+        "hcp": "8+",
+        "spades": "4+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "P:1NT R:PASS",
+      "action": "2D",
+      "priority": 78,
+      "description": "1NT 后转移 2D：8+，5+ 红桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 98
+      },
+      "id": "resp_1nt_2d_transfer",
+      "when": {
+        "hcp": "8+",
+        "hearts": "5+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "P:1H R:PASS",
+      "action": "2H",
+      "priority": 76,
+      "description": "高花开叫后弱加叫：3+ 支持，6-9",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 105
+      },
+      "id": "resp_major_raise_weak",
+      "when": {
+        "hcp": "6-9",
+        "hearts": "3+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "P:1H R:PASS",
+      "action": "3H",
+      "priority": 79,
+      "description": "高花开叫后邀叫加叫：3+ 支持，10-12",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 112
+      },
+      "id": "resp_major_raise_limit",
+      "when": {
+        "hcp": "10-12",
+        "hearts": "3+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "P:1S R:PASS",
+      "action": "2S",
+      "priority": 76,
+      "description": "1S 加叫：3+ 支持，6-10",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 119
+      },
+      "id": "resp_1s_raise",
+      "when": {
+        "hcp": "6-10",
+        "spades": "3+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "P:1S R:PASS",
+      "action": "1NT",
+      "priority": 60,
+      "description": "1S 后 1NT：6-10",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 126
+      },
+      "id": "resp_1s_1nt",
+      "when": {
+        "hcp": "6-10"
+      },
+      "specificity": 1
+    },
+    {
+      "sequence": "P:1H R:PASS",
+      "action": "1NT",
+      "priority": 60,
+      "description": "1H 后 1NT：6-10",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 133
+      },
+      "id": "resp_1h_1nt",
+      "when": {
+        "hcp": "6-10"
+      },
+      "specificity": 1
+    },
+    {
+      "sequence": "R:1D",
+      "action": "1S",
+      "priority": 70,
+      "description": "对 1C/1D/1H 争叫 1S：5+ 黑桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 140
+      },
+      "id": "overcall_1s",
+      "when": {
+        "hcp": "${overcallMinHcp}-18",
+        "spades": "5+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "R:1D",
+      "action": "1H",
+      "priority": 69,
+      "description": "对 1C/1D 争叫 1H：5+ 红桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 147
+      },
+      "id": "overcall_1h",
+      "when": {
+        "hcp": "${overcallMinHcp}-18",
+        "hearts": "5+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": "R:1H",
+      "action": "1S",
+      "priority": 70,
+      "description": "对 1H 争叫 1S：5+ 黑桃",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 154
+      },
+      "id": "overcall_1s_over_1h",
+      "when": {
+        "hcp": "${overcallMinHcp}-18",
+        "spades": "5+"
+      },
+      "specificity": 2
+    },
+    {
+      "sequence": ".*",
+      "action": "PASS",
+      "priority": 0,
+      "description": "兜底：Pass",
+      "source": {
+        "file": "src/rules/bidding/natural.yml",
+        "line": 161
+      },
+      "id": "natural_fallback_pass",
+      "when": {},
+      "specificity": 0
+    }
+  ]
+}

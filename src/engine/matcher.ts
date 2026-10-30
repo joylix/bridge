@@ -77,9 +77,28 @@ export function buildAdjustmentContext(
 }
 
 /**
+ * 判断某条历史叫牌规则是否表示“强自然新花”。
+ *
+ * v0.5 语义权威是 `tags`：同时含 `natural` 与 `forcing` 才成立。
+ * 没有 `tags` 字段的 legacy 手写规则回退到 `nat_` 前缀，保持旧规则兼容。
+ */
+function isForcingNewSuitRule(
+  ruleId: string | undefined,
+  rulesById: Map<string, BiddingRule>,
+): boolean {
+  if (!ruleId) return false;
+  const rule = rulesById.get(ruleId) as (BiddingRule & { tags?: readonly string[] }) | undefined;
+  if (Array.isArray(rule?.tags)) {
+    return rule.tags.includes('natural') && rule.tags.includes('forcing');
+  }
+  return ruleId.startsWith('nat_');
+}
+
+/**
  * 从叫牌历史推断“进程上下文”：
  * - 扣叫：叫了敌方此前已经叫过的花色；
- * - 自然新花：规则 id 以 nat_ 开头的强自然叫品；
+ * - 自然新花：该座位最后一次自然花色叫牌命中的规则同时带有
+ *   `natural` 与 `forcing` 标签；无 tags 的 legacy 手写规则回退 id 前缀；
  * - Blackwood：4NT 及同伴的 5C/5D/5H/5S 应答。
  *
  * 这些信息只服务于规则条件，不参与计分或调整点。
@@ -87,9 +106,14 @@ export function buildAdjustmentContext(
 export function buildAuctionContext(
   history: BidRecord[],
   currentPos: Position,
+  rules: readonly BiddingRule[] = [],
 ): Partial<ConditionContext> {
   const partnerPos = getPartner(currentPos);
   const opponentSuits = new Set<SuitIndex>();
+  const rulesById = new Map<string, BiddingRule>();
+  for (const rule of rules) {
+    if (!rulesById.has(rule.id)) rulesById.set(rule.id, rule);
+  }
 
   let myLastBidWasCue = false;
   let partnerLastBidWasCue = false;
@@ -173,8 +197,9 @@ export function buildAuctionContext(
     partnerNaturalSuit: partnerLastBidWasNaturalSuit,
     myNaturalSuit: myLastBidWasNaturalSuit,
     partnerForcingNewSuit:
-      partnerLastBidWasNaturalSuit && partnerLastBidRuleId?.startsWith('nat_') === true,
-    myForcingNewSuit: myLastBidWasNaturalSuit && myLastBidRuleId?.startsWith('nat_') === true,
+      partnerLastBidWasNaturalSuit && isForcingNewSuitRule(partnerLastBidRuleId, rulesById),
+    myForcingNewSuit:
+      myLastBidWasNaturalSuit && isForcingNewSuitRule(myLastBidRuleId, rulesById),
     lastBidSuit: lastBid?.suit,
     lastBidLevel: lastBid?.level,
     partnerBlackwood: partnerBlackwood && cueBidActive,
@@ -215,8 +240,28 @@ export function matchSequence(history: BidRecord[], pattern: string, me: Positio
 }
 
 /**
- * 返回全部合法候选，按 优先级↓ → 具体度↓ → 声明顺序 稳定排序。
+ * 编译后规则的可选裁决元数据。
+ *
+ * `BiddingRule` 契约保持冻结，因此这里只做结构化读取：v0.5 编译结果带
+ * `specificity` / `sourceIndex`，手写或 legacy 规则没有时回退到旧算法。
+ */
+type RankedRule = BiddingRule & {
+  specificity?: number;
+  sourceIndex?: number;
+};
+
+interface RankedCandidate extends BidCandidate {
+  /** 声明顺序；没有编译元数据时用输入数组下标。 */
+  sourceIndex: number;
+}
+
+/**
+ * 返回全部合法候选，按 优先级↓ → 具体度↓ → 声明顺序 排序。
  * 候选必须同时满足：序列匹配 + 条件成立 + 动作合法（关键修复：过滤非法动作）。
+ *
+ * Phase 3 起具体度优先读取编译器的 `specificity`（源条件项数量），声明顺序
+ * 优先读取 `sourceIndex`（IR 顺序）。这样 `BAL_NO_5M` 降解、`balanced:false`
+ * 拆分增加的扁平条件不会改变裁决结果。
  */
 export function findBidCandidates(
   hand: Hand,
@@ -235,7 +280,7 @@ export function findBidCandidates(
   const partnerHcpMin = inferPartnerHcpMin(history, partnerPos);
   const combinedHcpMin = partnerHcpMin === undefined ? undefined : hcp(hand) + partnerHcpMin;
   const adjustment = buildAdjustmentContext(history, currentPos);
-  const auctionContext = buildAuctionContext(history, currentPos);
+  const auctionContext = buildAuctionContext(history, currentPos, rules);
   const context: ConditionContext = {
     openingSeat,
     partnerOpened,
@@ -244,9 +289,10 @@ export function findBidCandidates(
     adjustment,
     ...auctionContext,
   };
-  const out: BidCandidate[] = [];
+  const out: RankedCandidate[] = [];
   const partnerFirstBid = history.find((r) => r.position === partnerPos && r.call.type === 'bid');
-  for (const rule of rules) {
+  for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex += 1) {
+    const rule = rules[ruleIndex];
     if (!matchSequence(history, rule.sequence, currentPos)) continue;
     const first = rule.sequence.trim().split(/\s+/)[0];
     const [firstSeat, firstCall] = splitToken(first);
@@ -268,8 +314,20 @@ export function findBidCandidates(
     if (!checkConditions(hand, rule.when, vars, context)) continue;
     const call = parseAction(rule.action);
     if (!isCallLegal(history, currentBid, currentPos, call)) continue; // 动作合法性过滤
-    out.push({ rule, call, specificity: conditionSpecificity(rule.when) });
+    const ranked = rule as RankedRule;
+    const specificity =
+      typeof ranked.specificity === 'number'
+        ? ranked.specificity
+        : conditionSpecificity(rule.when);
+    const sourceIndex =
+      typeof ranked.sourceIndex === 'number' ? ranked.sourceIndex : ruleIndex;
+    out.push({ rule, call, specificity, sourceIndex });
   }
-  // stable sort（Array.prototype.sort 在现代引擎中稳定）：
-  return out.sort((a, b) => b.rule.priority - a.rule.priority || b.specificity - a.specificity);
+  // 显式三段排序：优先级↓ → 源具体度↓ → 声明顺序↑。
+  return out.sort(
+    (a, b) =>
+      b.rule.priority - a.rule.priority ||
+      b.specificity - a.specificity ||
+      a.sourceIndex - b.sourceIndex,
+  );
 }
